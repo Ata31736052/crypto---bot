@@ -62,9 +62,18 @@
       "price": 9.16,
       "candle_time": "2026-09-29 19:00:00+00:00",
       "sent_at": "2026-09-29T22:34:19.020159+03:30"
+    },
+    "APT|SELL|2026-09-29 18:00:00+00:00": {
+      "symbol": "APT",
+      "signal": "SELL",
+      "score": 77,
+      "strength": "NORMAL",
+      "price": 0.7967,
+      "candle_time": "2026-09-29 18:00:00+00:00",
+      "sent_at": "2026-09-29T22:54:29.301565+03:30"
     }
   },
-  "total_scans": 1,
-  "total_signals": 7,
-  "last_scan": "2026-09-29T22:34:19.021144+03:30"
+  "total_scans": 2,
+  "total_signals": 8,
+  "last_scan": "2026-09-29T22:54:29.302420+03:30"
 }
