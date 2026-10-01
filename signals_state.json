@@ -557,9 +557,63 @@
       "price": 307.8,
       "candle_time": "2026-10-01 18:00:00+00:00",
       "sent_at": "2026-10-01T22:49:36.626269+03:30"
+    },
+    "SUI|BUY|TREND|2026-10-01 18:00:00+00:00": {
+      "symbol": "SUI",
+      "signal": "BUY",
+      "score": 76,
+      "strength": "NORMAL",
+      "price": 1.1663,
+      "candle_time": "2026-10-01 18:00:00+00:00",
+      "sent_at": "2026-10-01T22:57:54.080621+03:30"
+    },
+    "LTC|BUY|TREND|2026-10-01 18:00:00+00:00": {
+      "symbol": "LTC",
+      "signal": "BUY",
+      "score": 76,
+      "strength": "NORMAL",
+      "price": 67.54,
+      "candle_time": "2026-10-01 18:00:00+00:00",
+      "sent_at": "2026-10-01T22:57:54.306178+03:30"
+    },
+    "PEPE|BUY|TREND|2026-10-01 18:00:00+00:00": {
+      "symbol": "PEPE",
+      "signal": "BUY",
+      "score": 75,
+      "strength": "NORMAL",
+      "price": 4.41e-06,
+      "candle_time": "2026-10-01 18:00:00+00:00",
+      "sent_at": "2026-10-01T22:57:54.557584+03:30"
+    },
+    "TRB|BUY|TREND|2026-10-01 18:00:00+00:00": {
+      "symbol": "TRB",
+      "signal": "BUY",
+      "score": 73,
+      "strength": "NORMAL",
+      "price": 21.02,
+      "candle_time": "2026-10-01 18:00:00+00:00",
+      "sent_at": "2026-10-01T22:57:54.793741+03:30"
+    },
+    "MOVE|BUY|TREND|2026-10-01 18:00:00+00:00": {
+      "symbol": "MOVE",
+      "signal": "BUY",
+      "score": 73,
+      "strength": "NORMAL",
+      "price": 0.010647,
+      "candle_time": "2026-10-01 18:00:00+00:00",
+      "sent_at": "2026-10-01T22:57:55.042747+03:30"
+    },
+    "POL|BUY|BOTTOM_HUNTER|2026-10-01 18:00:00+00:00": {
+      "symbol": "POL",
+      "signal": "BUY",
+      "score": 81,
+      "strength": "EARLY REVERSAL",
+      "price": 0.10728,
+      "candle_time": "2026-10-01 18:00:00+00:00",
+      "sent_at": "2026-10-01T22:57:55.284196+03:30"
     }
   },
-  "total_scans": 19,
-  "total_signals": 62,
-  "last_scan": "2026-10-01T22:49:36.628157+03:30"
+  "total_scans": 20,
+  "total_signals": 68,
+  "last_scan": "2026-10-01T22:57:55.286427+03:30"
 }
