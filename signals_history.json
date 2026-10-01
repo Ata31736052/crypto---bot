@@ -238,5 +238,63 @@
       "BTC bullish",
       "Bullish price structure"
     ]
+  },
+  {
+    "timestamp": "2026-10-01T21:49:55.582854+03:30",
+    "symbol": "AVAX",
+    "signal": "BUY",
+    "score": 85,
+    "strength": "EARLY REVERSAL",
+    "price": 10.946,
+    "entry": 10.946,
+    "stop_loss": 10.714636810035492,
+    "tp1": 11.316181103943213,
+    "tp2": 11.593816931900623,
+    "rsi": 46.829031522277475,
+    "adx": 16.62836121401542,
+    "volume_ratio": 1.282714900485236,
+    "atr_percent": 1.4091186428193478,
+    "btc_regime": "BULLISH",
+    "candle_time": "2026-10-01 17:00:00+00:00",
+    "reasons": [
+      "Close to recent low (6.60% above)",
+      "RSI recovering (36.3 -> 46.8)",
+      "RSI bullish divergence",
+      "MACD bullish divergence",
+      "MACD histogram improving",
+      "Price near Fibonacci 0.618/0.786 zone",
+      "Volume expansion (1.28x)",
+      "Bullish 1H candle",
+      "Price reclaimed previous close",
+      "BTC regime not strongly bearish"
+    ]
+  },
+  {
+    "timestamp": "2026-10-01T21:49:55.720396+03:30",
+    "symbol": "ALGO",
+    "signal": "BUY",
+    "score": 70,
+    "strength": "EARLY REVERSAL",
+    "price": 0.1249,
+    "entry": 0.1249,
+    "stop_loss": 0.12158502095998432,
+    "tp1": 0.1302039664640251,
+    "tp2": 0.13418194131204392,
+    "rsi": 46.69848757903591,
+    "adx": 15.455530452398278,
+    "volume_ratio": 0.4864770012821161,
+    "atr_percent": 1.7694043448175507,
+    "btc_regime": "BULLISH",
+    "candle_time": "2026-10-01 17:00:00+00:00",
+    "reasons": [
+      "Near 72H low (2.04% above)",
+      "RSI recovering (39.4 -> 46.7)",
+      "MACD histogram improving",
+      "Price near Fibonacci 0.618/0.786 zone",
+      "Bullish 1H candle",
+      "Price reclaimed previous close",
+      "30M reversal confirmation",
+      "BTC regime not strongly bearish"
+    ]
   }
 ]
