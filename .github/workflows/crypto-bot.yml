@@ -23,10 +23,10 @@ jobs:
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
-      # GitHub فقط یک اسکن انجام می‌دهد
+      # GitHub در هر اجرا فقط یک اسکن انجام می‌دهد
       RUN_ONCE: '1'
 
-      # پیام تست هنگام شروع ارسال نشود
+      # پیام تست Telegram ارسال نشود
       TELEGRAM_TEST_ON_START: '0'
 
       TZ: Asia/Tehran
@@ -35,7 +35,7 @@ jobs:
     steps:
 
       # ==========================================
-      # 1. دریافت کد مخزن
+      # 1. دریافت آخرین کد
       # ==========================================
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -53,7 +53,7 @@ jobs:
           cache-dependency-path: requirements.txt
 
       # ==========================================
-      # 3. نصب کتابخانه‌ها
+      # 3. نصب وابستگی‌ها
       # ==========================================
       - name: Install dependencies
         run: |
@@ -61,14 +61,22 @@ jobs:
           pip install -r requirements.txt
 
       # ==========================================
-      # 4. اجرای ربات
+      # 4. بررسی Syntax قبل از اجرای ربات
+      # ==========================================
+      - name: Check Python syntax
+        run: |
+          python -m py_compile main.py
+          echo "Python syntax: OK"
+
+      # ==========================================
+      # 5. اجرای اسکن
       # ==========================================
       - name: Run 1H Trend + Bottom Hunter scanner
         run: |
           python main.py
 
       # ==========================================
-      # 5. ذخیره State و History
+      # 6. ذخیره State و History
       # ==========================================
       - name: Commit signal state
         run: |
