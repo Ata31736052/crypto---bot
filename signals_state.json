@@ -512,9 +512,36 @@
       "price": 1.4974,
       "candle_time": "2026-10-01 18:00:00+00:00",
       "sent_at": "2026-10-01T22:33:17.871104+03:30"
+    },
+    "DOGE|BUY|BOTTOM_HUNTER|2026-10-01 18:00:00+00:00": {
+      "symbol": "DOGE",
+      "signal": "BUY",
+      "score": 95,
+      "strength": "EARLY REVERSAL",
+      "price": 0.09517,
+      "candle_time": "2026-10-01 18:00:00+00:00",
+      "sent_at": "2026-10-01T22:40:32.935383+03:30"
+    },
+    "DOT|BUY|BOTTOM_HUNTER|2026-10-01 18:00:00+00:00": {
+      "symbol": "DOT",
+      "signal": "BUY",
+      "score": 95,
+      "strength": "EARLY REVERSAL",
+      "price": 1.185,
+      "candle_time": "2026-10-01 18:00:00+00:00",
+      "sent_at": "2026-10-01T22:40:33.123984+03:30"
+    },
+    "LTC|BUY|BOTTOM_HUNTER|2026-10-01 18:00:00+00:00": {
+      "symbol": "LTC",
+      "signal": "BUY",
+      "score": 94,
+      "strength": "EARLY REVERSAL",
+      "price": 68.01,
+      "candle_time": "2026-10-01 18:00:00+00:00",
+      "sent_at": "2026-10-01T22:40:33.335701+03:30"
     }
   },
-  "total_scans": 17,
-  "total_signals": 57,
-  "last_scan": "2026-10-01T22:33:17.872922+03:30"
+  "total_scans": 18,
+  "total_signals": 60,
+  "last_scan": "2026-10-01T22:40:33.337551+03:30"
 }
