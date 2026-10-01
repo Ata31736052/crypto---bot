@@ -296,5 +296,67 @@
       "30M reversal confirmation",
       "BTC regime not strongly bearish"
     ]
+  },
+  {
+    "timestamp": "2026-10-01T22:11:07.049399+03:30",
+    "symbol": "SOL",
+    "signal": "BUY",
+    "score": 100,
+    "strength": "EARLY REVERSAL",
+    "price": 118.71,
+    "entry": 118.71,
+    "stop_loss": 115.7384,
+    "tp1": 123.46455999999999,
+    "tp2": 127.03047999999998,
+    "rsi": 51.11799548001228,
+    "adx": 14.657127288384176,
+    "volume_ratio": 2.2952677337502587,
+    "atr_percent": 0.9572833372878281,
+    "btc_regime": "BULLISH",
+    "candle_time": "2026-10-01 17:00:00+00:00",
+    "reasons": [
+      "Near 72H low (1.75% above)",
+      "RSI recovering (41.3 -> 51.1)",
+      "RSI bullish divergence",
+      "MACD bullish divergence",
+      "MACD histogram improving",
+      "Price near Fibonacci 0.618/0.786 zone",
+      "Volume expansion (2.30x)",
+      "Bullish 1H candle",
+      "Price reclaimed previous close",
+      "30M reversal confirmation",
+      "BTC regime not strongly bearish"
+    ]
+  },
+  {
+    "timestamp": "2026-10-01T22:11:07.198151+03:30",
+    "symbol": "DOGE",
+    "signal": "BUY",
+    "score": 100,
+    "strength": "EARLY REVERSAL",
+    "price": 0.09517,
+    "entry": 0.09517,
+    "stop_loss": 0.0913211,
+    "tp1": 0.10132824000000001,
+    "tp2": 0.10594692000000001,
+    "rsi": 52.35345197620156,
+    "adx": 19.391990644938545,
+    "volume_ratio": 1.5219978881670961,
+    "atr_percent": 1.0841051164138615,
+    "btc_regime": "BULLISH",
+    "candle_time": "2026-10-01 17:00:00+00:00",
+    "reasons": [
+      "Near 72H low (3.44% above)",
+      "RSI recovering (41.2 -> 52.4)",
+      "RSI bullish divergence",
+      "MACD bullish divergence",
+      "MACD histogram improving",
+      "Price near Fibonacci 0.618/0.786 zone",
+      "Volume expansion (1.52x)",
+      "Bullish 1H candle",
+      "Price reclaimed previous close",
+      "30M reversal confirmation",
+      "BTC regime not strongly bearish"
+    ]
   }
 ]
