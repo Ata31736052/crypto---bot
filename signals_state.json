@@ -323,9 +323,63 @@
       "price": 1411.0,
       "candle_time": "2026-10-01 08:00:00+00:00",
       "sent_at": "2026-10-01T12:59:30.078314+03:30"
+    },
+    "ARB|SELL|2026-10-01 09:00:00+00:00": {
+      "symbol": "ARB",
+      "signal": "SELL",
+      "score": 77,
+      "strength": "NORMAL",
+      "price": 0.1991,
+      "candle_time": "2026-10-01 09:00:00+00:00",
+      "sent_at": "2026-10-01T14:27:39.541630+03:30"
+    },
+    "EIGEN|SELL|2026-10-01 09:00:00+00:00": {
+      "symbol": "EIGEN",
+      "signal": "SELL",
+      "score": 77,
+      "strength": "NORMAL",
+      "price": 0.2433,
+      "candle_time": "2026-10-01 09:00:00+00:00",
+      "sent_at": "2026-10-01T14:27:39.729854+03:30"
+    },
+    "SOL|SELL|2026-10-01 09:00:00+00:00": {
+      "symbol": "SOL",
+      "signal": "SELL",
+      "score": 75,
+      "strength": "NORMAL",
+      "price": 117.7,
+      "candle_time": "2026-10-01 09:00:00+00:00",
+      "sent_at": "2026-10-01T14:27:39.967324+03:30"
+    },
+    "FIL|SELL|2026-10-01 09:00:00+00:00": {
+      "symbol": "FIL",
+      "signal": "SELL",
+      "score": 75,
+      "strength": "NORMAL",
+      "price": 1.0263,
+      "candle_time": "2026-10-01 09:00:00+00:00",
+      "sent_at": "2026-10-01T14:27:40.191077+03:30"
+    },
+    "DASH|SELL|2026-10-01 09:00:00+00:00": {
+      "symbol": "DASH",
+      "signal": "SELL",
+      "score": 75,
+      "strength": "NORMAL",
+      "price": 59.7,
+      "candle_time": "2026-10-01 09:00:00+00:00",
+      "sent_at": "2026-10-01T14:27:40.537535+03:30"
+    },
+    "AAVE|BUY|2026-10-01 09:00:00+00:00": {
+      "symbol": "AAVE",
+      "signal": "BUY",
+      "score": 74,
+      "strength": "NORMAL",
+      "price": 164.65,
+      "candle_time": "2026-10-01 09:00:00+00:00",
+      "sent_at": "2026-10-01T14:27:40.747720+03:30"
     }
   },
-  "total_scans": 9,
-  "total_signals": 36,
-  "last_scan": "2026-10-01T12:59:30.079714+03:30"
+  "total_scans": 10,
+  "total_signals": 42,
+  "last_scan": "2026-10-01T14:27:40.749160+03:30"
 }
