@@ -22,17 +22,29 @@ jobs:
     env:
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      # GitHub فقط یک اسکن انجام می‌دهد
       RUN_ONCE: '1'
+
+      # پیام تست هنگام شروع ارسال نشود
       TELEGRAM_TEST_ON_START: '0'
+
       TZ: Asia/Tehran
       PYTHONUNBUFFERED: '1'
 
     steps:
+
+      # ==========================================
+      # 1. دریافت کد مخزن
+      # ==========================================
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
+      # ==========================================
+      # 2. نصب Python
+      # ==========================================
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -40,18 +52,29 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.txt
 
+      # ==========================================
+      # 3. نصب کتابخانه‌ها
+      # ==========================================
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # ==========================================
+      # 4. اجرای ربات
+      # ==========================================
       - name: Run 1H Trend + Bottom Hunter scanner
-        run: python main.py
+        run: |
+          python main.py
 
+      # ==========================================
+      # 5. ذخیره State و History
+      # ==========================================
       - name: Commit signal state
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
           git add signals_state.json signals_history.json 2>/dev/null || true
 
           if git diff --cached --quiet; then
