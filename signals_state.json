@@ -611,9 +611,27 @@
       "price": 0.10728,
       "candle_time": "2026-10-01 18:00:00+00:00",
       "sent_at": "2026-10-01T22:57:55.284196+03:30"
+    },
+    "BTC|BUY|TREND|2026-10-01 18:00:00+00:00": {
+      "symbol": "BTC",
+      "signal": "BUY",
+      "score": 80,
+      "strength": "STRONG",
+      "price": 84742.01,
+      "candle_time": "2026-10-01 18:00:00+00:00",
+      "sent_at": "2026-10-01T23:05:23.724652+03:30"
+    },
+    "AAVE|BUY|TREND|2026-10-01 18:00:00+00:00": {
+      "symbol": "AAVE",
+      "signal": "BUY",
+      "score": 80,
+      "strength": "STRONG",
+      "price": 167.37,
+      "candle_time": "2026-10-01 18:00:00+00:00",
+      "sent_at": "2026-10-01T23:05:23.986373+03:30"
     }
   },
-  "total_scans": 20,
-  "total_signals": 68,
-  "last_scan": "2026-10-01T22:57:55.286427+03:30"
+  "total_scans": 21,
+  "total_signals": 70,
+  "last_scan": "2026-10-01T23:05:24.036344+03:30"
 }
