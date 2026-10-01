@@ -224,9 +224,108 @@
       "price": 0.2274,
       "candle_time": "2026-10-01 02:00:00+00:00",
       "sent_at": "2026-10-01T07:11:34.436090+03:30"
+    },
+    "STX|BUY|2026-10-01 08:00:00+00:00": {
+      "symbol": "STX",
+      "signal": "BUY",
+      "score": 80,
+      "strength": "NORMAL",
+      "price": 0.3933,
+      "candle_time": "2026-10-01 08:00:00+00:00",
+      "sent_at": "2026-10-01T12:59:27.701759+03:30"
+    },
+    "VIRTUAL|BUY|2026-10-01 08:00:00+00:00": {
+      "symbol": "VIRTUAL",
+      "signal": "BUY",
+      "score": 80,
+      "strength": "NORMAL",
+      "price": 0.8097,
+      "candle_time": "2026-10-01 08:00:00+00:00",
+      "sent_at": "2026-10-01T12:59:27.910971+03:30"
+    },
+    "BTC|SELL|2026-10-01 08:00:00+00:00": {
+      "symbol": "BTC",
+      "signal": "SELL",
+      "score": 79,
+      "strength": "NORMAL",
+      "price": 83566.97,
+      "candle_time": "2026-10-01 08:00:00+00:00",
+      "sent_at": "2026-10-01T12:59:28.118144+03:30"
+    },
+    "AVAX|BUY|2026-10-01 08:00:00+00:00": {
+      "symbol": "AVAX",
+      "signal": "BUY",
+      "score": 79,
+      "strength": "NORMAL",
+      "price": 11.126,
+      "candle_time": "2026-10-01 08:00:00+00:00",
+      "sent_at": "2026-10-01T12:59:28.340803+03:30"
+    },
+    "AAVE|BUY|2026-10-01 08:00:00+00:00": {
+      "symbol": "AAVE",
+      "signal": "BUY",
+      "score": 79,
+      "strength": "NORMAL",
+      "price": 165.65,
+      "candle_time": "2026-10-01 08:00:00+00:00",
+      "sent_at": "2026-10-01T12:59:28.626172+03:30"
+    },
+    "FET|BUY|2026-10-01 08:00:00+00:00": {
+      "symbol": "FET",
+      "signal": "BUY",
+      "score": 77,
+      "strength": "NORMAL",
+      "price": 0.2342,
+      "candle_time": "2026-10-01 08:00:00+00:00",
+      "sent_at": "2026-10-01T12:59:28.862054+03:30"
+    },
+    "FIL|SELL|2026-10-01 08:00:00+00:00": {
+      "symbol": "FIL",
+      "signal": "SELL",
+      "score": 75,
+      "strength": "NORMAL",
+      "price": 1.0284,
+      "candle_time": "2026-10-01 08:00:00+00:00",
+      "sent_at": "2026-10-01T12:59:29.080051+03:30"
+    },
+    "CAKE|SELL|2026-10-01 08:00:00+00:00": {
+      "symbol": "CAKE",
+      "signal": "SELL",
+      "score": 75,
+      "strength": "NORMAL",
+      "price": 2.597,
+      "candle_time": "2026-10-01 08:00:00+00:00",
+      "sent_at": "2026-10-01T12:59:29.372315+03:30"
+    },
+    "XRP|SELL|2026-10-01 08:00:00+00:00": {
+      "symbol": "XRP",
+      "signal": "SELL",
+      "score": 73,
+      "strength": "NORMAL",
+      "price": 1.4878,
+      "candle_time": "2026-10-01 08:00:00+00:00",
+      "sent_at": "2026-10-01T12:59:29.620898+03:30"
+    },
+    "SOL|SELL|2026-10-01 08:00:00+00:00": {
+      "symbol": "SOL",
+      "signal": "SELL",
+      "score": 71,
+      "strength": "NORMAL",
+      "price": 117.91,
+      "candle_time": "2026-10-01 08:00:00+00:00",
+      "sent_at": "2026-10-01T12:59:29.850556+03:30"
+    },
+    "ZEC|SELL|2026-10-01 08:00:00+00:00": {
+      "symbol": "ZEC",
+      "signal": "SELL",
+      "score": 70,
+      "strength": "NORMAL",
+      "price": 1411.0,
+      "candle_time": "2026-10-01 08:00:00+00:00",
+      "sent_at": "2026-10-01T12:59:30.078314+03:30"
     }
   },
-  "total_scans": 8,
-  "total_signals": 25,
-  "last_scan": "2026-10-01T07:11:34.437177+03:30"
+  "total_scans": 9,
+  "total_signals": 36,
+  "last_scan": "2026-10-01T12:59:30.079714+03:30"
 }
