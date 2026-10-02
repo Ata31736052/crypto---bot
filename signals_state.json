@@ -1187,9 +1187,36 @@
       "price": 14.568,
       "candle_time": "2026-10-01 00:00:00+00:00",
       "sent_at": "2026-10-02T08:42:08.260809+03:30"
+    },
+    "FET|BUY|TREND|1h|2026-10-02 04:00:00+00:00": {
+      "symbol": "FET",
+      "signal": "BUY",
+      "score": 87,
+      "strength": "NORMAL",
+      "price": 0.2372,
+      "candle_time": "2026-10-02 04:00:00+00:00",
+      "sent_at": "2026-10-02T09:04:03.079524+03:30"
+    },
+    "DOGE|BUY|BOTTOM_HUNTER|1h|2026-10-02 04:00:00+00:00": {
+      "symbol": "DOGE",
+      "signal": "BUY",
+      "score": 84,
+      "strength": "EARLY REVERSAL",
+      "price": 0.09629,
+      "candle_time": "2026-10-02 04:00:00+00:00",
+      "sent_at": "2026-10-02T09:04:03.266118+03:30"
+    },
+    "JASMY|BUY|4H_SIGNAL|4h|2026-10-02 00:00:00+00:00": {
+      "symbol": "JASMY",
+      "signal": "BUY",
+      "score": 71,
+      "strength": "NORMAL",
+      "price": 0.00563,
+      "candle_time": "2026-10-02 00:00:00+00:00",
+      "sent_at": "2026-10-02T09:04:03.440747+03:30"
     }
   },
-  "total_scans": 34,
-  "total_signals": 132,
-  "last_scan": "2026-10-02T08:42:08.265061+03:30"
+  "total_scans": 35,
+  "total_signals": 135,
+  "last_scan": "2026-10-02T09:04:03.445129+03:30"
 }
