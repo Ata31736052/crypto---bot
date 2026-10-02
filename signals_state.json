@@ -1610,9 +1610,63 @@
       "price": 779.68,
       "candle_time": "2026-10-02 04:00:00+00:00",
       "sent_at": "2026-10-02T12:02:07.514487+03:30"
+    },
+    "FIL|BUY|BOTTOM_HUNTER|1h|2026-10-02 07:00:00+00:00": {
+      "symbol": "FIL",
+      "signal": "BUY",
+      "score": 93,
+      "strength": "EARLY REVERSAL",
+      "price": 1.0399,
+      "candle_time": "2026-10-02 07:00:00+00:00",
+      "sent_at": "2026-10-02T12:14:16.302238+03:30"
+    },
+    "ETH|BUY|BOTTOM_HUNTER|1h|2026-10-02 07:00:00+00:00": {
+      "symbol": "ETH",
+      "signal": "BUY",
+      "score": 89,
+      "strength": "EARLY REVERSAL",
+      "price": 2760.87,
+      "candle_time": "2026-10-02 07:00:00+00:00",
+      "sent_at": "2026-10-02T12:14:16.450559+03:30"
+    },
+    "MORPHO|BUY|TREND|1h|2026-10-02 07:00:00+00:00": {
+      "symbol": "MORPHO",
+      "signal": "BUY",
+      "score": 88,
+      "strength": "STRONG",
+      "price": 2.626,
+      "candle_time": "2026-10-02 07:00:00+00:00",
+      "sent_at": "2026-10-02T12:14:16.599875+03:30"
+    },
+    "XRP|BUY|BOTTOM_HUNTER|1h|2026-10-02 07:00:00+00:00": {
+      "symbol": "XRP",
+      "signal": "BUY",
+      "score": 88,
+      "strength": "EARLY REVERSAL",
+      "price": 1.54,
+      "candle_time": "2026-10-02 07:00:00+00:00",
+      "sent_at": "2026-10-02T12:14:16.739223+03:30"
+    },
+    "FET|BUY|TREND|1h|2026-10-02 07:00:00+00:00": {
+      "symbol": "FET",
+      "signal": "BUY",
+      "score": 86,
+      "strength": "NORMAL",
+      "price": 0.2366,
+      "candle_time": "2026-10-02 07:00:00+00:00",
+      "sent_at": "2026-10-02T12:14:16.875769+03:30"
+    },
+    "LTC|BUY|4H_SIGNAL|4h|2026-10-02 04:00:00+00:00": {
+      "symbol": "LTC",
+      "signal": "BUY",
+      "score": 73,
+      "strength": "NORMAL",
+      "price": 70.58,
+      "candle_time": "2026-10-02 04:00:00+00:00",
+      "sent_at": "2026-10-02T12:14:17.020370+03:30"
     }
   },
-  "total_scans": 42,
-  "total_signals": 179,
-  "last_scan": "2026-10-02T12:02:07.519752+03:30"
+  "total_scans": 43,
+  "total_signals": 185,
+  "last_scan": "2026-10-02T12:14:17.026476+03:30"
 }
