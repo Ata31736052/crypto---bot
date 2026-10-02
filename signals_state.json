@@ -1664,9 +1664,27 @@
       "price": 70.58,
       "candle_time": "2026-10-02 04:00:00+00:00",
       "sent_at": "2026-10-02T12:14:17.020370+03:30"
+    },
+    "HBAR|BUY|BOTTOM_HUNTER|1h|2026-10-02 07:00:00+00:00": {
+      "symbol": "HBAR",
+      "signal": "BUY",
+      "score": 88,
+      "strength": "EARLY REVERSAL",
+      "price": 0.10499,
+      "candle_time": "2026-10-02 07:00:00+00:00",
+      "sent_at": "2026-10-02T12:21:20.728486+03:30"
+    },
+    "ARB|BUY|BOTTOM_HUNTER|1h|2026-10-02 07:00:00+00:00": {
+      "symbol": "ARB",
+      "signal": "BUY",
+      "score": 83,
+      "strength": "EARLY REVERSAL",
+      "price": 0.2058,
+      "candle_time": "2026-10-02 07:00:00+00:00",
+      "sent_at": "2026-10-02T12:21:20.972062+03:30"
     }
   },
-  "total_scans": 43,
-  "total_signals": 185,
-  "last_scan": "2026-10-02T12:14:17.026476+03:30"
+  "total_scans": 44,
+  "total_signals": 187,
+  "last_scan": "2026-10-02T12:21:20.978349+03:30"
 }
