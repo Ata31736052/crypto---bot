@@ -1268,9 +1268,126 @@
       "price": 0.2516,
       "candle_time": "2026-10-02 04:00:00+00:00",
       "sent_at": "2026-10-02T09:19:14.450650+03:30"
+    },
+    "ADA|BUY|TREND|1h|2026-10-02 05:00:00+00:00": {
+      "symbol": "ADA",
+      "signal": "BUY",
+      "score": 96,
+      "strength": "NORMAL",
+      "price": 0.2552,
+      "candle_time": "2026-10-02 05:00:00+00:00",
+      "sent_at": "2026-10-02T10:07:11.786420+03:30"
+    },
+    "DOGE|BUY|TREND|1h|2026-10-02 05:00:00+00:00": {
+      "symbol": "DOGE",
+      "signal": "BUY",
+      "score": 93,
+      "strength": "STRONG",
+      "price": 0.09593,
+      "candle_time": "2026-10-02 05:00:00+00:00",
+      "sent_at": "2026-10-02T10:07:11.960043+03:30"
+    },
+    "AAVE|BUY|TREND|1h|2026-10-02 05:00:00+00:00": {
+      "symbol": "AAVE",
+      "signal": "BUY",
+      "score": 92,
+      "strength": "STRONG",
+      "price": 184.15,
+      "candle_time": "2026-10-02 05:00:00+00:00",
+      "sent_at": "2026-10-02T10:07:12.158083+03:30"
+    },
+    "LTC|BUY|BOTTOM_HUNTER|1h|2026-10-02 05:00:00+00:00": {
+      "symbol": "LTC",
+      "signal": "BUY",
+      "score": 89,
+      "strength": "EARLY REVERSAL",
+      "price": 69.96,
+      "candle_time": "2026-10-02 05:00:00+00:00",
+      "sent_at": "2026-10-02T10:07:12.348312+03:30"
+    },
+    "DOT|BUY|TREND|1h|2026-10-02 05:00:00+00:00": {
+      "symbol": "DOT",
+      "signal": "BUY",
+      "score": 86,
+      "strength": "STRONG",
+      "price": 1.219,
+      "candle_time": "2026-10-02 05:00:00+00:00",
+      "sent_at": "2026-10-02T10:07:12.535075+03:30"
+    },
+    "AVAX|BUY|TREND|1h|2026-10-02 05:00:00+00:00": {
+      "symbol": "AVAX",
+      "signal": "BUY",
+      "score": 86,
+      "strength": "NORMAL",
+      "price": 11.087,
+      "candle_time": "2026-10-02 05:00:00+00:00",
+      "sent_at": "2026-10-02T10:07:12.711646+03:30"
+    },
+    "WLD|BUY|TREND|1h|2026-10-02 05:00:00+00:00": {
+      "symbol": "WLD",
+      "signal": "BUY",
+      "score": 84,
+      "strength": "STRONG",
+      "price": 0.5393,
+      "candle_time": "2026-10-02 05:00:00+00:00",
+      "sent_at": "2026-10-02T10:07:12.885638+03:30"
+    },
+    "APT|BUY|TREND|1h|2026-10-02 05:00:00+00:00": {
+      "symbol": "APT",
+      "signal": "BUY",
+      "score": 83,
+      "strength": "STRONG",
+      "price": 0.8229,
+      "candle_time": "2026-10-02 05:00:00+00:00",
+      "sent_at": "2026-10-02T10:07:13.080407+03:30"
+    },
+    "SOL|BUY|BOTTOM_HUNTER|1h|2026-10-02 05:00:00+00:00": {
+      "symbol": "SOL",
+      "signal": "BUY",
+      "score": 82,
+      "strength": "EARLY REVERSAL",
+      "price": 121.71,
+      "candle_time": "2026-10-02 05:00:00+00:00",
+      "sent_at": "2026-10-02T10:07:13.252947+03:30"
+    },
+    "OP|BUY|BOTTOM_HUNTER|1h|2026-10-02 05:00:00+00:00": {
+      "symbol": "OP",
+      "signal": "BUY",
+      "score": 82,
+      "strength": "EARLY REVERSAL",
+      "price": 0.1317,
+      "candle_time": "2026-10-02 05:00:00+00:00",
+      "sent_at": "2026-10-02T10:07:13.424371+03:30"
+    },
+    "TRUMP|BUY|TREND|1h|2026-10-02 05:00:00+00:00": {
+      "symbol": "TRUMP",
+      "signal": "BUY",
+      "score": 80,
+      "strength": "NORMAL",
+      "price": 2.101,
+      "candle_time": "2026-10-02 05:00:00+00:00",
+      "sent_at": "2026-10-02T10:07:13.603323+03:30"
+    },
+    "EIGEN|BUY|TREND|1h|2026-10-02 05:00:00+00:00": {
+      "symbol": "EIGEN",
+      "signal": "BUY",
+      "score": 78,
+      "strength": "NORMAL",
+      "price": 0.2537,
+      "candle_time": "2026-10-02 05:00:00+00:00",
+      "sent_at": "2026-10-02T10:07:13.778773+03:30"
+    },
+    "FET|BUY|DAILY_SIGNAL|1d|2026-10-01 00:00:00+00:00": {
+      "symbol": "FET",
+      "signal": "BUY",
+      "score": 70,
+      "strength": "NORMAL",
+      "price": 0.2366,
+      "candle_time": "2026-10-01 00:00:00+00:00",
+      "sent_at": "2026-10-02T10:07:13.963348+03:30"
     }
   },
-  "total_scans": 38,
-  "total_signals": 141,
-  "last_scan": "2026-10-02T09:27:41.309762+03:30"
+  "total_scans": 39,
+  "total_signals": 154,
+  "last_scan": "2026-10-02T10:07:13.969247+03:30"
 }
