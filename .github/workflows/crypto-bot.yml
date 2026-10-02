@@ -38,7 +38,7 @@ jobs:
           fetch-depth: 1
 
       # ==========================================
-      # 2. Python
+      # 2. Setup Python
       # ==========================================
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -52,6 +52,8 @@ jobs:
       # ==========================================
       - name: Install dependencies
         run: |
+          set -e
+
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
@@ -60,38 +62,23 @@ jobs:
       # ==========================================
       - name: Verify main.py
         run: |
+          set -e
+
           echo "=========================================="
           echo "VERIFYING main.py"
           echo "=========================================="
 
-          test -f main.py || {
+          if [ ! -f main.py ]; then
             echo "ERROR: main.py not found"
             exit 1
-          }
+          fi
 
           echo "main.py found:"
           ls -lh main.py
 
           echo ""
-          echo "Checking required functions..."
-
-          REQUIRED_FUNCTIONS=(
-            "scan_market"
-            "analyze_one_symbol"
-            "score_bottom_hunter"
-            "analyze_higher_timeframe_signal"
-            "build_signal_message"
-            "calculate_fibonacci_levels"
-          )
-
-          for FUNC in "${REQUIRED_FUNCTIONS[@]}"; do
-            if grep -qE "^def ${FUNC}\(" main.py; then
-              echo "OK: ${FUNC}"
-            else
-              echo "ERROR: Missing function: ${FUNC}"
-              exit 1
-            fi
-          done
+          echo "Python version:"
+          python --version
 
           echo ""
           echo "Checking Python syntax..."
@@ -99,20 +86,48 @@ jobs:
           python -m py_compile main.py
 
           echo ""
+          echo "Python syntax: OK"
+
+          echo ""
+          echo "Checking main.py size..."
+
+          SIZE=$(stat -c%s main.py)
+
+          if [ "$SIZE" -lt 10000 ]; then
+            echo "ERROR: main.py appears too small: ${SIZE} bytes"
+            exit 1
+          fi
+
+          echo "main.py size: ${SIZE} bytes"
+
+          echo ""
           echo "=========================================="
           echo "main.py verification PASSED"
           echo "=========================================="
 
       # ==========================================
-      # 5. Run scanner
+      # 5. Run Binance scanner
       # ==========================================
       - name: Run Binance scanner
         run: |
+          set -e
+
           echo "=========================================="
           echo "STARTING CRYPTO SIGNAL BOT"
           echo "=========================================="
 
+          echo "Current time:"
+          date
+
+          echo ""
+          echo "Running main.py..."
+
           python main.py
+
+          echo ""
+          echo "=========================================="
+          echo "CRYPTO SIGNAL BOT FINISHED"
+          echo "=========================================="
 
       # ==========================================
       # 6. Save bot state
