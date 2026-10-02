@@ -2321,9 +2321,270 @@
       "price": 4.909,
       "candle_time": "2026-10-02 09:00:00+00:00",
       "sent_at": "2026-10-02T14:20:06.182762+03:30"
+    },
+    "LTC|BUY|TREND|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "LTC",
+      "signal": "BUY",
+      "score": 100,
+      "strength": "STRONG",
+      "price": 70.97,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:44.800236+03:30"
+    },
+    "ALGO|BUY|TREND|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "ALGO",
+      "signal": "BUY",
+      "score": 100,
+      "strength": "STRONG",
+      "price": 0.1333,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:44.956109+03:30"
+    },
+    "EIGEN|BUY|TREND|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "EIGEN",
+      "signal": "BUY",
+      "score": 100,
+      "strength": "STRONG",
+      "price": 0.2594,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:45.125781+03:30"
+    },
+    "LDO|BUY|TREND|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "LDO",
+      "signal": "BUY",
+      "score": 97,
+      "strength": "STRONG",
+      "price": 0.4561,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:45.273873+03:30"
+    },
+    "MAGIC|BUY|TREND|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "MAGIC",
+      "signal": "BUY",
+      "score": 95,
+      "strength": "STRONG",
+      "price": 0.0602,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:45.462592+03:30"
+    },
+    "APE|BUY|TREND|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "APE",
+      "signal": "BUY",
+      "score": 94,
+      "strength": "STRONG",
+      "price": 0.1697,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:45.660457+03:30"
+    },
+    "ENJ|BUY|TREND|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "ENJ",
+      "signal": "BUY",
+      "score": 93,
+      "strength": "STRONG",
+      "price": 0.0329,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:45.818815+03:30"
+    },
+    "DOT|BUY|TREND|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "DOT",
+      "signal": "BUY",
+      "score": 93,
+      "strength": "STRONG",
+      "price": 1.216,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:45.994573+03:30"
+    },
+    "APT|BUY|TREND|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "APT",
+      "signal": "BUY",
+      "score": 93,
+      "strength": "STRONG",
+      "price": 0.8262,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:46.190630+03:30"
+    },
+    "MORPHO|BUY|TREND|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "MORPHO",
+      "signal": "BUY",
+      "score": 91,
+      "strength": "STRONG",
+      "price": 2.639,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:46.358019+03:30"
+    },
+    "MANA|BUY|TREND|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "MANA",
+      "signal": "BUY",
+      "score": 89,
+      "strength": "STRONG",
+      "price": 0.1003,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:46.509495+03:30"
+    },
+    "ONDO|BUY|TREND|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "ONDO",
+      "signal": "BUY",
+      "score": 89,
+      "strength": "NORMAL",
+      "price": 0.508,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:46.682480+03:30"
+    },
+    "AXS|BUY|TREND|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "AXS",
+      "signal": "BUY",
+      "score": 88,
+      "strength": "STRONG",
+      "price": 1.216,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:46.849870+03:30"
+    },
+    "ENA|BUY|BOTTOM_HUNTER|1h|2026-10-02 14:00:00+00:00": {
+      "symbol": "ENA",
+      "signal": "BUY",
+      "score": 88,
+      "strength": "EARLY REVERSAL",
+      "price": 0.2441,
+      "candle_time": "2026-10-02 14:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:47.017140+03:30"
+    },
+    "DASH|BUY|BOTTOM_HUNTER|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "DASH",
+      "signal": "BUY",
+      "score": 88,
+      "strength": "EARLY REVERSAL",
+      "price": 60.15,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:47.214818+03:30"
+    },
+    "CAKE|BUY|BOTTOM_HUNTER|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "CAKE",
+      "signal": "BUY",
+      "score": 88,
+      "strength": "EARLY REVERSAL",
+      "price": 2.558,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:47.396921+03:30"
+    },
+    "WLD|BUY|TREND|1h|2026-10-02 14:00:00+00:00": {
+      "symbol": "WLD",
+      "signal": "BUY",
+      "score": 86,
+      "strength": "STRONG",
+      "price": 0.5749,
+      "candle_time": "2026-10-02 14:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:47.586497+03:30"
+    },
+    "ETHFI|BUY|TREND|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "ETHFI",
+      "signal": "BUY",
+      "score": 86,
+      "strength": "STRONG",
+      "price": 0.7386,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:47.758275+03:30"
+    },
+    "TRUMP|BUY|TREND|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "TRUMP",
+      "signal": "BUY",
+      "score": 85,
+      "strength": "STRONG",
+      "price": 2.139,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:47.933665+03:30"
+    },
+    "AVAX|BUY|TREND|1h|2026-10-02 14:00:00+00:00": {
+      "symbol": "AVAX",
+      "signal": "BUY",
+      "score": 85,
+      "strength": "NORMAL",
+      "price": 11.12,
+      "candle_time": "2026-10-02 14:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:48.085681+03:30"
+    },
+    "FIL|BUY|TREND|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "FIL",
+      "signal": "BUY",
+      "score": 83,
+      "strength": "NORMAL",
+      "price": 1.0462,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:48.264268+03:30"
+    },
+    "GALA|BUY|TREND|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "GALA",
+      "signal": "BUY",
+      "score": 80,
+      "strength": "STRONG",
+      "price": 0.002592,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:48.430779+03:30"
+    },
+    "UNI|SELL|TREND|1h|2026-10-02 14:00:00+00:00": {
+      "symbol": "UNI",
+      "signal": "SELL",
+      "score": 80,
+      "strength": "NORMAL",
+      "price": 9.04,
+      "candle_time": "2026-10-02 14:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:48.633280+03:30"
+    },
+    "NEAR|SELL|TREND|1h|2026-10-02 14:00:00+00:00": {
+      "symbol": "NEAR",
+      "signal": "SELL",
+      "score": 77,
+      "strength": "NORMAL",
+      "price": 4.817,
+      "candle_time": "2026-10-02 14:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:48.819045+03:30"
+    },
+    "AAVE|BUY|TREND|1h|2026-10-02 14:00:00+00:00": {
+      "symbol": "AAVE",
+      "signal": "BUY",
+      "score": 76,
+      "strength": "NORMAL",
+      "price": 183.13,
+      "candle_time": "2026-10-02 14:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:48.975449+03:30"
+    },
+    "PEPE|SELL|TREND|1h|2026-10-02 15:00:00+00:00": {
+      "symbol": "PEPE",
+      "signal": "SELL",
+      "score": 67,
+      "strength": "NORMAL",
+      "price": 4.42e-06,
+      "candle_time": "2026-10-02 15:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:49.137334+03:30"
+    },
+    "PEPE|BUY|4H_SIGNAL|4h|2026-10-02 12:00:00+00:00": {
+      "symbol": "PEPE",
+      "signal": "BUY",
+      "score": 88,
+      "strength": "STRONG",
+      "price": 4.42e-06,
+      "candle_time": "2026-10-02 12:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:49.298487+03:30"
+    },
+    "ETH|BUY|4H_SIGNAL|4h|2026-10-02 08:00:00+00:00": {
+      "symbol": "ETH",
+      "signal": "BUY",
+      "score": 83,
+      "strength": "STRONG",
+      "price": 2696.73,
+      "candle_time": "2026-10-02 08:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:49.475326+03:30"
+    },
+    "XRP|BUY|4H_SIGNAL|4h|2026-10-02 08:00:00+00:00": {
+      "symbol": "XRP",
+      "signal": "BUY",
+      "score": 83,
+      "strength": "STRONG",
+      "price": 1.5072,
+      "candle_time": "2026-10-02 08:00:00+00:00",
+      "sent_at": "2026-10-02T19:30:49.675727+03:30"
     }
   },
-  "total_scans": 50,
-  "total_signals": 258,
-  "last_scan": "2026-10-02T14:20:06.189483+03:30"
+  "total_scans": 51,
+  "total_signals": 287,
+  "last_scan": "2026-10-02T19:30:49.685405+03:30"
 }
