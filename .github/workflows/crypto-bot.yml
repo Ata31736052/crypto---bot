@@ -2,10 +2,11 @@ name: Crypto Signal Bot
 
 on:
   schedule:
-    # اجرا هر ساعت، دقیقه 5
     - cron: "5 * * * *"
-
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   scan:
@@ -14,35 +15,93 @@ jobs:
     env:
       TZ: Asia/Tehran
       RUN_ONCE: "1"
+      PYTHONUNBUFFERED: "1"
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
+      # ==========================================
+      # 1. Get latest repository version
+      # ==========================================
+      - name: Checkout latest code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      # ==========================================
+      # 2. Setup Python
+      # ==========================================
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
 
+      # ==========================================
+      # 3. Install dependencies
+      # ==========================================
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # ==========================================
+      # 4. Verify main.py BEFORE running bot
+      # ==========================================
+      - name: Verify bot source
+        run: |
+          echo "=========================================="
+          echo "VERIFYING main.py"
+          echo "=========================================="
+
+          test -f main.py
+          test -f requirements.txt
+
+          echo "main.py found:"
+          ls -lh main.py
+
+          echo ""
+          echo "Checking required functions..."
+
+          grep -q "^def add_indicators" main.py
+          grep -q "^def get_btc_1h_regime" main.py
+
+          echo "Required functions: OK"
+
+          echo ""
+          echo "Python syntax check..."
+          python -m py_compile main.py
+
+          echo "Python syntax: OK"
+
+      # ==========================================
+      # 5. Run Crypto Signal Bot
+      # ==========================================
       - name: Run Crypto Signal Bot
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
+          echo "=========================================="
+          echo "STARTING CRYPTO SIGNAL BOT"
+          echo "=========================================="
+
           python main.py
 
+      # ==========================================
+      # 6. Save bot state
+      # ==========================================
       - name: Save bot state
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add signals_state.json signals_history.json || true
 
-          git diff --cached --quiet || git commit -m "Update signal bot state"
-
-          git push || true
+          if git diff --cached --quiet; then
+            echo "No state changes to commit."
+          else
+            git commit -m "Update signal bot state"
+            git push
+          fi
