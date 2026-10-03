@@ -30,7 +30,7 @@ jobs:
     steps:
 
       # ==========================================
-      # 1. Checkout
+      # 1. Checkout repository
       # ==========================================
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -73,21 +73,27 @@ jobs:
             exit 1
           fi
 
-          echo "main.py found:"
+          echo ""
+          echo "main.py:"
           ls -lh main.py
 
           echo ""
           echo "Python version:"
           python --version
 
+          # ------------------------------------------
+          # Python syntax check
+          # ------------------------------------------
           echo ""
           echo "Checking Python syntax..."
 
           python -m py_compile main.py
 
-          echo ""
           echo "Python syntax: OK"
 
+          # ------------------------------------------
+          # File size check
+          # ------------------------------------------
           echo ""
           echo "Checking main.py size..."
 
@@ -100,9 +106,40 @@ jobs:
 
           echo "main.py size: ${SIZE} bytes"
 
+          # ------------------------------------------
+          # v50 BTC exclusion check
+          # ------------------------------------------
+          echo ""
+          echo "Checking BTC exclusion fix..."
+
+          if ! grep -q "common_coins.discard(BTC_SYMBOL)" main.py; then
+            echo "ERROR: BTC exclusion fix NOT found."
+            echo "The deployed main.py is not the expected v50 Final version."
+            exit 1
+          fi
+
+          echo "OK: BTC exclusion fix found."
+
+          # ------------------------------------------
+          # confirmations initialization check
+          # ------------------------------------------
+          echo ""
+          echo "Checking confirmations initialization..."
+
+          if ! grep -q "confirmations = 0" main.py; then
+            echo "ERROR: confirmations initialization fix NOT found."
+            exit 1
+          fi
+
+          echo "OK: confirmations initialization found."
+
+          # ------------------------------------------
+          # Final verification
+          # ------------------------------------------
           echo ""
           echo "=========================================="
           echo "main.py verification PASSED"
+          echo "Expected v50 fixes are present."
           echo "=========================================="
 
       # ==========================================
@@ -116,8 +153,13 @@ jobs:
           echo "STARTING CRYPTO SIGNAL BOT"
           echo "=========================================="
 
+          echo ""
           echo "Current time:"
           date
+
+          echo ""
+          echo "Repository commit:"
+          git rev-parse --short HEAD
 
           echo ""
           echo "Running main.py..."
@@ -135,6 +177,8 @@ jobs:
       - name: Commit signal state
         if: always()
         run: |
+          set -e
+
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
 
