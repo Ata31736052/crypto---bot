@@ -3860,9 +3860,81 @@
       "price": 0.01732,
       "candle_time": "2026-10-03 14:00:00+00:00",
       "sent_at": "2026-10-03T18:31:08.755547+03:30"
+    },
+    "FET|BUY|TREND|1h|2026-10-03 16:00:00+00:00": {
+      "symbol": "FET",
+      "signal": "BUY",
+      "score": 90,
+      "strength": "STRONG",
+      "price": 0.227,
+      "candle_time": "2026-10-03 16:00:00+00:00",
+      "sent_at": "2026-10-03T21:04:11.315981+03:30"
+    },
+    "TIA|BUY|TREND|1h|2026-10-03 16:00:00+00:00": {
+      "symbol": "TIA",
+      "signal": "BUY",
+      "score": 89,
+      "strength": "STRONG",
+      "price": 0.4766,
+      "candle_time": "2026-10-03 16:00:00+00:00",
+      "sent_at": "2026-10-03T21:04:11.509052+03:30"
+    },
+    "CHZ|BUY|TREND|1h|2026-10-03 16:00:00+00:00": {
+      "symbol": "CHZ",
+      "signal": "BUY",
+      "score": 81,
+      "strength": "STRONG",
+      "price": 0.0175,
+      "candle_time": "2026-10-03 16:00:00+00:00",
+      "sent_at": "2026-10-03T21:04:11.702041+03:30"
+    },
+    "AERO|BUY|BOTTOM_HUNTER|1h|2026-10-03 16:00:00+00:00": {
+      "symbol": "AERO",
+      "signal": "BUY",
+      "score": 79,
+      "strength": "EARLY REVERSAL",
+      "price": 0.8091,
+      "candle_time": "2026-10-03 16:00:00+00:00",
+      "sent_at": "2026-10-03T21:04:11.902491+03:30"
+    },
+    "DOT|BUY|TREND|1h|2026-10-03 16:00:00+00:00": {
+      "symbol": "DOT",
+      "signal": "BUY",
+      "score": 78,
+      "strength": "NORMAL",
+      "price": 1.198,
+      "candle_time": "2026-10-03 16:00:00+00:00",
+      "sent_at": "2026-10-03T21:04:12.092400+03:30"
+    },
+    "MANA|BUY|TREND|1h|2026-10-03 16:00:00+00:00": {
+      "symbol": "MANA",
+      "signal": "BUY",
+      "score": 77,
+      "strength": "NORMAL",
+      "price": 0.1033,
+      "candle_time": "2026-10-03 16:00:00+00:00",
+      "sent_at": "2026-10-03T21:04:12.289950+03:30"
+    },
+    "ZEC|SELL|TREND|1h|2026-10-03 16:00:00+00:00": {
+      "symbol": "ZEC",
+      "signal": "SELL",
+      "score": 76,
+      "strength": "NORMAL",
+      "price": 1303.39,
+      "candle_time": "2026-10-03 16:00:00+00:00",
+      "sent_at": "2026-10-03T21:04:12.510661+03:30"
+    },
+    "XLM|SELL|TREND|1h|2026-10-03 16:00:00+00:00": {
+      "symbol": "XLM",
+      "signal": "SELL",
+      "score": 74,
+      "strength": "NORMAL",
+      "price": 0.2142,
+      "candle_time": "2026-10-03 16:00:00+00:00",
+      "sent_at": "2026-10-03T21:04:12.692244+03:30"
     }
   },
-  "total_scans": 61,
-  "total_signals": 429,
-  "last_scan": "2026-10-03T18:31:08.765740+03:30"
+  "total_scans": 62,
+  "total_signals": 437,
+  "last_scan": "2026-10-03T21:04:12.708769+03:30"
 }
