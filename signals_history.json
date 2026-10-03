@@ -15609,18 +15609,44 @@
       "1h": {
         "close": 0.01731,
         "change_percent": 1.1098,
-        "observed_at": "2026-10-03T21:44:26.815613+03:30"
+        "mfe_percent": 1.3435,
+        "mae_percent": 0.0584,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:52:59.567301+03:30"
       },
       "2h": {
         "close": 0.01728,
         "change_percent": 0.9346,
-        "observed_at": "2026-10-03T21:44:26.815799+03:30"
+        "mfe_percent": 1.5187,
+        "mae_percent": 0.0584,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:52:59.568144+03:30"
       },
       "4h": {
         "close": 0.01743,
         "change_percent": 1.8107,
-        "observed_at": "2026-10-03T21:44:26.815933+03:30"
+        "mfe_percent": 2.7453,
+        "mae_percent": 0.0584,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:52:59.568889+03:30"
       }
+    },
+    "outcome_status": "OPEN",
+    "first_event": null,
+    "first_event_time": null,
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 2.7453,
+      "mae_percent": 0.0584
     }
   },
   {
@@ -15664,18 +15690,44 @@
       "1h": {
         "close": 0.2301,
         "change_percent": 3.1376,
-        "observed_at": "2026-10-03T21:44:26.817258+03:30"
+        "mfe_percent": 3.5858,
+        "mae_percent": 0.2241,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:52:59.724337+03:30"
       },
       "2h": {
         "close": 0.229,
         "change_percent": 2.6446,
-        "observed_at": "2026-10-03T21:44:26.817443+03:30"
+        "mfe_percent": 3.5858,
+        "mae_percent": 0.2241,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:52:59.725143+03:30"
       },
       "4h": {
         "close": 0.2271,
         "change_percent": 1.7929,
-        "observed_at": "2026-10-03T21:44:26.817574+03:30"
+        "mfe_percent": 3.6307,
+        "mae_percent": 0.2241,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:52:59.725862+03:30"
       }
+    },
+    "outcome_status": "OPEN",
+    "first_event": null,
+    "first_event_time": null,
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 3.6307,
+      "mae_percent": 0.2241
     }
   },
   {
@@ -15722,18 +15774,44 @@
       "1h": {
         "close": 88.81,
         "change_percent": 0.3163,
-        "observed_at": "2026-10-03T21:44:26.958697+03:30"
+        "mfe_percent": 0.7568,
+        "mae_percent": 0.4292,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:52:59.881327+03:30"
       },
       "2h": {
         "close": 88.89,
         "change_percent": 0.4066,
-        "observed_at": "2026-10-03T21:44:26.958894+03:30"
+        "mfe_percent": 0.7568,
+        "mae_percent": 0.4292,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:52:59.882121+03:30"
       },
       "4h": {
         "close": 89.11,
         "change_percent": 0.6551,
-        "observed_at": "2026-10-03T21:44:26.959043+03:30"
+        "mfe_percent": 0.7568,
+        "mae_percent": 0.4292,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:52:59.882822+03:30"
       }
+    },
+    "outcome_status": "OPEN",
+    "first_event": null,
+    "first_event_time": null,
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.7568,
+      "mae_percent": 0.4292
     }
   },
   {
@@ -15780,18 +15858,44 @@
       "1h": {
         "close": 0.1318,
         "change_percent": 0.6107,
-        "observed_at": "2026-10-03T21:44:27.099777+03:30"
+        "mfe_percent": 0.9924,
+        "mae_percent": 1.374,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:00.038026+03:30"
       },
       "2h": {
         "close": 0.1307,
         "change_percent": -0.229,
-        "observed_at": "2026-10-03T21:44:27.099983+03:30"
+        "mfe_percent": 0.9924,
+        "mae_percent": 1.374,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:00.038806+03:30"
       },
       "4h": {
         "close": 0.131,
         "change_percent": 0.0,
-        "observed_at": "2026-10-03T21:44:27.100145+03:30"
+        "mfe_percent": 1.6031,
+        "mae_percent": 1.374,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:00.039529+03:30"
       }
+    },
+    "outcome_status": "OPEN",
+    "first_event": null,
+    "first_event_time": null,
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 1.6031,
+      "mae_percent": 1.374
     }
   },
   {
@@ -15840,13 +15944,34 @@
       "1h": {
         "close": 0.09309,
         "change_percent": -0.2144,
-        "observed_at": "2026-10-03T21:44:27.101537+03:30"
+        "mfe_percent": 0.0643,
+        "mae_percent": 0.4288,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:00.194839+03:30"
       },
       "2h": {
         "close": 0.09326,
         "change_percent": -0.0322,
-        "observed_at": "2026-10-03T21:44:27.101709+03:30"
+        "mfe_percent": 0.1501,
+        "mae_percent": 0.4288,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:00.195526+03:30"
       }
+    },
+    "outcome_status": "OPEN",
+    "first_event": null,
+    "first_event_time": null,
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.1501,
+      "mae_percent": 0.4288
     }
   },
   {
@@ -15899,13 +16024,34 @@
       "1h": {
         "close": 0.1628,
         "change_percent": -0.7922,
-        "observed_at": "2026-10-03T21:44:27.103179+03:30"
+        "mfe_percent": 0.4266,
+        "mae_percent": 0.9141,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:00.351046+03:30"
       },
       "2h": {
         "close": 0.1622,
         "change_percent": -1.1578,
-        "observed_at": "2026-10-03T21:44:27.103327+03:30"
+        "mfe_percent": 0.4266,
+        "mae_percent": 1.5235,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:00.351702+03:30"
       }
+    },
+    "outcome_status": "OPEN",
+    "first_event": null,
+    "first_event_time": null,
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.4266,
+      "mae_percent": 1.5235
     }
   },
   {
@@ -15957,13 +16103,34 @@
       "1h": {
         "close": 0.104,
         "change_percent": 1.1673,
-        "observed_at": "2026-10-03T21:44:27.104739+03:30"
+        "mfe_percent": 2.3346,
+        "mae_percent": 0.3891,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:00.507631+03:30"
       },
       "2h": {
         "close": 0.1062,
         "change_percent": 3.3074,
-        "observed_at": "2026-10-03T21:44:27.104882+03:30"
+        "mfe_percent": 4.1829,
+        "mae_percent": 0.3891,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:00.508489+03:30"
       }
+    },
+    "outcome_status": "OPEN",
+    "first_event": null,
+    "first_event_time": null,
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 4.1829,
+      "mae_percent": 0.3891
     }
   },
   {
@@ -16016,13 +16183,34 @@
       "1h": {
         "close": 0.01738,
         "change_percent": 0.3464,
-        "observed_at": "2026-10-03T21:44:27.106301+03:30"
+        "mfe_percent": 1.5589,
+        "mae_percent": 0.6928,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:00.511825+03:30"
       },
       "2h": {
         "close": 0.01743,
         "change_percent": 0.6351,
-        "observed_at": "2026-10-03T21:44:27.106445+03:30"
+        "mfe_percent": 1.5589,
+        "mae_percent": 0.6928,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:00.512596+03:30"
       }
+    },
+    "outcome_status": "OPEN",
+    "first_event": null,
+    "first_event_time": null,
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 1.5589,
+      "mae_percent": 0.6928
     }
   },
   {
@@ -16075,8 +16263,24 @@
       "1h": {
         "close": 0.2271,
         "change_percent": 0.0441,
-        "observed_at": "2026-10-03T21:44:27.107737+03:30"
+        "mfe_percent": 0.793,
+        "mae_percent": 0.2643,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:00.516060+03:30"
       }
+    },
+    "outcome_status": "OPEN",
+    "first_event": null,
+    "first_event_time": null,
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.793,
+      "mae_percent": 0.2643
     }
   },
   {
@@ -16133,8 +16337,24 @@
       "1h": {
         "close": 0.4739,
         "change_percent": -0.5665,
-        "observed_at": "2026-10-03T21:44:27.109113+03:30"
+        "mfe_percent": 0.9442,
+        "mae_percent": 0.9652,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:00.672280+03:30"
       }
+    },
+    "outcome_status": "OPEN",
+    "first_event": null,
+    "first_event_time": null,
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.9442,
+      "mae_percent": 0.9652
     }
   },
   {
@@ -16190,8 +16410,24 @@
       "1h": {
         "close": 0.01743,
         "change_percent": -0.4,
-        "observed_at": "2026-10-03T21:44:27.110463+03:30"
+        "mfe_percent": 0.4,
+        "mae_percent": 0.6857,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:00.674872+03:30"
       }
+    },
+    "outcome_status": "OPEN",
+    "first_event": null,
+    "first_event_time": null,
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.4,
+      "mae_percent": 0.6857
     }
   },
   {
@@ -16236,8 +16472,24 @@
       "1h": {
         "close": 0.8162,
         "change_percent": 0.8775,
-        "observed_at": "2026-10-03T21:44:27.111851+03:30"
+        "mfe_percent": 2.0517,
+        "mae_percent": 0.964,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:00.829641+03:30"
       }
+    },
+    "outcome_status": "OPEN",
+    "first_event": null,
+    "first_event_time": null,
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 2.0517,
+      "mae_percent": 0.964
     }
   },
   {
@@ -16289,8 +16541,24 @@
       "1h": {
         "close": 1.197,
         "change_percent": -0.0835,
-        "observed_at": "2026-10-03T21:44:27.113327+03:30"
+        "mfe_percent": 0.4174,
+        "mae_percent": 0.4174,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:00.985141+03:30"
       }
+    },
+    "outcome_status": "OPEN",
+    "first_event": null,
+    "first_event_time": null,
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.4174,
+      "mae_percent": 0.4174
     }
   },
   {
@@ -16343,8 +16611,24 @@
       "1h": {
         "close": 0.1062,
         "change_percent": 2.8074,
-        "observed_at": "2026-10-03T21:44:27.114720+03:30"
+        "mfe_percent": 3.6786,
+        "mae_percent": 0.3872,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:00.987705+03:30"
       }
+    },
+    "outcome_status": "OPEN",
+    "first_event": null,
+    "first_event_time": null,
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 3.6786,
+      "mae_percent": 0.3872
     }
   },
   {
@@ -16397,8 +16681,24 @@
       "1h": {
         "close": 1305.24,
         "change_percent": -0.1419,
-        "observed_at": "2026-10-03T21:44:27.116212+03:30"
+        "mfe_percent": 0.6729,
+        "mae_percent": 0.7887,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:01.143811+03:30"
       }
+    },
+    "outcome_status": "OPEN",
+    "first_event": null,
+    "first_event_time": null,
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.6729,
+      "mae_percent": 0.7887
     }
   },
   {
@@ -16452,8 +16752,24 @@
       "1h": {
         "close": 0.2143,
         "change_percent": -0.0467,
-        "observed_at": "2026-10-03T21:44:27.117559+03:30"
+        "mfe_percent": 0.4202,
+        "mae_percent": 0.1867,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:01.298812+03:30"
       }
+    },
+    "outcome_status": "OPEN",
+    "first_event": null,
+    "first_event_time": null,
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.4202,
+      "mae_percent": 0.1867
     }
   },
   {
@@ -16503,8 +16819,24 @@
       "1h": {
         "close": 788.08,
         "change_percent": -0.2847,
-        "observed_at": "2026-10-03T21:44:27.118903+03:30"
+        "mfe_percent": 0.1404,
+        "mae_percent": 1.3134,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:01.454242+03:30"
       }
+    },
+    "outcome_status": "OPEN",
+    "first_event": null,
+    "first_event_time": null,
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.1404,
+      "mae_percent": 1.3134
     }
   },
   {
@@ -16552,8 +16884,24 @@
       "1h": {
         "close": 85012.0,
         "change_percent": 0.0753,
-        "observed_at": "2026-10-03T21:44:27.120260+03:30"
+        "mfe_percent": 0.0754,
+        "mae_percent": 0.1271,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:01.609379+03:30"
       }
+    },
+    "outcome_status": "OPEN",
+    "first_event": null,
+    "first_event_time": null,
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.0754,
+      "mae_percent": 0.1271
     }
   },
   {
@@ -16602,8 +16950,24 @@
       "1h": {
         "close": 1.4936,
         "change_percent": 0.1005,
-        "observed_at": "2026-10-03T21:44:27.121649+03:30"
+        "mfe_percent": 0.2614,
+        "mae_percent": 0.2346,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "observed_at": "2026-10-03T21:53:01.765509+03:30"
       }
+    },
+    "outcome_status": "OPEN",
+    "first_event": null,
+    "first_event_time": null,
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.2614,
+      "mae_percent": 0.2346
     }
   },
   {
