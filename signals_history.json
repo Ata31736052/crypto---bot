@@ -9742,7 +9742,36 @@
       "30M reversal confirmation",
       "BTC regime not strongly bearish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:19.801486+03:30",
+    "mfe_percent": 3.6467,
+    "mae_percent": 0.8374,
+    "horizons": {
+      "1h": {
+        "close": 0.372,
+        "change_percent": 0.4862,
+        "observed_at": "2026-10-03T21:44:19.802306+03:30"
+      },
+      "2h": {
+        "close": 0.3735,
+        "change_percent": 0.8914,
+        "observed_at": "2026-10-03T21:44:19.802519+03:30"
+      },
+      "4h": {
+        "close": 0.3706,
+        "change_percent": 0.108,
+        "observed_at": "2026-10-03T21:44:19.802710+03:30"
+      },
+      "8h": {
+        "close": 0.3768,
+        "change_percent": 1.7828,
+        "observed_at": "2026-10-03T21:44:19.802904+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:19.802914+03:30"
   },
   {
     "timestamp": "2026-10-03T03:35:44.772455+03:30",
@@ -9776,7 +9805,36 @@
       "Daily trend bearish (headwind)",
       "Quality cap: ADX 15-20 -> max 88",
       "Raw score 89; quality-adjusted score 88"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:19.943195+03:30",
+    "mfe_percent": 0.5666,
+    "mae_percent": 3.7299,
+    "horizons": {
+      "1h": {
+        "close": 2.094,
+        "change_percent": -1.1331,
+        "observed_at": "2026-10-03T21:44:19.943950+03:30"
+      },
+      "2h": {
+        "close": 2.084,
+        "change_percent": -1.6053,
+        "observed_at": "2026-10-03T21:44:19.944170+03:30"
+      },
+      "4h": {
+        "close": 2.089,
+        "change_percent": -1.3692,
+        "observed_at": "2026-10-03T21:44:19.944358+03:30"
+      },
+      "8h": {
+        "close": 2.052,
+        "change_percent": -3.1161,
+        "observed_at": "2026-10-03T21:44:19.944540+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:19.944550+03:30"
   },
   {
     "timestamp": "2026-10-03T03:35:44.915329+03:30",
@@ -9812,7 +9870,36 @@
       "Bullish price structure",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:20.085155+03:30",
+    "mfe_percent": 4.8077,
+    "mae_percent": 4.4071,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 01:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 1.209,
+        "change_percent": -3.125,
+        "observed_at": "2026-10-03T21:44:20.085697+03:30"
+      },
+      "2h": {
+        "close": 1.25,
+        "change_percent": 0.1603,
+        "observed_at": "2026-10-03T21:44:20.085905+03:30"
+      },
+      "4h": {
+        "close": 1.275,
+        "change_percent": 2.1635,
+        "observed_at": "2026-10-03T21:44:20.086117+03:30"
+      },
+      "8h": {
+        "close": 1.223,
+        "change_percent": -2.0032,
+        "observed_at": "2026-10-03T21:44:20.086308+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T03:35:45.070731+03:30",
@@ -9843,7 +9930,36 @@
       "30M reversal confirmation",
       "BTC regime not strongly bearish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:20.226583+03:30",
+    "mfe_percent": 2.3896,
+    "mae_percent": 1.2402,
+    "horizons": {
+      "1h": {
+        "close": 3.324,
+        "change_percent": 0.5445,
+        "observed_at": "2026-10-03T21:44:20.227360+03:30"
+      },
+      "2h": {
+        "close": 3.353,
+        "change_percent": 1.4217,
+        "observed_at": "2026-10-03T21:44:20.227564+03:30"
+      },
+      "4h": {
+        "close": 3.31,
+        "change_percent": 0.121,
+        "observed_at": "2026-10-03T21:44:20.227752+03:30"
+      },
+      "8h": {
+        "close": 3.325,
+        "change_percent": 0.5747,
+        "observed_at": "2026-10-03T21:44:20.227939+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:20.227949+03:30"
   },
   {
     "timestamp": "2026-10-03T03:35:45.212435+03:30",
@@ -9879,7 +9995,36 @@
       "Bullish price structure",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:20.367505+03:30",
+    "mfe_percent": 15.507,
+    "mae_percent": 3.7773,
+    "first_event": "TP1",
+    "first_event_time": "2026-10-03 03:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "tp1_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.0976,
+        "change_percent": -2.9821,
+        "observed_at": "2026-10-03T21:44:20.368061+03:30"
+      },
+      "2h": {
+        "close": 0.1044,
+        "change_percent": 3.7773,
+        "observed_at": "2026-10-03T21:44:20.368260+03:30"
+      },
+      "4h": {
+        "close": 0.1099,
+        "change_percent": 9.2445,
+        "observed_at": "2026-10-03T21:44:20.368442+03:30"
+      },
+      "8h": {
+        "close": 0.1018,
+        "change_percent": 1.1928,
+        "observed_at": "2026-10-03T21:44:20.368620+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T03:35:45.370303+03:30",
@@ -9914,7 +10059,36 @@
       "Bullish price structure",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:20.508387+03:30",
+    "mfe_percent": 2.8279,
+    "mae_percent": 3.0084,
+    "horizons": {
+      "1h": {
+        "close": 0.1649,
+        "change_percent": -0.7822,
+        "observed_at": "2026-10-03T21:44:20.509149+03:30"
+      },
+      "2h": {
+        "close": 0.1679,
+        "change_percent": 1.0229,
+        "observed_at": "2026-10-03T21:44:20.509350+03:30"
+      },
+      "4h": {
+        "close": 0.1684,
+        "change_percent": 1.3237,
+        "observed_at": "2026-10-03T21:44:20.509535+03:30"
+      },
+      "8h": {
+        "close": 0.162,
+        "change_percent": -2.5271,
+        "observed_at": "2026-10-03T21:44:20.509713+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:20.509723+03:30"
   },
   {
     "timestamp": "2026-10-03T03:35:45.510994+03:30",
@@ -9950,7 +10124,36 @@
       "Bullish price structure",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:20.649321+03:30",
+    "mfe_percent": 0.674,
+    "mae_percent": 5.5602,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 07:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 11.89,
+        "change_percent": 0.1685,
+        "observed_at": "2026-10-03T21:44:20.649977+03:30"
+      },
+      "2h": {
+        "close": 11.65,
+        "change_percent": -1.8534,
+        "observed_at": "2026-10-03T21:44:20.650192+03:30"
+      },
+      "4h": {
+        "close": 11.67,
+        "change_percent": -1.6849,
+        "observed_at": "2026-10-03T21:44:20.650376+03:30"
+      },
+      "8h": {
+        "close": 11.26,
+        "change_percent": -5.139,
+        "observed_at": "2026-10-03T21:44:20.650553+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T03:35:45.652315+03:30",
@@ -9985,7 +10188,36 @@
       "RSI bearish divergence, MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:20.791104+03:30",
+    "mfe_percent": 0.3637,
+    "mae_percent": 0.7475,
+    "horizons": {
+      "1h": {
+        "close": 1.4897,
+        "change_percent": -0.3233,
+        "observed_at": "2026-10-03T21:44:20.791838+03:30"
+      },
+      "2h": {
+        "close": 1.4856,
+        "change_percent": -0.0471,
+        "observed_at": "2026-10-03T21:44:20.792051+03:30"
+      },
+      "4h": {
+        "close": 1.4857,
+        "change_percent": -0.0539,
+        "observed_at": "2026-10-03T21:44:20.792241+03:30"
+      },
+      "8h": {
+        "close": 1.4817,
+        "change_percent": 0.2155,
+        "observed_at": "2026-10-03T21:44:20.792420+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:20.792430+03:30"
   },
   {
     "timestamp": "2026-10-03T03:35:45.792568+03:30",
@@ -10021,7 +10253,36 @@
       "RSI bearish divergence, MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:20.932603+03:30",
+    "mfe_percent": 1.1939,
+    "mae_percent": 2.0013,
+    "horizons": {
+      "1h": {
+        "close": 1320.58,
+        "change_percent": -1.2583,
+        "observed_at": "2026-10-03T21:44:20.933359+03:30"
+      },
+      "2h": {
+        "close": 1320.53,
+        "change_percent": -1.2544,
+        "observed_at": "2026-10-03T21:44:20.933556+03:30"
+      },
+      "4h": {
+        "close": 1315.87,
+        "change_percent": -0.8971,
+        "observed_at": "2026-10-03T21:44:20.933737+03:30"
+      },
+      "8h": {
+        "close": 1317.02,
+        "change_percent": -0.9853,
+        "observed_at": "2026-10-03T21:44:20.933914+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:20.933923+03:30"
   },
   {
     "timestamp": "2026-10-03T03:35:45.946804+03:30",
@@ -10056,7 +10317,36 @@
       "Bullish price structure",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:21.074221+03:30",
+    "mfe_percent": 10.394,
+    "mae_percent": 1.9611,
+    "first_event": "TP1",
+    "first_event_time": "2026-10-03 10:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "tp1_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.5643,
+        "change_percent": 0.6062,
+        "observed_at": "2026-10-03T21:44:21.074882+03:30"
+      },
+      "2h": {
+        "close": 0.5668,
+        "change_percent": 1.0519,
+        "observed_at": "2026-10-03T21:44:21.075157+03:30"
+      },
+      "4h": {
+        "close": 0.5673,
+        "change_percent": 1.141,
+        "observed_at": "2026-10-03T21:44:21.075357+03:30"
+      },
+      "8h": {
+        "close": 0.5617,
+        "change_percent": 0.1426,
+        "observed_at": "2026-10-03T21:44:21.075542+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T03:35:46.092272+03:30",
@@ -10091,7 +10381,36 @@
       "RSI bearish divergence, MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:21.216524+03:30",
+    "mfe_percent": 1.1606,
+    "mae_percent": 0.7428,
+    "horizons": {
+      "1h": {
+        "close": 0.2163,
+        "change_percent": -0.4178,
+        "observed_at": "2026-10-03T21:44:21.217300+03:30"
+      },
+      "2h": {
+        "close": 0.2155,
+        "change_percent": -0.0464,
+        "observed_at": "2026-10-03T21:44:21.217504+03:30"
+      },
+      "4h": {
+        "close": 0.2146,
+        "change_percent": 0.3714,
+        "observed_at": "2026-10-03T21:44:21.217694+03:30"
+      },
+      "8h": {
+        "close": 0.2138,
+        "change_percent": 0.7428,
+        "observed_at": "2026-10-03T21:44:21.217878+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:21.217888+03:30"
   },
   {
     "timestamp": "2026-10-03T03:35:46.237297+03:30",
@@ -10127,7 +10446,36 @@
       "RSI bearish divergence, MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:21.357704+03:30",
+    "mfe_percent": 0.8666,
+    "mae_percent": 5.9792,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 10:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 1.164,
+        "change_percent": -0.8666,
+        "observed_at": "2026-10-03T21:44:21.358353+03:30"
+      },
+      "2h": {
+        "close": 1.163,
+        "change_percent": -0.7799,
+        "observed_at": "2026-10-03T21:44:21.358547+03:30"
+      },
+      "4h": {
+        "close": 1.147,
+        "change_percent": 0.6066,
+        "observed_at": "2026-10-03T21:44:21.358726+03:30"
+      },
+      "8h": {
+        "close": 1.147,
+        "change_percent": 0.6066,
+        "observed_at": "2026-10-03T21:44:21.358900+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T03:35:46.377633+03:30",
@@ -10162,7 +10510,36 @@
       "Bullish price structure",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:21.499286+03:30",
+    "mfe_percent": 3.2203,
+    "mae_percent": 4.9153,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 08:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.0574,
+        "change_percent": -2.7119,
+        "observed_at": "2026-10-03T21:44:21.499922+03:30"
+      },
+      "2h": {
+        "close": 0.0584,
+        "change_percent": -1.0169,
+        "observed_at": "2026-10-03T21:44:21.500257+03:30"
+      },
+      "4h": {
+        "close": 0.059,
+        "change_percent": 0.0,
+        "observed_at": "2026-10-03T21:44:21.500600+03:30"
+      },
+      "8h": {
+        "close": 0.0565,
+        "change_percent": -4.2373,
+        "observed_at": "2026-10-03T21:44:21.500838+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T03:35:46.514895+03:30",
@@ -10197,7 +10574,36 @@
       "RSI bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:21.641308+03:30",
+    "mfe_percent": 0.4952,
+    "mae_percent": 0.8074,
+    "horizons": {
+      "1h": {
+        "close": 0.09316,
+        "change_percent": -0.2907,
+        "observed_at": "2026-10-03T21:44:21.642089+03:30"
+      },
+      "2h": {
+        "close": 0.09304,
+        "change_percent": -0.1615,
+        "observed_at": "2026-10-03T21:44:21.642298+03:30"
+      },
+      "4h": {
+        "close": 0.09295,
+        "change_percent": -0.0646,
+        "observed_at": "2026-10-03T21:44:21.642490+03:30"
+      },
+      "8h": {
+        "close": 0.09252,
+        "change_percent": 0.3983,
+        "observed_at": "2026-10-03T21:44:21.642677+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:21.642687+03:30"
   },
   {
     "timestamp": "2026-10-03T03:35:46.668368+03:30",
@@ -10231,7 +10637,36 @@
       "BTC NEUTRAL",
       "RSI bearish divergence, MACD bearish divergence",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:21.782588+03:30",
+    "mfe_percent": 1.5813,
+    "mae_percent": 7.216,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 11:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.4471,
+        "change_percent": 0.4232,
+        "observed_at": "2026-10-03T21:44:21.783264+03:30"
+      },
+      "2h": {
+        "close": 0.452,
+        "change_percent": -0.6682,
+        "observed_at": "2026-10-03T21:44:21.783463+03:30"
+      },
+      "4h": {
+        "close": 0.4447,
+        "change_percent": 0.9577,
+        "observed_at": "2026-10-03T21:44:21.783648+03:30"
+      },
+      "8h": {
+        "close": 0.4446,
+        "change_percent": 0.98,
+        "observed_at": "2026-10-03T21:44:21.783827+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T03:35:46.816880+03:30",
@@ -10265,7 +10700,36 @@
       "RSI bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:21.923375+03:30",
+    "mfe_percent": 0.6795,
+    "mae_percent": 0.7928,
+    "horizons": {
+      "1h": {
+        "close": 8.82,
+        "change_percent": 0.1133,
+        "observed_at": "2026-10-03T21:44:21.924127+03:30"
+      },
+      "2h": {
+        "close": 8.82,
+        "change_percent": 0.1133,
+        "observed_at": "2026-10-03T21:44:21.924391+03:30"
+      },
+      "4h": {
+        "close": 8.83,
+        "change_percent": 0.0,
+        "observed_at": "2026-10-03T21:44:21.924579+03:30"
+      },
+      "8h": {
+        "close": 8.78,
+        "change_percent": 0.5663,
+        "observed_at": "2026-10-03T21:44:21.924766+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:21.924776+03:30"
   },
   {
     "timestamp": "2026-10-03T03:35:46.950695+03:30",
@@ -10303,7 +10767,36 @@
       "Bullish price structure",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:22.064906+03:30",
+    "mfe_percent": 11.9799,
+    "mae_percent": 3.6294,
+    "first_event": "TP1",
+    "first_event_time": "2026-10-03 02:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "tp1_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.03442,
+        "change_percent": 1.5639,
+        "observed_at": "2026-10-03T21:44:22.065466+03:30"
+      },
+      "2h": {
+        "close": 0.03712,
+        "change_percent": 9.5308,
+        "observed_at": "2026-10-03T21:44:22.065671+03:30"
+      },
+      "4h": {
+        "close": 0.03583,
+        "change_percent": 5.7244,
+        "observed_at": "2026-10-03T21:44:22.065865+03:30"
+      },
+      "8h": {
+        "close": 0.03358,
+        "change_percent": -0.9147,
+        "observed_at": "2026-10-03T21:44:22.066069+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T03:35:47.103308+03:30",
@@ -10337,7 +10830,36 @@
       "BTC NEUTRAL",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:22.206494+03:30",
+    "mfe_percent": 2.0217,
+    "mae_percent": 0.8725,
+    "horizons": {
+      "1h": {
+        "close": 4.696,
+        "change_percent": 0.0638,
+        "observed_at": "2026-10-03T21:44:22.207295+03:30"
+      },
+      "2h": {
+        "close": 4.682,
+        "change_percent": 0.3618,
+        "observed_at": "2026-10-03T21:44:22.207500+03:30"
+      },
+      "4h": {
+        "close": 4.638,
+        "change_percent": 1.2981,
+        "observed_at": "2026-10-03T21:44:22.207689+03:30"
+      },
+      "8h": {
+        "close": 4.671,
+        "change_percent": 0.5959,
+        "observed_at": "2026-10-03T21:44:22.207873+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:22.207884+03:30"
   },
   {
     "timestamp": "2026-10-03T03:35:47.246026+03:30",
@@ -10371,7 +10893,36 @@
       "BTC NEUTRAL",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:22.348233+03:30",
+    "mfe_percent": 1.2607,
+    "mae_percent": 2.3066,
+    "horizons": {
+      "1h": {
+        "close": 0.7025,
+        "change_percent": -0.6447,
+        "observed_at": "2026-10-03T21:44:22.348997+03:30"
+      },
+      "2h": {
+        "close": 0.6981,
+        "change_percent": -0.0143,
+        "observed_at": "2026-10-03T21:44:22.349286+03:30"
+      },
+      "4h": {
+        "close": 0.6959,
+        "change_percent": 0.3009,
+        "observed_at": "2026-10-03T21:44:22.349483+03:30"
+      },
+      "8h": {
+        "close": 0.691,
+        "change_percent": 1.0029,
+        "observed_at": "2026-10-03T21:44:22.349672+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:22.349682+03:30"
   },
   {
     "timestamp": "2026-10-03T03:35:47.386250+03:30",
@@ -10406,7 +10957,36 @@
       "BTC NEUTRAL",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:22.489846+03:30",
+    "mfe_percent": 0.4062,
+    "mae_percent": 7.9204,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 13:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.2468,
+        "change_percent": -0.2437,
+        "observed_at": "2026-10-03T21:44:22.490593+03:30"
+      },
+      "2h": {
+        "close": 0.2472,
+        "change_percent": -0.4062,
+        "observed_at": "2026-10-03T21:44:22.490800+03:30"
+      },
+      "4h": {
+        "close": 0.2489,
+        "change_percent": -1.0967,
+        "observed_at": "2026-10-03T21:44:22.490999+03:30"
+      },
+      "8h": {
+        "close": 0.2462,
+        "change_percent": 0.0,
+        "observed_at": "2026-10-03T21:44:22.491212+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T03:35:47.535847+03:30",
@@ -10440,7 +11020,36 @@
       "BTC NEUTRAL",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:22.631839+03:30",
+    "mfe_percent": 1.2445,
+    "mae_percent": 2.6094,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 17:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 2.491,
+        "change_percent": 0.0,
+        "observed_at": "2026-10-03T21:44:22.632656+03:30"
+      },
+      "2h": {
+        "close": 2.493,
+        "change_percent": -0.0803,
+        "observed_at": "2026-10-03T21:44:22.632859+03:30"
+      },
+      "4h": {
+        "close": 2.484,
+        "change_percent": 0.281,
+        "observed_at": "2026-10-03T21:44:22.633077+03:30"
+      },
+      "8h": {
+        "close": 2.466,
+        "change_percent": 1.0036,
+        "observed_at": "2026-10-03T21:44:22.633285+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T03:35:47.673315+03:30",
@@ -10475,7 +11084,36 @@
       "RSI bearish divergence, MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:22.773552+03:30",
+    "mfe_percent": 0.3079,
+    "mae_percent": 2.4261,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 17:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.10789,
+        "change_percent": -0.6718,
+        "observed_at": "2026-10-03T21:44:22.774328+03:30"
+      },
+      "2h": {
+        "close": 0.10767,
+        "change_percent": -0.4665,
+        "observed_at": "2026-10-03T21:44:22.774587+03:30"
+      },
+      "4h": {
+        "close": 0.10726,
+        "change_percent": -0.084,
+        "observed_at": "2026-10-03T21:44:22.774780+03:30"
+      },
+      "8h": {
+        "close": 0.10767,
+        "change_percent": -0.4665,
+        "observed_at": "2026-10-03T21:44:22.774968+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T03:35:47.811061+03:30",
@@ -10511,7 +11149,36 @@
       "Bearish price structure",
       "4H trend bullish (headwind)",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:22.915204+03:30",
+    "mfe_percent": 0.0176,
+    "mae_percent": 0.8908,
+    "horizons": {
+      "1h": {
+        "close": 2679.76,
+        "change_percent": -0.5109,
+        "observed_at": "2026-10-03T21:44:22.915968+03:30"
+      },
+      "2h": {
+        "close": 2677.14,
+        "change_percent": -0.4126,
+        "observed_at": "2026-10-03T21:44:22.916196+03:30"
+      },
+      "4h": {
+        "close": 2676.01,
+        "change_percent": -0.3702,
+        "observed_at": "2026-10-03T21:44:22.916381+03:30"
+      },
+      "8h": {
+        "close": 2683.01,
+        "change_percent": -0.6327,
+        "observed_at": "2026-10-03T21:44:22.916557+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:22.916567+03:30"
   },
   {
     "timestamp": "2026-10-03T03:35:47.968284+03:30",
@@ -10547,7 +11214,36 @@
       "Bullish price structure",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:23.056835+03:30",
+    "mfe_percent": 1.6669,
+    "mae_percent": 2.479,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 04:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 70.25,
+        "change_percent": 0.0855,
+        "observed_at": "2026-10-03T21:44:23.057436+03:30"
+      },
+      "2h": {
+        "close": 69.86,
+        "change_percent": -0.4702,
+        "observed_at": "2026-10-03T21:44:23.057640+03:30"
+      },
+      "4h": {
+        "close": 68.84,
+        "change_percent": -1.9234,
+        "observed_at": "2026-10-03T21:44:23.057830+03:30"
+      },
+      "8h": {
+        "close": 69.42,
+        "change_percent": -1.097,
+        "observed_at": "2026-10-03T21:44:23.058018+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T03:35:48.117852+03:30",
@@ -10585,7 +11281,36 @@
       "Bullish price structure",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:23.198061+03:30",
+    "mfe_percent": 3.9444,
+    "mae_percent": 6.3862,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 09:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.002618,
+        "change_percent": -1.6529,
+        "observed_at": "2026-10-03T21:44:23.198724+03:30"
+      },
+      "2h": {
+        "close": 0.002683,
+        "change_percent": 0.7889,
+        "observed_at": "2026-10-03T21:44:23.198982+03:30"
+      },
+      "4h": {
+        "close": 0.002619,
+        "change_percent": -1.6153,
+        "observed_at": "2026-10-03T21:44:23.199196+03:30"
+      },
+      "8h": {
+        "close": 0.002569,
+        "change_percent": -3.4936,
+        "observed_at": "2026-10-03T21:44:23.199383+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T03:35:48.252618+03:30",
@@ -10621,7 +11346,36 @@
       "MACD bearish divergence",
       "4H trend bullish (headwind)",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:23.339637+03:30",
+    "mfe_percent": 1.053,
+    "mae_percent": 6.8253,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 11:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 2.568,
+        "change_percent": -0.156,
+        "observed_at": "2026-10-03T21:44:23.340344+03:30"
+      },
+      "2h": {
+        "close": 2.566,
+        "change_percent": -0.078,
+        "observed_at": "2026-10-03T21:44:23.340549+03:30"
+      },
+      "4h": {
+        "close": 2.556,
+        "change_percent": 0.312,
+        "observed_at": "2026-10-03T21:44:23.340739+03:30"
+      },
+      "8h": {
+        "close": 2.556,
+        "change_percent": 0.312,
+        "observed_at": "2026-10-03T21:44:23.340924+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T03:35:48.408190+03:30",
@@ -10656,7 +11410,36 @@
       "BTC NEUTRAL",
       "RSI bearish divergence, MACD bearish divergence",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:23.480804+03:30",
+    "mfe_percent": 2.1223,
+    "mae_percent": 3.24,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 14:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.8016,
+        "change_percent": -0.6656,
+        "observed_at": "2026-10-03T21:44:23.481515+03:30"
+      },
+      "2h": {
+        "close": 0.7913,
+        "change_percent": 0.6279,
+        "observed_at": "2026-10-03T21:44:23.481715+03:30"
+      },
+      "4h": {
+        "close": 0.792,
+        "change_percent": 0.54,
+        "observed_at": "2026-10-03T21:44:23.481896+03:30"
+      },
+      "8h": {
+        "close": 0.7848,
+        "change_percent": 1.4442,
+        "observed_at": "2026-10-03T21:44:23.482086+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T03:35:48.542757+03:30",
@@ -10686,7 +11469,36 @@
       "Bullish candle",
       "ATR suitable 1.17%",
       "Daily context bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:23.622238+03:30",
+    "mfe_percent": 0.6297,
+    "mae_percent": 0.0686,
+    "horizons": {
+      "1h": {
+        "close": 84560.0,
+        "change_percent": 0.0947,
+        "observed_at": "2026-10-03T21:44:23.623063+03:30"
+      },
+      "2h": {
+        "close": 84518.01,
+        "change_percent": 0.045,
+        "observed_at": "2026-10-03T21:44:23.623334+03:30"
+      },
+      "4h": {
+        "close": 84640.0,
+        "change_percent": 0.1894,
+        "observed_at": "2026-10-03T21:44:23.623532+03:30"
+      },
+      "8h": {
+        "close": 84652.09,
+        "change_percent": 0.2037,
+        "observed_at": "2026-10-03T21:44:23.623720+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:23.623730+03:30"
   },
   {
     "timestamp": "2026-10-03T03:35:48.689978+03:30",
@@ -10718,7 +11530,36 @@
       "BUY overextended from EMA21 -5 (7.03%)",
       "BUY far from EMA200 -5 (21.24%)",
       "Daily context bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:23.624593+03:30",
+    "mfe_percent": 15.507,
+    "mae_percent": 4.672,
+    "first_event": "TP1",
+    "first_event_time": "2026-10-03 03:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "tp1_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.0996,
+        "change_percent": -0.994,
+        "observed_at": "2026-10-03T21:44:23.625195+03:30"
+      },
+      "2h": {
+        "close": 0.1005,
+        "change_percent": -0.0994,
+        "observed_at": "2026-10-03T21:44:23.625428+03:30"
+      },
+      "4h": {
+        "close": 0.0976,
+        "change_percent": -2.9821,
+        "observed_at": "2026-10-03T21:44:23.625675+03:30"
+      },
+      "8h": {
+        "close": 0.109,
+        "change_percent": 8.3499,
+        "observed_at": "2026-10-03T21:44:23.625913+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T03:35:48.842703+03:30",
@@ -10748,7 +11589,36 @@
       "Bullish candle",
       "ATR suitable 1.92%",
       "Daily context bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:23.765976+03:30",
+    "mfe_percent": 1.2051,
+    "mae_percent": 0.809,
+    "horizons": {
+      "1h": {
+        "close": 118.52,
+        "change_percent": -0.118,
+        "observed_at": "2026-10-03T21:44:23.766790+03:30"
+      },
+      "2h": {
+        "close": 118.65,
+        "change_percent": -0.0084,
+        "observed_at": "2026-10-03T21:44:23.766988+03:30"
+      },
+      "4h": {
+        "close": 119.1,
+        "change_percent": 0.3708,
+        "observed_at": "2026-10-03T21:44:23.767205+03:30"
+      },
+      "8h": {
+        "close": 119.63,
+        "change_percent": 0.8175,
+        "observed_at": "2026-10-03T21:44:23.767390+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:23.767399+03:30"
   },
   {
     "timestamp": "2026-10-03T03:35:51.986900+03:30",
@@ -10779,7 +11649,15 @@
       "ATR suitable 6.05%",
       "BUY overextended from EMA21 -5 (13.72%)",
       "4H context bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:23.768135+03:30",
+    "mfe_percent": 4.8077,
+    "mae_percent": 6.891,
+    "horizons": {},
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:23.769215+03:30"
   },
   {
     "timestamp": "2026-10-03T03:35:52.135164+03:30",
@@ -10811,7 +11689,15 @@
       "BUY overextended from EMA21 -5 (11.87%)",
       "BUY far from EMA200 -5 (17.93%)",
       "4H context bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:23.769908+03:30",
+    "mfe_percent": 2.8279,
+    "mae_percent": 3.8508,
+    "horizons": {},
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:23.770966+03:30"
   },
   {
     "timestamp": "2026-10-03T03:35:52.277037+03:30",
@@ -10843,7 +11729,15 @@
       "BUY overextended from EMA21 -5 (18.52%)",
       "BUY far from EMA200 -5 (40.30%)",
       "4H context bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:23.771694+03:30",
+    "mfe_percent": 10.394,
+    "mae_percent": 6.0082,
+    "horizons": {},
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:23.772754+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:15.674013+03:30",
@@ -10878,7 +11772,36 @@
       "RSI bearish divergence, MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:23.773549+03:30",
+    "mfe_percent": 1.0688,
+    "mae_percent": 0.3717,
+    "horizons": {
+      "1h": {
+        "close": 0.2148,
+        "change_percent": 0.1859,
+        "observed_at": "2026-10-03T21:44:23.774151+03:30"
+      },
+      "2h": {
+        "close": 0.2138,
+        "change_percent": 0.6506,
+        "observed_at": "2026-10-03T21:44:23.774347+03:30"
+      },
+      "4h": {
+        "close": 0.2138,
+        "change_percent": 0.6506,
+        "observed_at": "2026-10-03T21:44:23.774528+03:30"
+      },
+      "8h": {
+        "close": 0.2156,
+        "change_percent": -0.1859,
+        "observed_at": "2026-10-03T21:44:23.774707+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:23.774715+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:15.886095+03:30",
@@ -10915,7 +11838,36 @@
       "Bullish price structure",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:23.775500+03:30",
+    "mfe_percent": 7.7244,
+    "mae_percent": 4.3319,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 07:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.5621,
+        "change_percent": -2.2095,
+        "observed_at": "2026-10-03T21:44:23.775925+03:30"
+      },
+      "2h": {
+        "close": 0.5538,
+        "change_percent": -3.6534,
+        "observed_at": "2026-10-03T21:44:23.776136+03:30"
+      },
+      "4h": {
+        "close": 0.5751,
+        "change_percent": 0.0522,
+        "observed_at": "2026-10-03T21:44:23.776319+03:30"
+      },
+      "8h": {
+        "close": 0.6093,
+        "change_percent": 6.0021,
+        "observed_at": "2026-10-03T21:44:23.776495+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T09:02:16.129155+03:30",
@@ -10953,7 +11905,36 @@
       "Bullish price structure",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:23.777260+03:30",
+    "mfe_percent": 3.5658,
+    "mae_percent": 5.4675,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 10:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 1.256,
+        "change_percent": -0.4754,
+        "observed_at": "2026-10-03T21:44:23.777725+03:30"
+      },
+      "2h": {
+        "close": 1.251,
+        "change_percent": -0.8716,
+        "observed_at": "2026-10-03T21:44:23.777909+03:30"
+      },
+      "4h": {
+        "close": 1.231,
+        "change_percent": -2.4564,
+        "observed_at": "2026-10-03T21:44:23.778110+03:30"
+      },
+      "8h": {
+        "close": 1.207,
+        "change_percent": -4.3582,
+        "observed_at": "2026-10-03T21:44:23.778293+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T09:02:16.335876+03:30",
@@ -10989,7 +11970,36 @@
       "MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:23.918386+03:30",
+    "mfe_percent": 1.3989,
+    "mae_percent": 2.3041,
+    "horizons": {
+      "1h": {
+        "close": 0.4807,
+        "change_percent": 1.1109,
+        "observed_at": "2026-10-03T21:44:23.919059+03:30"
+      },
+      "2h": {
+        "close": 0.4801,
+        "change_percent": 1.2343,
+        "observed_at": "2026-10-03T21:44:23.919264+03:30"
+      },
+      "4h": {
+        "close": 0.4852,
+        "change_percent": 0.1851,
+        "observed_at": "2026-10-03T21:44:23.919445+03:30"
+      },
+      "8h": {
+        "close": 0.4889,
+        "change_percent": -0.576,
+        "observed_at": "2026-10-03T21:44:23.919624+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:23.919634+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:16.555517+03:30",
@@ -11020,7 +12030,36 @@
       "30M reversal confirmation",
       "BTC regime not strongly bearish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:24.059702+03:30",
+    "mfe_percent": 5.7795,
+    "mae_percent": 1.749,
+    "horizons": {
+      "1h": {
+        "close": 0.1306,
+        "change_percent": -0.6844,
+        "observed_at": "2026-10-03T21:44:24.060411+03:30"
+      },
+      "2h": {
+        "close": 0.1299,
+        "change_percent": -1.2167,
+        "observed_at": "2026-10-03T21:44:24.060613+03:30"
+      },
+      "4h": {
+        "close": 0.1322,
+        "change_percent": 0.5323,
+        "observed_at": "2026-10-03T21:44:24.060798+03:30"
+      },
+      "8h": {
+        "close": 0.1339,
+        "change_percent": 1.8251,
+        "observed_at": "2026-10-03T21:44:24.060976+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:24.060986+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:16.759198+03:30",
@@ -11054,7 +12093,36 @@
       "BTC NEUTRAL",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:24.201174+03:30",
+    "mfe_percent": 0.7059,
+    "mae_percent": 2.1176,
+    "horizons": {
+      "1h": {
+        "close": 4.26e-06,
+        "change_percent": -0.2353,
+        "observed_at": "2026-10-03T21:44:24.201857+03:30"
+      },
+      "2h": {
+        "close": 4.24e-06,
+        "change_percent": 0.2353,
+        "observed_at": "2026-10-03T21:44:24.202074+03:30"
+      },
+      "4h": {
+        "close": 4.25e-06,
+        "change_percent": 0.0,
+        "observed_at": "2026-10-03T21:44:24.202268+03:30"
+      },
+      "8h": {
+        "close": 4.27e-06,
+        "change_percent": -0.4706,
+        "observed_at": "2026-10-03T21:44:24.202456+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:24.202467+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:16.967463+03:30",
@@ -11088,7 +12156,36 @@
       "BTC NEUTRAL",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:24.342777+03:30",
+    "mfe_percent": 1.0984,
+    "mae_percent": 5.8124,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 10:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.2192,
+        "change_percent": -0.3204,
+        "observed_at": "2026-10-03T21:44:24.343425+03:30"
+      },
+      "2h": {
+        "close": 0.217,
+        "change_percent": 0.6865,
+        "observed_at": "2026-10-03T21:44:24.343624+03:30"
+      },
+      "4h": {
+        "close": 0.2221,
+        "change_percent": -1.6476,
+        "observed_at": "2026-10-03T21:44:24.343807+03:30"
+      },
+      "8h": {
+        "close": 0.226,
+        "change_percent": -3.4325,
+        "observed_at": "2026-10-03T21:44:24.343987+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T09:02:17.180915+03:30",
@@ -11122,7 +12219,36 @@
       "BTC NEUTRAL",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:24.344786+03:30",
+    "mfe_percent": 1.1254,
+    "mae_percent": 2.7331,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 16:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 2.473,
+        "change_percent": 0.6029,
+        "observed_at": "2026-10-03T21:44:24.345367+03:30"
+      },
+      "2h": {
+        "close": 2.463,
+        "change_percent": 1.0048,
+        "observed_at": "2026-10-03T21:44:24.345553+03:30"
+      },
+      "4h": {
+        "close": 2.483,
+        "change_percent": 0.201,
+        "observed_at": "2026-10-03T21:44:24.345731+03:30"
+      },
+      "8h": {
+        "close": 2.495,
+        "change_percent": -0.2814,
+        "observed_at": "2026-10-03T21:44:24.345905+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T09:02:17.388924+03:30",
@@ -11157,7 +12283,36 @@
       "RSI bearish divergence, MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:24.485723+03:30",
+    "mfe_percent": 1.4041,
+    "mae_percent": 1.3699,
+    "horizons": {
+      "1h": {
+        "close": 290.4,
+        "change_percent": 0.5479,
+        "observed_at": "2026-10-03T21:44:24.486394+03:30"
+      },
+      "2h": {
+        "close": 289.2,
+        "change_percent": 0.9589,
+        "observed_at": "2026-10-03T21:44:24.486593+03:30"
+      },
+      "4h": {
+        "close": 290.1,
+        "change_percent": 0.6507,
+        "observed_at": "2026-10-03T21:44:24.486777+03:30"
+      },
+      "8h": {
+        "close": 290.4,
+        "change_percent": 0.5479,
+        "observed_at": "2026-10-03T21:44:24.486953+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:24.486963+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:17.598280+03:30",
@@ -11192,7 +12347,36 @@
       "RSI bearish divergence, MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:24.627209+03:30",
+    "mfe_percent": 0.9114,
+    "mae_percent": 3.443,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 09:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.1977,
+        "change_percent": -0.1013,
+        "observed_at": "2026-10-03T21:44:24.627782+03:30"
+      },
+      "2h": {
+        "close": 0.1964,
+        "change_percent": 0.557,
+        "observed_at": "2026-10-03T21:44:24.627985+03:30"
+      },
+      "4h": {
+        "close": 0.2023,
+        "change_percent": -2.4304,
+        "observed_at": "2026-10-03T21:44:24.628192+03:30"
+      },
+      "8h": {
+        "close": 0.2025,
+        "change_percent": -2.5316,
+        "observed_at": "2026-10-03T21:44:24.628377+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T09:02:17.794786+03:30",
@@ -11227,7 +12411,36 @@
       "RSI bearish divergence, MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:24.629208+03:30",
+    "mfe_percent": 0.8666,
+    "mae_percent": 5.9792,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 10:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 1.153,
+        "change_percent": 0.0867,
+        "observed_at": "2026-10-03T21:44:24.629698+03:30"
+      },
+      "2h": {
+        "close": 1.147,
+        "change_percent": 0.6066,
+        "observed_at": "2026-10-03T21:44:24.629893+03:30"
+      },
+      "4h": {
+        "close": 1.163,
+        "change_percent": -0.7799,
+        "observed_at": "2026-10-03T21:44:24.630093+03:30"
+      },
+      "8h": {
+        "close": 1.206,
+        "change_percent": -4.5061,
+        "observed_at": "2026-10-03T21:44:24.630278+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T09:02:17.991210+03:30",
@@ -11260,7 +12473,36 @@
       "30M RSI supportive",
       "BTC NEUTRAL",
       "Bearish price structure"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:24.770413+03:30",
+    "mfe_percent": 1.0989,
+    "mae_percent": 6.5934,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 14:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 3.64e-06,
+        "change_percent": 0.0,
+        "observed_at": "2026-10-03T21:44:24.771855+03:30"
+      },
+      "2h": {
+        "close": 3.61e-06,
+        "change_percent": 0.8242,
+        "observed_at": "2026-10-03T21:44:24.772066+03:30"
+      },
+      "4h": {
+        "close": 3.61e-06,
+        "change_percent": 0.8242,
+        "observed_at": "2026-10-03T21:44:24.772257+03:30"
+      },
+      "8h": {
+        "close": 3.68e-06,
+        "change_percent": -1.0989,
+        "observed_at": "2026-10-03T21:44:24.772439+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T09:02:18.200989+03:30",
@@ -11295,7 +12537,36 @@
       "RSI bearish divergence, MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:24.773271+03:30",
+    "mfe_percent": 0.5913,
+    "mae_percent": 0.5174,
+    "horizons": {
+      "1h": {
+        "close": 1.486,
+        "change_percent": 0.1545,
+        "observed_at": "2026-10-03T21:44:24.773873+03:30"
+      },
+      "2h": {
+        "close": 1.4824,
+        "change_percent": 0.3964,
+        "observed_at": "2026-10-03T21:44:24.774076+03:30"
+      },
+      "4h": {
+        "close": 1.4832,
+        "change_percent": 0.3427,
+        "observed_at": "2026-10-03T21:44:24.774263+03:30"
+      },
+      "8h": {
+        "close": 1.4867,
+        "change_percent": 0.1075,
+        "observed_at": "2026-10-03T21:44:24.774444+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:24.774453+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:18.406012+03:30",
@@ -11330,7 +12601,36 @@
       "RSI bearish divergence, MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:24.914354+03:30",
+    "mfe_percent": 1.3106,
+    "mae_percent": 1.488,
+    "horizons": {
+      "1h": {
+        "close": 0.10102,
+        "change_percent": 0.4533,
+        "observed_at": "2026-10-03T21:44:24.915011+03:30"
+      },
+      "2h": {
+        "close": 0.10022,
+        "change_percent": 1.2416,
+        "observed_at": "2026-10-03T21:44:24.915225+03:30"
+      },
+      "4h": {
+        "close": 0.1008,
+        "change_percent": 0.6701,
+        "observed_at": "2026-10-03T21:44:24.915409+03:30"
+      },
+      "8h": {
+        "close": 0.1018,
+        "change_percent": -0.3153,
+        "observed_at": "2026-10-03T21:44:24.915588+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:24.915598+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:18.647112+03:30",
@@ -11365,7 +12665,36 @@
       "RSI bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:24.916397+03:30",
+    "mfe_percent": 0.8262,
+    "mae_percent": 0.3219,
+    "horizons": {
+      "1h": {
+        "close": 0.09297,
+        "change_percent": 0.2468,
+        "observed_at": "2026-10-03T21:44:24.916975+03:30"
+      },
+      "2h": {
+        "close": 0.09267,
+        "change_percent": 0.5687,
+        "observed_at": "2026-10-03T21:44:24.917177+03:30"
+      },
+      "4h": {
+        "close": 0.09276,
+        "change_percent": 0.4721,
+        "observed_at": "2026-10-03T21:44:24.917357+03:30"
+      },
+      "8h": {
+        "close": 0.09292,
+        "change_percent": 0.3004,
+        "observed_at": "2026-10-03T21:44:24.917530+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:24.917539+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:18.866113+03:30",
@@ -11400,7 +12729,36 @@
       "RSI bearish divergence, MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:24.918343+03:30",
+    "mfe_percent": 1.2072,
+    "mae_percent": 7.6235,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 10:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.4498,
+        "change_percent": -0.5589,
+        "observed_at": "2026-10-03T21:44:24.918825+03:30"
+      },
+      "2h": {
+        "close": 0.4443,
+        "change_percent": 0.6707,
+        "observed_at": "2026-10-03T21:44:24.919010+03:30"
+      },
+      "4h": {
+        "close": 0.4551,
+        "change_percent": -1.7438,
+        "observed_at": "2026-10-03T21:44:24.919212+03:30"
+      },
+      "8h": {
+        "close": 0.4636,
+        "change_percent": -3.6441,
+        "observed_at": "2026-10-03T21:44:24.919389+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T09:02:19.080709+03:30",
@@ -11435,7 +12793,36 @@
       "RSI bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:25.059008+03:30",
+    "mfe_percent": 1.4574,
+    "mae_percent": 1.6717,
+    "horizons": {
+      "1h": {
+        "close": 0.2334,
+        "change_percent": -0.0429,
+        "observed_at": "2026-10-03T21:44:25.059680+03:30"
+      },
+      "2h": {
+        "close": 0.2322,
+        "change_percent": 0.4715,
+        "observed_at": "2026-10-03T21:44:25.059878+03:30"
+      },
+      "4h": {
+        "close": 0.2342,
+        "change_percent": -0.3858,
+        "observed_at": "2026-10-03T21:44:25.060077+03:30"
+      },
+      "8h": {
+        "close": 0.2321,
+        "change_percent": 0.5144,
+        "observed_at": "2026-10-03T21:44:25.060264+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:25.060274+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:19.294011+03:30",
@@ -11470,7 +12857,36 @@
       "BTC NEUTRAL",
       "Bullish price structure",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:25.200088+03:30",
+    "mfe_percent": 0.9006,
+    "mae_percent": 3.5508,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 08:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 7.719,
+        "change_percent": -0.6947,
+        "observed_at": "2026-10-03T21:44:25.200636+03:30"
+      },
+      "2h": {
+        "close": 7.578,
+        "change_percent": -2.5087,
+        "observed_at": "2026-10-03T21:44:25.200837+03:30"
+      },
+      "4h": {
+        "close": 7.56,
+        "change_percent": -2.7403,
+        "observed_at": "2026-10-03T21:44:25.201034+03:30"
+      },
+      "8h": {
+        "close": 7.648,
+        "change_percent": -1.6081,
+        "observed_at": "2026-10-03T21:44:25.201225+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T09:02:19.508013+03:30",
@@ -11506,7 +12922,36 @@
       "Bearish price structure",
       "4H trend bullish (headwind)",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:25.341368+03:30",
+    "mfe_percent": 0.3349,
+    "mae_percent": 3.1327,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 13:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 766.15,
+        "change_percent": 0.1629,
+        "observed_at": "2026-10-03T21:44:25.341993+03:30"
+      },
+      "2h": {
+        "close": 765.35,
+        "change_percent": 0.2671,
+        "observed_at": "2026-10-03T21:44:25.342209+03:30"
+      },
+      "4h": {
+        "close": 767.61,
+        "change_percent": -0.0274,
+        "observed_at": "2026-10-03T21:44:25.342397+03:30"
+      },
+      "8h": {
+        "close": 774.5,
+        "change_percent": -0.9252,
+        "observed_at": "2026-10-03T21:44:25.342587+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T09:02:19.723795+03:30",
@@ -11539,7 +12984,36 @@
       "BTC NEUTRAL",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:25.482577+03:30",
+    "mfe_percent": 1.6108,
+    "mae_percent": 4.7935,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 14:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.7643,
+        "change_percent": 0.7145,
+        "observed_at": "2026-10-03T21:44:25.483217+03:30"
+      },
+      "2h": {
+        "close": 0.7594,
+        "change_percent": 1.351,
+        "observed_at": "2026-10-03T21:44:25.483415+03:30"
+      },
+      "4h": {
+        "close": 0.7705,
+        "change_percent": -0.0909,
+        "observed_at": "2026-10-03T21:44:25.483599+03:30"
+      },
+      "8h": {
+        "close": 0.7851,
+        "change_percent": -1.9875,
+        "observed_at": "2026-10-03T21:44:25.483777+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T09:02:19.922284+03:30",
@@ -11573,7 +13047,36 @@
       "BTC NEUTRAL",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:25.484582+03:30",
+    "mfe_percent": 1.1474,
+    "mae_percent": 2.424,
+    "horizons": {
+      "1h": {
+        "close": 0.6927,
+        "change_percent": 0.6454,
+        "observed_at": "2026-10-03T21:44:25.485182+03:30"
+      },
+      "2h": {
+        "close": 0.6909,
+        "change_percent": 0.9036,
+        "observed_at": "2026-10-03T21:44:25.485373+03:30"
+      },
+      "4h": {
+        "close": 0.6974,
+        "change_percent": -0.0287,
+        "observed_at": "2026-10-03T21:44:25.485551+03:30"
+      },
+      "8h": {
+        "close": 0.6965,
+        "change_percent": 0.1004,
+        "observed_at": "2026-10-03T21:44:25.485726+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:25.485735+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:20.142358+03:30",
@@ -11607,7 +13110,36 @@
       "RSI bearish divergence, MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:25.486515+03:30",
+    "mfe_percent": 2.5479,
+    "mae_percent": 0.18,
+    "horizons": {
+      "1h": {
+        "close": 1317.41,
+        "change_percent": 0.3691,
+        "observed_at": "2026-10-03T21:44:25.487099+03:30"
+      },
+      "2h": {
+        "close": 1313.4,
+        "change_percent": 0.6723,
+        "observed_at": "2026-10-03T21:44:25.487290+03:30"
+      },
+      "4h": {
+        "close": 1317.98,
+        "change_percent": 0.3259,
+        "observed_at": "2026-10-03T21:44:25.487467+03:30"
+      },
+      "8h": {
+        "close": 1304.05,
+        "change_percent": 1.3794,
+        "observed_at": "2026-10-03T21:44:25.487640+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:25.487649+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:20.351812+03:30",
@@ -11645,7 +13177,36 @@
       "Bullish price structure",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:25.488417+03:30",
+    "mfe_percent": 5.4732,
+    "mae_percent": 6.8985,
+    "horizons": {
+      "1h": {
+        "close": 0.03527,
+        "change_percent": 0.5416,
+        "observed_at": "2026-10-03T21:44:25.488981+03:30"
+      },
+      "2h": {
+        "close": 0.03477,
+        "change_percent": -0.8837,
+        "observed_at": "2026-10-03T21:44:25.489183+03:30"
+      },
+      "4h": {
+        "close": 0.03336,
+        "change_percent": -4.9031,
+        "observed_at": "2026-10-03T21:44:25.489410+03:30"
+      },
+      "8h": {
+        "close": 0.03419,
+        "change_percent": -2.5371,
+        "observed_at": "2026-10-03T21:44:25.489586+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:25.489595+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:20.590033+03:30",
@@ -11681,7 +13242,36 @@
       "Bullish price structure",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:25.490360+03:30",
+    "mfe_percent": 1.791,
+    "mae_percent": 3.7612,
+    "horizons": {
+      "1h": {
+        "close": 0.166,
+        "change_percent": -0.8955,
+        "observed_at": "2026-10-03T21:44:25.490920+03:30"
+      },
+      "2h": {
+        "close": 0.1632,
+        "change_percent": -2.5672,
+        "observed_at": "2026-10-03T21:44:25.491117+03:30"
+      },
+      "4h": {
+        "close": 0.1636,
+        "change_percent": -2.3284,
+        "observed_at": "2026-10-03T21:44:25.491293+03:30"
+      },
+      "8h": {
+        "close": 0.1636,
+        "change_percent": -2.3284,
+        "observed_at": "2026-10-03T21:44:25.491464+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:25.491472+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:20.851890+03:30",
@@ -11716,7 +13306,36 @@
       "BTC NEUTRAL",
       "Bullish price structure",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:25.631018+03:30",
+    "mfe_percent": 0.8873,
+    "mae_percent": 2.9972,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 15:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 9.176,
+        "change_percent": -0.7141,
+        "observed_at": "2026-10-03T21:44:25.631677+03:30"
+      },
+      "2h": {
+        "close": 9.131,
+        "change_percent": -1.201,
+        "observed_at": "2026-10-03T21:44:25.631873+03:30"
+      },
+      "4h": {
+        "close": 9.27,
+        "change_percent": 0.303,
+        "observed_at": "2026-10-03T21:44:25.632068+03:30"
+      },
+      "8h": {
+        "close": 9.149,
+        "change_percent": -1.0063,
+        "observed_at": "2026-10-03T21:44:25.632253+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T09:02:21.072696+03:30",
@@ -11750,7 +13369,36 @@
       "RSI bearish divergence, MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:25.633048+03:30",
+    "mfe_percent": 2.2573,
+    "mae_percent": 3.0976,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 14:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.7962,
+        "change_percent": 0.1505,
+        "observed_at": "2026-10-03T21:44:25.633592+03:30"
+      },
+      "2h": {
+        "close": 0.7886,
+        "change_percent": 1.1036,
+        "observed_at": "2026-10-03T21:44:25.633779+03:30"
+      },
+      "4h": {
+        "close": 0.7957,
+        "change_percent": 0.2132,
+        "observed_at": "2026-10-03T21:44:25.633957+03:30"
+      },
+      "8h": {
+        "close": 0.8057,
+        "change_percent": -1.0409,
+        "observed_at": "2026-10-03T21:44:25.634149+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T09:02:21.277735+03:30",
@@ -11784,7 +13432,36 @@
       "BTC NEUTRAL",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:25.634918+03:30",
+    "mfe_percent": 0.997,
+    "mae_percent": 1.3595,
+    "horizons": {
+      "1h": {
+        "close": 3.314,
+        "change_percent": 0.1208,
+        "observed_at": "2026-10-03T21:44:25.635501+03:30"
+      },
+      "2h": {
+        "close": 3.298,
+        "change_percent": -0.3625,
+        "observed_at": "2026-10-03T21:44:25.635686+03:30"
+      },
+      "4h": {
+        "close": 3.333,
+        "change_percent": 0.6949,
+        "observed_at": "2026-10-03T21:44:25.635860+03:30"
+      },
+      "8h": {
+        "close": 3.293,
+        "change_percent": -0.5136,
+        "observed_at": "2026-10-03T21:44:25.636043+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:25.636053+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:21.477522+03:30",
@@ -11821,7 +13498,36 @@
       "Bullish price structure",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:25.636804+03:30",
+    "mfe_percent": 2.0305,
+    "mae_percent": 5.0761,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 08:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.0588,
+        "change_percent": -0.5076,
+        "observed_at": "2026-10-03T21:44:25.637261+03:30"
+      },
+      "2h": {
+        "close": 0.0573,
+        "change_percent": -3.0457,
+        "observed_at": "2026-10-03T21:44:25.637446+03:30"
+      },
+      "4h": {
+        "close": 0.0569,
+        "change_percent": -3.7225,
+        "observed_at": "2026-10-03T21:44:25.637620+03:30"
+      },
+      "8h": {
+        "close": 0.0566,
+        "change_percent": -4.2301,
+        "observed_at": "2026-10-03T21:44:25.637792+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T09:02:21.709741+03:30",
@@ -11856,7 +13562,36 @@
       "RSI bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:25.638564+03:30",
+    "mfe_percent": 0.1654,
+    "mae_percent": 0.4275,
+    "horizons": {
+      "1h": {
+        "close": 2680.09,
+        "change_percent": -0.0616,
+        "observed_at": "2026-10-03T21:44:25.639132+03:30"
+      },
+      "2h": {
+        "close": 2681.51,
+        "change_percent": -0.1146,
+        "observed_at": "2026-10-03T21:44:25.639318+03:30"
+      },
+      "4h": {
+        "close": 2680.73,
+        "change_percent": -0.0855,
+        "observed_at": "2026-10-03T21:44:25.639494+03:30"
+      },
+      "8h": {
+        "close": 2681.99,
+        "change_percent": -0.1325,
+        "observed_at": "2026-10-03T21:44:25.639667+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:25.639675+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:21.938936+03:30",
@@ -11891,7 +13626,36 @@
       "BTC NEUTRAL",
       "Bullish price structure",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:25.779516+03:30",
+    "mfe_percent": 2.6712,
+    "mae_percent": 1.4682,
+    "horizons": {
+      "1h": {
+        "close": 1.051,
+        "change_percent": -0.4452,
+        "observed_at": "2026-10-03T21:44:25.780179+03:30"
+      },
+      "2h": {
+        "close": 1.0426,
+        "change_percent": -1.2409,
+        "observed_at": "2026-10-03T21:44:25.780375+03:30"
+      },
+      "4h": {
+        "close": 1.0621,
+        "change_percent": 0.6062,
+        "observed_at": "2026-10-03T21:44:25.780604+03:30"
+      },
+      "8h": {
+        "close": 1.0626,
+        "change_percent": 0.6536,
+        "observed_at": "2026-10-03T21:44:25.780788+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:25.780798+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:22.161790+03:30",
@@ -11924,7 +13688,36 @@
       "BTC NEUTRAL",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:25.781600+03:30",
+    "mfe_percent": 2.4783,
+    "mae_percent": 0.2118,
+    "horizons": {
+      "1h": {
+        "close": 4.718,
+        "change_percent": 0.0635,
+        "observed_at": "2026-10-03T21:44:25.782183+03:30"
+      },
+      "2h": {
+        "close": 4.681,
+        "change_percent": 0.8473,
+        "observed_at": "2026-10-03T21:44:25.782373+03:30"
+      },
+      "4h": {
+        "close": 4.672,
+        "change_percent": 1.0379,
+        "observed_at": "2026-10-03T21:44:25.782551+03:30"
+      },
+      "8h": {
+        "close": 4.641,
+        "change_percent": 1.6946,
+        "observed_at": "2026-10-03T21:44:25.782728+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:25.782737+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:22.441095+03:30",
@@ -11958,7 +13751,36 @@
       "BTC NEUTRAL",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:25.922377+03:30",
+    "mfe_percent": 1.2238,
+    "mae_percent": 0.6993,
+    "horizons": {
+      "1h": {
+        "close": 5.7e-06,
+        "change_percent": 0.3497,
+        "observed_at": "2026-10-03T21:44:25.923057+03:30"
+      },
+      "2h": {
+        "close": 5.68e-06,
+        "change_percent": 0.6993,
+        "observed_at": "2026-10-03T21:44:25.923259+03:30"
+      },
+      "4h": {
+        "close": 5.66e-06,
+        "change_percent": 1.049,
+        "observed_at": "2026-10-03T21:44:25.923445+03:30"
+      },
+      "8h": {
+        "close": 5.7e-06,
+        "change_percent": 0.3497,
+        "observed_at": "2026-10-03T21:44:25.923622+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:25.923632+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:22.677558+03:30",
@@ -11986,7 +13808,36 @@
       "Price reclaimed previous close",
       "30M reversal confirmation",
       "BTC regime not strongly bearish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.063980+03:30",
+    "mfe_percent": 4.5058,
+    "mae_percent": 0.4303,
+    "horizons": {
+      "1h": {
+        "close": 0.7936,
+        "change_percent": 0.443,
+        "observed_at": "2026-10-03T21:44:26.064656+03:30"
+      },
+      "2h": {
+        "close": 0.7938,
+        "change_percent": 0.4683,
+        "observed_at": "2026-10-03T21:44:26.064853+03:30"
+      },
+      "4h": {
+        "close": 0.7936,
+        "change_percent": 0.443,
+        "observed_at": "2026-10-03T21:44:26.065051+03:30"
+      },
+      "8h": {
+        "close": 0.7971,
+        "change_percent": 0.886,
+        "observed_at": "2026-10-03T21:44:26.065238+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.065247+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:22.888730+03:30",
@@ -12014,7 +13865,36 @@
       "BTC regime not strongly bearish",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.066053+03:30",
+    "mfe_percent": 0.4462,
+    "mae_percent": 0.0997,
+    "horizons": {
+      "1h": {
+        "close": 84586.0,
+        "change_percent": -0.0572,
+        "observed_at": "2026-10-03T21:44:26.066739+03:30"
+      },
+      "2h": {
+        "close": 84560.0,
+        "change_percent": -0.0879,
+        "observed_at": "2026-10-03T21:44:26.066933+03:30"
+      },
+      "4h": {
+        "close": 84600.01,
+        "change_percent": -0.0406,
+        "observed_at": "2026-10-03T21:44:26.067133+03:30"
+      },
+      "8h": {
+        "close": 84870.04,
+        "change_percent": 0.2784,
+        "observed_at": "2026-10-03T21:44:26.067317+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.067326+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:23.113569+03:30",
@@ -12048,7 +13928,36 @@
       "RSI bearish divergence, MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.207697+03:30",
+    "mfe_percent": 0.8332,
+    "mae_percent": 0.5611,
+    "horizons": {
+      "1h": {
+        "close": 58.87,
+        "change_percent": -0.102,
+        "observed_at": "2026-10-03T21:44:26.208523+03:30"
+      },
+      "2h": {
+        "close": 58.56,
+        "change_percent": 0.4251,
+        "observed_at": "2026-10-03T21:44:26.208743+03:30"
+      },
+      "4h": {
+        "close": 58.98,
+        "change_percent": -0.2891,
+        "observed_at": "2026-10-03T21:44:26.208941+03:30"
+      },
+      "8h": {
+        "close": 58.55,
+        "change_percent": 0.4421,
+        "observed_at": "2026-10-03T21:44:26.209171+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.209183+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:23.341500+03:30",
@@ -12078,7 +13987,36 @@
       "Bullish candle",
       "ATR suitable 1.11%",
       "Daily context bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.210092+03:30",
+    "mfe_percent": 0.4462,
+    "mae_percent": 0.1321,
+    "horizons": {
+      "1h": {
+        "close": 84600.0,
+        "change_percent": -0.0406,
+        "observed_at": "2026-10-03T21:44:26.210791+03:30"
+      },
+      "2h": {
+        "close": 84699.56,
+        "change_percent": 0.077,
+        "observed_at": "2026-10-03T21:44:26.210995+03:30"
+      },
+      "4h": {
+        "close": 84652.09,
+        "change_percent": 0.0209,
+        "observed_at": "2026-10-03T21:44:26.211223+03:30"
+      },
+      "8h": {
+        "close": 84600.01,
+        "change_percent": -0.0406,
+        "observed_at": "2026-10-03T21:44:26.211417+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.211427+03:30"
   },
   {
     "timestamp": "2026-10-03T09:02:23.560577+03:30",
@@ -12110,7 +14048,36 @@
       "BUY overextended from EMA21 -5 (11.20%)",
       "BUY far from EMA200 -5 (27.00%)",
       "Daily context bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.212285+03:30",
+    "mfe_percent": 7.4931,
+    "mae_percent": 9.9907,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 01:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.1044,
+        "change_percent": -3.4228,
+        "observed_at": "2026-10-03T21:44:26.212711+03:30"
+      },
+      "2h": {
+        "close": 0.1056,
+        "change_percent": -2.3127,
+        "observed_at": "2026-10-03T21:44:26.212909+03:30"
+      },
+      "4h": {
+        "close": 0.109,
+        "change_percent": 0.8326,
+        "observed_at": "2026-10-03T21:44:26.213131+03:30"
+      },
+      "8h": {
+        "close": 0.104,
+        "change_percent": -3.7928,
+        "observed_at": "2026-10-03T21:44:26.213328+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T09:02:23.779379+03:30",
@@ -12140,7 +14107,36 @@
       "Bullish candle",
       "ATR suitable 1.84%",
       "Daily context bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.214170+03:30",
+    "mfe_percent": 0.4097,
+    "mae_percent": 0.6522,
+    "horizons": {
+      "1h": {
+        "close": 118.9,
+        "change_percent": -0.5853,
+        "observed_at": "2026-10-03T21:44:26.214842+03:30"
+      },
+      "2h": {
+        "close": 119.4,
+        "change_percent": -0.1672,
+        "observed_at": "2026-10-03T21:44:26.215060+03:30"
+      },
+      "4h": {
+        "close": 119.63,
+        "change_percent": 0.0251,
+        "observed_at": "2026-10-03T21:44:26.215263+03:30"
+      },
+      "8h": {
+        "close": 119.34,
+        "change_percent": -0.2174,
+        "observed_at": "2026-10-03T21:44:26.215453+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.215462+03:30"
   },
   {
     "timestamp": "2026-10-03T14:23:06.855023+03:30",
@@ -12173,7 +14169,36 @@
       "Strong bearish ADX - higher reversal risk",
       "BTC regime not strongly bearish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.216302+03:30",
+    "mfe_percent": 2.3009,
+    "mae_percent": 1.9912,
+    "horizons": {
+      "1h": {
+        "close": 0.2266,
+        "change_percent": 0.2655,
+        "observed_at": "2026-10-03T21:44:26.216830+03:30"
+      },
+      "2h": {
+        "close": 0.2251,
+        "change_percent": -0.3982,
+        "observed_at": "2026-10-03T21:44:26.217042+03:30"
+      },
+      "4h": {
+        "close": 0.2301,
+        "change_percent": 1.8142,
+        "observed_at": "2026-10-03T21:44:26.217251+03:30"
+      },
+      "8h": {
+        "close": 0.2271,
+        "change_percent": 0.4867,
+        "observed_at": "2026-10-03T21:44:26.217394+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.217403+03:30"
   },
   {
     "timestamp": "2026-10-03T14:23:07.030091+03:30",
@@ -12207,7 +14232,36 @@
       "BTC NEUTRAL",
       "Bullish price structure",
       "4H trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.357218+03:30",
+    "mfe_percent": 3.1921,
+    "mae_percent": 1.0447,
+    "horizons": {
+      "1h": {
+        "close": 0.0173,
+        "change_percent": 0.4063,
+        "observed_at": "2026-10-03T21:44:26.357806+03:30"
+      },
+      "2h": {
+        "close": 0.01719,
+        "change_percent": -0.2322,
+        "observed_at": "2026-10-03T21:44:26.358006+03:30"
+      },
+      "4h": {
+        "close": 0.01731,
+        "change_percent": 0.4643,
+        "observed_at": "2026-10-03T21:44:26.358207+03:30"
+      },
+      "8h": {
+        "close": 0.01743,
+        "change_percent": 1.1608,
+        "observed_at": "2026-10-03T21:44:26.358343+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.358352+03:30"
   },
   {
     "timestamp": "2026-10-03T14:23:07.225896+03:30",
@@ -12238,7 +14292,36 @@
       "30M reversal confirmation",
       "BTC regime not strongly bearish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.359156+03:30",
+    "mfe_percent": 0.907,
+    "mae_percent": 0.1134,
+    "horizons": {
+      "1h": {
+        "close": 8.87,
+        "change_percent": 0.5669,
+        "observed_at": "2026-10-03T21:44:26.359656+03:30"
+      },
+      "2h": {
+        "close": 8.83,
+        "change_percent": 0.1134,
+        "observed_at": "2026-10-03T21:44:26.359843+03:30"
+      },
+      "4h": {
+        "close": 8.88,
+        "change_percent": 0.6803,
+        "observed_at": "2026-10-03T21:44:26.360035+03:30"
+      },
+      "8h": {
+        "close": 8.84,
+        "change_percent": 0.2268,
+        "observed_at": "2026-10-03T21:44:26.360173+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.360182+03:30"
   },
   {
     "timestamp": "2026-10-03T14:23:07.398811+03:30",
@@ -12273,7 +14356,36 @@
       "BTC NEUTRAL",
       "Bullish price structure",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.499859+03:30",
+    "mfe_percent": 0.8866,
+    "mae_percent": 1.427,
+    "horizons": {
+      "1h": {
+        "close": 1.1862,
+        "change_percent": 0.1604,
+        "observed_at": "2026-10-03T21:44:26.500471+03:30"
+      },
+      "2h": {
+        "close": 1.1846,
+        "change_percent": 0.0253,
+        "observed_at": "2026-10-03T21:44:26.500668+03:30"
+      },
+      "4h": {
+        "close": 1.1847,
+        "change_percent": 0.0338,
+        "observed_at": "2026-10-03T21:44:26.500901+03:30"
+      },
+      "8h": {
+        "close": 1.1757,
+        "change_percent": -0.7262,
+        "observed_at": "2026-10-03T21:44:26.501051+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.501061+03:30"
   },
   {
     "timestamp": "2026-10-03T14:23:07.548568+03:30",
@@ -12306,7 +14418,36 @@
       "BTC NEUTRAL",
       "MACD bearish divergence",
       "Bearish price structure"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.640968+03:30",
+    "mfe_percent": 0.8518,
+    "mae_percent": 2.5554,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 14:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.000589,
+        "change_percent": -0.3407,
+        "observed_at": "2026-10-03T21:44:26.641559+03:30"
+      },
+      "2h": {
+        "close": 0.000589,
+        "change_percent": -0.3407,
+        "observed_at": "2026-10-03T21:44:26.641755+03:30"
+      },
+      "4h": {
+        "close": 0.000599,
+        "change_percent": -2.0443,
+        "observed_at": "2026-10-03T21:44:26.641942+03:30"
+      },
+      "8h": {
+        "close": 0.000598,
+        "change_percent": -1.8739,
+        "observed_at": "2026-10-03T21:44:26.642092+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T14:23:07.715325+03:30",
@@ -12337,7 +14478,36 @@
       "BTC regime not strongly bearish",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.642970+03:30",
+    "mfe_percent": 3.0105,
+    "mae_percent": 0.1054,
+    "first_event": "TP1",
+    "first_event_time": "2026-10-03 17:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "tp1_touched",
+    "horizons": {
+      "1h": {
+        "close": 770.25,
+        "change_percent": 0.2525,
+        "observed_at": "2026-10-03T21:44:26.643516+03:30"
+      },
+      "2h": {
+        "close": 771.65,
+        "change_percent": 0.4347,
+        "observed_at": "2026-10-03T21:44:26.643706+03:30"
+      },
+      "4h": {
+        "close": 778.52,
+        "change_percent": 1.3289,
+        "observed_at": "2026-10-03T21:44:26.643887+03:30"
+      },
+      "8h": {
+        "close": 788.08,
+        "change_percent": 2.5732,
+        "observed_at": "2026-10-03T21:44:26.644019+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T14:23:07.861141+03:30",
@@ -12371,7 +14541,36 @@
       "Bullish price structure",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.644829+03:30",
+    "mfe_percent": 0.9732,
+    "mae_percent": 1.8248,
+    "horizons": {
+      "1h": {
+        "close": 0.1634,
+        "change_percent": -0.6083,
+        "observed_at": "2026-10-03T21:44:26.645349+03:30"
+      },
+      "2h": {
+        "close": 0.1624,
+        "change_percent": -1.2165,
+        "observed_at": "2026-10-03T21:44:26.645537+03:30"
+      },
+      "4h": {
+        "close": 0.1645,
+        "change_percent": 0.0608,
+        "observed_at": "2026-10-03T21:44:26.645716+03:30"
+      },
+      "8h": {
+        "close": 0.1622,
+        "change_percent": -1.3382,
+        "observed_at": "2026-10-03T21:44:26.645850+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.645859+03:30"
   },
   {
     "timestamp": "2026-10-03T14:23:08.011823+03:30",
@@ -12408,7 +14607,36 @@
       "Bullish price structure",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.646646+03:30",
+    "mfe_percent": 3.355,
+    "mae_percent": 4.1729,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 10:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.6033,
+        "change_percent": 0.7011,
+        "observed_at": "2026-10-03T21:44:26.647081+03:30"
+      },
+      "2h": {
+        "close": 0.6082,
+        "change_percent": 1.5189,
+        "observed_at": "2026-10-03T21:44:26.647339+03:30"
+      },
+      "4h": {
+        "close": 0.6095,
+        "change_percent": 1.7359,
+        "observed_at": "2026-10-03T21:44:26.647533+03:30"
+      },
+      "8h": {
+        "close": 0.5969,
+        "change_percent": -0.3672,
+        "observed_at": "2026-10-03T21:44:26.647669+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T14:23:08.155729+03:30",
@@ -12443,7 +14671,36 @@
       "RSI bearish divergence, MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.648469+03:30",
+    "mfe_percent": 0.9605,
+    "mae_percent": 1.5437,
+    "horizons": {
+      "1h": {
+        "close": 291.0,
+        "change_percent": 0.1715,
+        "observed_at": "2026-10-03T21:44:26.648977+03:30"
+      },
+      "2h": {
+        "close": 289.3,
+        "change_percent": 0.7547,
+        "observed_at": "2026-10-03T21:44:26.649181+03:30"
+      },
+      "4h": {
+        "close": 293.7,
+        "change_percent": -0.7547,
+        "observed_at": "2026-10-03T21:44:26.649360+03:30"
+      },
+      "8h": {
+        "close": 295.2,
+        "change_percent": -1.2693,
+        "observed_at": "2026-10-03T21:44:26.649493+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.649501+03:30"
   },
   {
     "timestamp": "2026-10-03T14:23:08.297249+03:30",
@@ -12477,7 +14734,36 @@
       "RSI bearish divergence, MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.650276+03:30",
+    "mfe_percent": 1.1968,
+    "mae_percent": 1.03,
+    "horizons": {
+      "1h": {
+        "close": 0.1016,
+        "change_percent": 0.3335,
+        "observed_at": "2026-10-03T21:44:26.650769+03:30"
+      },
+      "2h": {
+        "close": 0.10138,
+        "change_percent": 0.5493,
+        "observed_at": "2026-10-03T21:44:26.650952+03:30"
+      },
+      "4h": {
+        "close": 0.10251,
+        "change_percent": -0.5592,
+        "observed_at": "2026-10-03T21:44:26.651147+03:30"
+      },
+      "8h": {
+        "close": 0.10216,
+        "change_percent": -0.2158,
+        "observed_at": "2026-10-03T21:44:26.651280+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.651289+03:30"
   },
   {
     "timestamp": "2026-10-03T14:23:08.443410+03:30",
@@ -12512,7 +14798,36 @@
       "BTC NEUTRAL",
       "Bullish price structure",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.652055+03:30",
+    "mfe_percent": 1.9949,
+    "mae_percent": 0.9975,
+    "horizons": {
+      "1h": {
+        "close": 1.0678,
+        "change_percent": 0.4799,
+        "observed_at": "2026-10-03T21:44:26.652551+03:30"
+      },
+      "2h": {
+        "close": 1.0536,
+        "change_percent": -0.8563,
+        "observed_at": "2026-10-03T21:44:26.652739+03:30"
+      },
+      "4h": {
+        "close": 1.0797,
+        "change_percent": 1.5997,
+        "observed_at": "2026-10-03T21:44:26.652916+03:30"
+      },
+      "8h": {
+        "close": 1.0635,
+        "change_percent": 0.0753,
+        "observed_at": "2026-10-03T21:44:26.653060+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.653069+03:30"
   },
   {
     "timestamp": "2026-10-03T14:23:08.586729+03:30",
@@ -12547,7 +14862,36 @@
       "Bullish price structure",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.653825+03:30",
+    "mfe_percent": 0.4809,
+    "mae_percent": 1.8635,
+    "horizons": {
+      "1h": {
+        "close": 3.297,
+        "change_percent": -0.9017,
+        "observed_at": "2026-10-03T21:44:26.654327+03:30"
+      },
+      "2h": {
+        "close": 3.279,
+        "change_percent": -1.4427,
+        "observed_at": "2026-10-03T21:44:26.654519+03:30"
+      },
+      "4h": {
+        "close": 3.302,
+        "change_percent": -0.7514,
+        "observed_at": "2026-10-03T21:44:26.654696+03:30"
+      },
+      "8h": {
+        "close": 3.299,
+        "change_percent": -0.8416,
+        "observed_at": "2026-10-03T21:44:26.654839+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.654848+03:30"
   },
   {
     "timestamp": "2026-10-03T14:23:08.761990+03:30",
@@ -12582,7 +14926,36 @@
       "BTC NEUTRAL",
       "Bullish price structure",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.655611+03:30",
+    "mfe_percent": 1.3203,
+    "mae_percent": 1.7164,
+    "horizons": {
+      "1h": {
+        "close": 0.3778,
+        "change_percent": -0.2377,
+        "observed_at": "2026-10-03T21:44:26.656122+03:30"
+      },
+      "2h": {
+        "close": 0.3737,
+        "change_percent": -1.3203,
+        "observed_at": "2026-10-03T21:44:26.656311+03:30"
+      },
+      "4h": {
+        "close": 0.38,
+        "change_percent": 0.3433,
+        "observed_at": "2026-10-03T21:44:26.656490+03:30"
+      },
+      "8h": {
+        "close": 0.3798,
+        "change_percent": 0.2905,
+        "observed_at": "2026-10-03T21:44:26.656622+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.656630+03:30"
   },
   {
     "timestamp": "2026-10-03T14:23:08.920814+03:30",
@@ -12618,7 +14991,36 @@
       "Bullish price structure",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.657393+03:30",
+    "mfe_percent": 0.6694,
+    "mae_percent": 3.2067,
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 15:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "stop_loss_touched",
+    "horizons": {
+      "1h": {
+        "close": 9.196,
+        "change_percent": -0.7126,
+        "observed_at": "2026-10-03T21:44:26.657895+03:30"
+      },
+      "2h": {
+        "close": 9.144,
+        "change_percent": -1.274,
+        "observed_at": "2026-10-03T21:44:26.658125+03:30"
+      },
+      "4h": {
+        "close": 9.138,
+        "change_percent": -1.3388,
+        "observed_at": "2026-10-03T21:44:26.658315+03:30"
+      },
+      "8h": {
+        "close": 9.023,
+        "change_percent": -2.5804,
+        "observed_at": "2026-10-03T21:44:26.658452+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T14:23:09.096836+03:30",
@@ -12653,7 +15055,36 @@
       "Bullish price structure",
       "4H trend bullish",
       "Daily trend bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.659249+03:30",
+    "mfe_percent": 3.8797,
+    "mae_percent": 4.8497,
+    "horizons": {
+      "1h": {
+        "close": 0.1032,
+        "change_percent": 0.097,
+        "observed_at": "2026-10-03T21:44:26.659747+03:30"
+      },
+      "2h": {
+        "close": 0.1015,
+        "change_percent": -1.5519,
+        "observed_at": "2026-10-03T21:44:26.659936+03:30"
+      },
+      "4h": {
+        "close": 0.1029,
+        "change_percent": -0.194,
+        "observed_at": "2026-10-03T21:44:26.660185+03:30"
+      },
+      "8h": {
+        "close": 0.1062,
+        "change_percent": 3.0068,
+        "observed_at": "2026-10-03T21:44:26.660323+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.660331+03:30"
   },
   {
     "timestamp": "2026-10-03T14:23:09.261529+03:30",
@@ -12688,7 +15119,36 @@
       "BTC NEUTRAL",
       "Bearish price structure",
       "Daily trend bearish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.661100+03:30",
+    "mfe_percent": 1.7349,
+    "mae_percent": 0.1446,
+    "horizons": {
+      "1h": {
+        "close": 2.063,
+        "change_percent": 0.5783,
+        "observed_at": "2026-10-03T21:44:26.661596+03:30"
+      },
+      "2h": {
+        "close": 2.057,
+        "change_percent": 0.8675,
+        "observed_at": "2026-10-03T21:44:26.661782+03:30"
+      },
+      "4h": {
+        "close": 2.069,
+        "change_percent": 0.2892,
+        "observed_at": "2026-10-03T21:44:26.661964+03:30"
+      },
+      "8h": {
+        "close": 2.055,
+        "change_percent": 0.9639,
+        "observed_at": "2026-10-03T21:44:26.662109+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.662119+03:30"
   },
   {
     "timestamp": "2026-10-03T14:23:09.426734+03:30",
@@ -12723,7 +15183,36 @@
       "RSI bearish divergence, MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.662865+03:30",
+    "mfe_percent": 0.6533,
+    "mae_percent": 0.7933,
+    "horizons": {
+      "1h": {
+        "close": 0.2147,
+        "change_percent": -0.1867,
+        "observed_at": "2026-10-03T21:44:26.663367+03:30"
+      },
+      "2h": {
+        "close": 0.2146,
+        "change_percent": -0.14,
+        "observed_at": "2026-10-03T21:44:26.663550+03:30"
+      },
+      "4h": {
+        "close": 0.2154,
+        "change_percent": -0.5133,
+        "observed_at": "2026-10-03T21:44:26.663727+03:30"
+      },
+      "8h": {
+        "close": 0.2143,
+        "change_percent": 0.0,
+        "observed_at": "2026-10-03T21:44:26.663858+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.663866+03:30"
   },
   {
     "timestamp": "2026-10-03T14:23:09.572990+03:30",
@@ -12757,7 +15246,36 @@
       "MACD bearish divergence",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.804015+03:30",
+    "mfe_percent": 1.133,
+    "mae_percent": 0.1362,
+    "horizons": {
+      "1h": {
+        "close": 13.92,
+        "change_percent": 0.1793,
+        "observed_at": "2026-10-03T21:44:26.804652+03:30"
+      },
+      "2h": {
+        "close": 13.857,
+        "change_percent": 0.6311,
+        "observed_at": "2026-10-03T21:44:26.804853+03:30"
+      },
+      "4h": {
+        "close": 13.917,
+        "change_percent": 0.2008,
+        "observed_at": "2026-10-03T21:44:26.805049+03:30"
+      },
+      "8h": {
+        "close": 13.91,
+        "change_percent": 0.251,
+        "observed_at": "2026-10-03T21:44:26.805189+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.805198+03:30"
   },
   {
     "timestamp": "2026-10-03T14:23:09.754804+03:30",
@@ -12790,7 +15308,36 @@
       "BTC NEUTRAL",
       "Bearish price structure",
       "Daily trend bullish (headwind)"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.806016+03:30",
+    "mfe_percent": 2.0634,
+    "mae_percent": 0.6169,
+    "horizons": {
+      "1h": {
+        "close": 4.67,
+        "change_percent": 0.6594,
+        "observed_at": "2026-10-03T21:44:26.806556+03:30"
+      },
+      "2h": {
+        "close": 4.664,
+        "change_percent": 0.7871,
+        "observed_at": "2026-10-03T21:44:26.806749+03:30"
+      },
+      "4h": {
+        "close": 4.67,
+        "change_percent": 0.6594,
+        "observed_at": "2026-10-03T21:44:26.806926+03:30"
+      },
+      "8h": {
+        "close": 4.688,
+        "change_percent": 0.2765,
+        "observed_at": "2026-10-03T21:44:26.807072+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.807081+03:30"
   },
   {
     "timestamp": "2026-10-03T14:23:09.917568+03:30",
@@ -12822,7 +15369,36 @@
       "BUY somewhat extended from EMA21 -2 (3.80%)",
       "BUY somewhat far from EMA200 -2 (11.70%)",
       "Daily context bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.807851+03:30",
+    "mfe_percent": 3.7105,
+    "mae_percent": 1.9465,
+    "horizons": {
+      "1h": {
+        "close": 0.166,
+        "change_percent": 0.9732,
+        "observed_at": "2026-10-03T21:44:26.808434+03:30"
+      },
+      "2h": {
+        "close": 0.1632,
+        "change_percent": -0.7299,
+        "observed_at": "2026-10-03T21:44:26.808622+03:30"
+      },
+      "4h": {
+        "close": 0.1636,
+        "change_percent": -0.4866,
+        "observed_at": "2026-10-03T21:44:26.808798+03:30"
+      },
+      "8h": {
+        "close": 0.1636,
+        "change_percent": -0.4866,
+        "observed_at": "2026-10-03T21:44:26.808974+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.808983+03:30"
   },
   {
     "timestamp": "2026-10-03T14:23:10.108059+03:30",
@@ -12854,7 +15430,36 @@
       "BUY overextended from EMA21 -5 (6.30%)",
       "BUY far from EMA200 -5 (26.71%)",
       "Daily context bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.809752+03:30",
+    "mfe_percent": 8.2372,
+    "mae_percent": 0.8357,
+    "horizons": {
+      "1h": {
+        "close": 0.002642,
+        "change_percent": 5.1333,
+        "observed_at": "2026-10-03T21:44:26.810332+03:30"
+      },
+      "2h": {
+        "close": 0.002574,
+        "change_percent": 2.4274,
+        "observed_at": "2026-10-03T21:44:26.810519+03:30"
+      },
+      "4h": {
+        "close": 0.00258,
+        "change_percent": 2.6661,
+        "observed_at": "2026-10-03T21:44:26.810696+03:30"
+      },
+      "8h": {
+        "close": 0.002522,
+        "change_percent": 0.3581,
+        "observed_at": "2026-10-03T21:44:26.810870+03:30"
+      }
+    },
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.810879+03:30"
   },
   {
     "timestamp": "2026-10-03T14:23:10.293429+03:30",
@@ -12886,7 +15491,36 @@
       "BUY overextended from EMA21 -5 (10.18%)",
       "BUY far from EMA200 -5 (26.93%)",
       "Daily context bullish"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.811652+03:30",
+    "mfe_percent": 12.7061,
+    "mae_percent": 4.8497,
+    "first_event": "TP1",
+    "first_event_time": "2026-10-03 05:00:00+00:00",
+    "outcome_status": "FINAL",
+    "outcome_reason": "tp1_touched",
+    "horizons": {
+      "1h": {
+        "close": 0.1058,
+        "change_percent": 2.6188,
+        "observed_at": "2026-10-03T21:44:26.812062+03:30"
+      },
+      "2h": {
+        "close": 0.1057,
+        "change_percent": 2.5218,
+        "observed_at": "2026-10-03T21:44:26.812254+03:30"
+      },
+      "4h": {
+        "close": 0.104,
+        "change_percent": 0.8729,
+        "observed_at": "2026-10-03T21:44:26.812430+03:30"
+      },
+      "8h": {
+        "close": 0.1018,
+        "change_percent": -1.2609,
+        "observed_at": "2026-10-03T21:44:26.812604+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T14:23:10.715966+03:30",
@@ -12917,7 +15551,15 @@
       "ATR slightly outside ideal range 8.00%",
       "BUY far from EMA200 -5 (12.81%)",
       "4H context neutral"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.813351+03:30",
+    "mfe_percent": 2.6466,
+    "mae_percent": 5.8659,
+    "horizons": {},
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "finalized_at": "2026-10-03T21:44:26.814395+03:30"
   },
   {
     "timestamp": "2026-10-03T16:56:12.921285+03:30",
@@ -12959,7 +15601,27 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.815165+03:30",
+    "mfe_percent": 2.7453,
+    "mae_percent": 0.0584,
+    "horizons": {
+      "1h": {
+        "close": 0.01731,
+        "change_percent": 1.1098,
+        "observed_at": "2026-10-03T21:44:26.815613+03:30"
+      },
+      "2h": {
+        "close": 0.01728,
+        "change_percent": 0.9346,
+        "observed_at": "2026-10-03T21:44:26.815799+03:30"
+      },
+      "4h": {
+        "close": 0.01743,
+        "change_percent": 1.8107,
+        "observed_at": "2026-10-03T21:44:26.815933+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T16:56:13.120891+03:30",
@@ -12994,7 +15656,27 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.816801+03:30",
+    "mfe_percent": 3.6307,
+    "mae_percent": 0.2241,
+    "horizons": {
+      "1h": {
+        "close": 0.2301,
+        "change_percent": 3.1376,
+        "observed_at": "2026-10-03T21:44:26.817258+03:30"
+      },
+      "2h": {
+        "close": 0.229,
+        "change_percent": 2.6446,
+        "observed_at": "2026-10-03T21:44:26.817443+03:30"
+      },
+      "4h": {
+        "close": 0.2271,
+        "change_percent": 1.7929,
+        "observed_at": "2026-10-03T21:44:26.817574+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T17:17:24.074814+03:30",
@@ -13032,7 +15714,27 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:26.958142+03:30",
+    "mfe_percent": 0.7568,
+    "mae_percent": 0.4292,
+    "horizons": {
+      "1h": {
+        "close": 88.81,
+        "change_percent": 0.3163,
+        "observed_at": "2026-10-03T21:44:26.958697+03:30"
+      },
+      "2h": {
+        "close": 88.89,
+        "change_percent": 0.4066,
+        "observed_at": "2026-10-03T21:44:26.958894+03:30"
+      },
+      "4h": {
+        "close": 89.11,
+        "change_percent": 0.6551,
+        "observed_at": "2026-10-03T21:44:26.959043+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T17:17:24.360417+03:30",
@@ -13070,7 +15772,27 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:27.099217+03:30",
+    "mfe_percent": 1.6031,
+    "mae_percent": 1.374,
+    "horizons": {
+      "1h": {
+        "close": 0.1318,
+        "change_percent": 0.6107,
+        "observed_at": "2026-10-03T21:44:27.099777+03:30"
+      },
+      "2h": {
+        "close": 0.1307,
+        "change_percent": -0.229,
+        "observed_at": "2026-10-03T21:44:27.099983+03:30"
+      },
+      "4h": {
+        "close": 0.131,
+        "change_percent": 0.0,
+        "observed_at": "2026-10-03T21:44:27.100145+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T18:31:08.140861+03:30",
@@ -13110,7 +15832,22 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:27.101077+03:30",
+    "mfe_percent": 0.1501,
+    "mae_percent": 0.4288,
+    "horizons": {
+      "1h": {
+        "close": 0.09309,
+        "change_percent": -0.2144,
+        "observed_at": "2026-10-03T21:44:27.101537+03:30"
+      },
+      "2h": {
+        "close": 0.09326,
+        "change_percent": -0.0322,
+        "observed_at": "2026-10-03T21:44:27.101709+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T18:31:08.329405+03:30",
@@ -13154,7 +15891,22 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:27.102716+03:30",
+    "mfe_percent": 0.4266,
+    "mae_percent": 1.5235,
+    "horizons": {
+      "1h": {
+        "close": 0.1628,
+        "change_percent": -0.7922,
+        "observed_at": "2026-10-03T21:44:27.103179+03:30"
+      },
+      "2h": {
+        "close": 0.1622,
+        "change_percent": -1.1578,
+        "observed_at": "2026-10-03T21:44:27.103327+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T18:31:08.522771+03:30",
@@ -13197,7 +15949,22 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:27.104311+03:30",
+    "mfe_percent": 4.1829,
+    "mae_percent": 0.3891,
+    "horizons": {
+      "1h": {
+        "close": 0.104,
+        "change_percent": 1.1673,
+        "observed_at": "2026-10-03T21:44:27.104739+03:30"
+      },
+      "2h": {
+        "close": 0.1062,
+        "change_percent": 3.3074,
+        "observed_at": "2026-10-03T21:44:27.104882+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T18:31:08.755572+03:30",
@@ -13241,7 +16008,22 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:27.105850+03:30",
+    "mfe_percent": 1.5589,
+    "mae_percent": 0.6928,
+    "horizons": {
+      "1h": {
+        "close": 0.01738,
+        "change_percent": 0.3464,
+        "observed_at": "2026-10-03T21:44:27.106301+03:30"
+      },
+      "2h": {
+        "close": 0.01743,
+        "change_percent": 0.6351,
+        "observed_at": "2026-10-03T21:44:27.106445+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T21:04:11.316004+03:30",
@@ -13285,7 +16067,17 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:27.107411+03:30",
+    "mfe_percent": 0.793,
+    "mae_percent": 0.2643,
+    "horizons": {
+      "1h": {
+        "close": 0.2271,
+        "change_percent": 0.0441,
+        "observed_at": "2026-10-03T21:44:27.107737+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T21:04:11.509076+03:30",
@@ -13333,7 +16125,17 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:27.108778+03:30",
+    "mfe_percent": 0.9442,
+    "mae_percent": 0.9652,
+    "horizons": {
+      "1h": {
+        "close": 0.4739,
+        "change_percent": -0.5665,
+        "observed_at": "2026-10-03T21:44:27.109113+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T21:04:11.702069+03:30",
@@ -13380,7 +16182,17 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:27.110141+03:30",
+    "mfe_percent": 0.4,
+    "mae_percent": 0.6857,
+    "horizons": {
+      "1h": {
+        "close": 0.01743,
+        "change_percent": -0.4,
+        "observed_at": "2026-10-03T21:44:27.110463+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T21:04:11.902518+03:30",
@@ -13416,7 +16228,17 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:27.111495+03:30",
+    "mfe_percent": 2.0517,
+    "mae_percent": 0.964,
+    "horizons": {
+      "1h": {
+        "close": 0.8162,
+        "change_percent": 0.8775,
+        "observed_at": "2026-10-03T21:44:27.111851+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T21:04:12.092427+03:30",
@@ -13459,7 +16281,17 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:27.112979+03:30",
+    "mfe_percent": 0.4174,
+    "mae_percent": 0.4174,
+    "horizons": {
+      "1h": {
+        "close": 1.197,
+        "change_percent": -0.0835,
+        "observed_at": "2026-10-03T21:44:27.113327+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T21:04:12.289976+03:30",
@@ -13503,7 +16335,17 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:27.114401+03:30",
+    "mfe_percent": 3.6786,
+    "mae_percent": 0.3872,
+    "horizons": {
+      "1h": {
+        "close": 0.1062,
+        "change_percent": 2.8074,
+        "observed_at": "2026-10-03T21:44:27.114720+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T21:04:12.510689+03:30",
@@ -13547,7 +16389,17 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:27.115858+03:30",
+    "mfe_percent": 0.6729,
+    "mae_percent": 0.7887,
+    "horizons": {
+      "1h": {
+        "close": 1305.24,
+        "change_percent": -0.1419,
+        "observed_at": "2026-10-03T21:44:27.116212+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T21:04:12.692273+03:30",
@@ -13592,7 +16444,17 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:27.117240+03:30",
+    "mfe_percent": 0.4202,
+    "mae_percent": 0.1867,
+    "horizons": {
+      "1h": {
+        "close": 0.2143,
+        "change_percent": -0.0467,
+        "observed_at": "2026-10-03T21:44:27.117559+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T21:11:44.670048+03:30",
@@ -13633,7 +16495,17 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:27.118586+03:30",
+    "mfe_percent": 0.1404,
+    "mae_percent": 1.3134,
+    "horizons": {
+      "1h": {
+        "close": 788.08,
+        "change_percent": -0.2847,
+        "observed_at": "2026-10-03T21:44:27.118903+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T21:11:44.844879+03:30",
@@ -13672,7 +16544,17 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:27.119924+03:30",
+    "mfe_percent": 0.0754,
+    "mae_percent": 0.1271,
+    "horizons": {
+      "1h": {
+        "close": 85012.0,
+        "change_percent": 0.0753,
+        "observed_at": "2026-10-03T21:44:27.120260+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T21:11:45.029607+03:30",
@@ -13712,7 +16594,17 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "outcome_created_at": "2026-10-03T21:44:27.121316+03:30",
+    "mfe_percent": 0.2614,
+    "mae_percent": 0.2346,
+    "horizons": {
+      "1h": {
+        "close": 1.4936,
+        "change_percent": 0.1005,
+        "observed_at": "2026-10-03T21:44:27.121649+03:30"
+      }
+    }
   },
   {
     "timestamp": "2026-10-03T21:33:30.618354+03:30",
