@@ -9862,8 +9862,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:06.681862+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:23.587555+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 2.084,
@@ -9875,8 +9875,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:06.682774+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:23.588303+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 2.089,
@@ -9888,8 +9888,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:06.683738+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:23.589073+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 2.052,
@@ -9901,8 +9901,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:06.684871+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:23.589928+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -9918,7 +9918,7 @@
       "mfe_percent": 0.5666,
       "mae_percent": 3.305
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:44.915329+03:30",
@@ -9973,8 +9973,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:06.830531+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:23.708455+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 1.25,
@@ -9986,8 +9986,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:06.831436+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:23.709189+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 1.275,
@@ -9999,8 +9999,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:06.832475+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:23.709938+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 1.223,
@@ -10012,8 +10012,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:06.833562+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:23.710761+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": true,
@@ -10024,7 +10024,7 @@
       "mfe_percent": 4.8077,
       "mae_percent": 3.4455
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:45.070731+03:30",
@@ -10070,8 +10070,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:06.978990+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:23.829614+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 3.353,
@@ -10083,8 +10083,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:06.979899+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:23.830329+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 3.31,
@@ -10096,8 +10096,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:06.980832+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:23.831073+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 3.325,
@@ -10109,8 +10109,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:06.982107+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:23.831887+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -10126,7 +10126,7 @@
       "mfe_percent": 2.3896,
       "mae_percent": 0.7562
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:45.212435+03:30",
@@ -10181,8 +10181,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.127741+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:23.950401+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.1044,
@@ -10194,8 +10194,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.128664+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:23.951118+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.1099,
@@ -10207,8 +10207,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.129710+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:23.951839+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.1018,
@@ -10220,8 +10220,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.130779+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:23.952686+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": true,
@@ -10232,7 +10232,7 @@
       "mfe_percent": 15.507,
       "mae_percent": 3.7773
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:45.370303+03:30",
@@ -10282,8 +10282,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.276770+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.070718+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.1679,
@@ -10295,8 +10295,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.277690+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.071419+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.1684,
@@ -10308,8 +10308,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.278652+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.072209+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.162,
@@ -10321,8 +10321,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.279805+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.073029+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -10338,7 +10338,7 @@
       "mfe_percent": 2.8279,
       "mae_percent": 3.0084
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:45.510994+03:30",
@@ -10393,8 +10393,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.425105+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.192240+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 11.65,
@@ -10406,8 +10406,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.426019+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.192947+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 11.67,
@@ -10419,8 +10419,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.427052+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.193671+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 11.26,
@@ -10432,8 +10432,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.428106+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.194495+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -10444,7 +10444,7 @@
       "mfe_percent": 0.674,
       "mae_percent": 5.2233
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:45.652315+03:30",
@@ -10494,8 +10494,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.574040+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.313103+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 1.4856,
@@ -10507,8 +10507,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.574959+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.313787+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 1.4857,
@@ -10520,8 +10520,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.575926+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.314585+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 1.4817,
@@ -10533,8 +10533,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.576999+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.315401+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -10550,7 +10550,7 @@
       "mfe_percent": 0.3637,
       "mae_percent": 0.5792
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:45.792568+03:30",
@@ -10601,8 +10601,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.722559+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.433978+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 1320.53,
@@ -10614,8 +10614,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.723477+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.434660+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 1315.87,
@@ -10627,8 +10627,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.724516+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.435419+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 1317.02,
@@ -10640,8 +10640,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.725599+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.436232+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -10657,7 +10657,7 @@
       "mfe_percent": 0.3197,
       "mae_percent": 2.0013
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:45.946804+03:30",
@@ -10711,8 +10711,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.870596+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.554913+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.5668,
@@ -10724,8 +10724,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.871531+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.555606+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.5673,
@@ -10737,8 +10737,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.872500+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.556408+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.5617,
@@ -10750,8 +10750,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:07.873558+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.557249+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -10762,7 +10762,7 @@
       "mfe_percent": 2.9595,
       "mae_percent": 1.9611
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:46.092272+03:30",
@@ -10812,8 +10812,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.019122+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.675909+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.2155,
@@ -10825,8 +10825,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.020035+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.676589+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.2146,
@@ -10838,8 +10838,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.021075+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.677308+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.2138,
@@ -10851,8 +10851,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.022214+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.678121+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -10868,7 +10868,7 @@
       "mfe_percent": 0.8821,
       "mae_percent": 0.7428
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:46.237297+03:30",
@@ -10923,8 +10923,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.167871+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.797939+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 1.163,
@@ -10936,8 +10936,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.168782+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.798632+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 1.147,
@@ -10949,8 +10949,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.169758+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.799448+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 1.147,
@@ -10962,8 +10962,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.170837+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.800280+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -10974,7 +10974,7 @@
       "mfe_percent": 0.8666,
       "mae_percent": 1.9064
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:46.377633+03:30",
@@ -11028,8 +11028,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.316216+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.918914+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.0584,
@@ -11041,8 +11041,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.317151+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.919597+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.059,
@@ -11054,8 +11054,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.318200+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.920325+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.0565,
@@ -11067,8 +11067,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.319260+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:24.921127+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -11079,7 +11079,7 @@
       "mfe_percent": 3.2203,
       "mae_percent": 4.9153
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:46.514895+03:30",
@@ -11129,8 +11129,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.465297+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.039629+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.09304,
@@ -11142,8 +11142,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.466229+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.040332+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.09295,
@@ -11155,8 +11155,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.467203+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.041128+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.09252,
@@ -11168,8 +11168,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.468300+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.041947+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -11185,7 +11185,7 @@
       "mfe_percent": 0.4952,
       "mae_percent": 0.8074
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:46.668368+03:30",
@@ -11238,8 +11238,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.613988+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.161218+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.452,
@@ -11251,8 +11251,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.614931+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.161937+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.4447,
@@ -11264,8 +11264,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.615989+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.162655+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.4446,
@@ -11277,8 +11277,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.617091+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.163465+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -11289,7 +11289,7 @@
       "mfe_percent": 1.5813,
       "mae_percent": 1.4254
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:46.816880+03:30",
@@ -11338,8 +11338,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.762467+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.282274+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 8.82,
@@ -11351,8 +11351,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.763385+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.282976+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 8.83,
@@ -11364,8 +11364,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.764352+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.283751+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 8.78,
@@ -11377,8 +11377,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.765405+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.284576+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -11394,7 +11394,7 @@
       "mfe_percent": 0.6795,
       "mae_percent": 0.6795
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:46.950695+03:30",
@@ -11451,8 +11451,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.911475+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.403300+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.03712,
@@ -11464,8 +11464,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.912417+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.404013+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.03583,
@@ -11477,8 +11477,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.913470+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.404719+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.03358,
@@ -11490,8 +11490,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:08.914580+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.405527+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": true,
@@ -11502,7 +11502,7 @@
       "mfe_percent": 11.9799,
       "mae_percent": 1.977
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:47.103308+03:30",
@@ -11551,8 +11551,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.060052+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.524470+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 4.682,
@@ -11564,8 +11564,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.060981+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.525178+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 4.638,
@@ -11577,8 +11577,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.061954+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.525957+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 4.671,
@@ -11590,8 +11590,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.063023+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.526739+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -11607,7 +11607,7 @@
       "mfe_percent": 1.6599,
       "mae_percent": 0.8725
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:47.246026+03:30",
@@ -11656,8 +11656,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.208629+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.645108+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.6981,
@@ -11669,8 +11669,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.209598+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.645799+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.6959,
@@ -11682,8 +11682,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.210636+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.646537+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.691,
@@ -11695,8 +11695,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.211710+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.647360+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -11712,7 +11712,7 @@
       "mfe_percent": 1.2607,
       "mae_percent": 1.6332
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:47.386250+03:30",
@@ -11766,8 +11766,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.357180+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.765560+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.2472,
@@ -11779,8 +11779,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.358117+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.766275+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.2489,
@@ -11792,8 +11792,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.359059+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.767060+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.2462,
@@ -11805,8 +11805,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.360115+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.767845+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -11817,7 +11817,7 @@
       "mfe_percent": 0.4062,
       "mae_percent": 2.5183
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:47.535847+03:30",
@@ -11870,8 +11870,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.505921+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.886410+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 2.493,
@@ -11883,8 +11883,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.506824+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.887118+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 2.484,
@@ -11896,8 +11896,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.507912+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.887832+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 2.466,
@@ -11909,8 +11909,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.508983+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:25.888648+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -11921,7 +11921,7 @@
       "mfe_percent": 1.2445,
       "mae_percent": 0.562
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:47.673315+03:30",
@@ -11975,8 +11975,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.654538+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.007030+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.10767,
@@ -11988,8 +11988,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.655441+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.007713+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.10726,
@@ -12001,8 +12001,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.656390+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.008507+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.10767,
@@ -12014,8 +12014,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.657475+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.009391+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -12026,7 +12026,7 @@
       "mfe_percent": 0.3079,
       "mae_percent": 1.0451
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:47.811061+03:30",
@@ -12077,8 +12077,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.803391+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.127856+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 2677.14,
@@ -12090,8 +12090,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.804313+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.128563+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 2676.01,
@@ -12103,8 +12103,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.806021+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.129303+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 2683.01,
@@ -12116,8 +12116,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.807103+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.130124+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -12133,7 +12133,7 @@
       "mfe_percent": 0.0176,
       "mae_percent": 0.6928
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:47.968284+03:30",
@@ -12188,8 +12188,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.952701+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.248646+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 69.86,
@@ -12201,8 +12201,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.953609+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.249374+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 68.84,
@@ -12214,8 +12214,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.954578+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.250709+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 69.42,
@@ -12227,8 +12227,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:09.955665+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.251588+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -12239,7 +12239,7 @@
       "mfe_percent": 1.6669,
       "mae_percent": 2.479
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:48.117852+03:30",
@@ -12296,8 +12296,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.101671+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.370410+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.002683,
@@ -12309,8 +12309,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.102584+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.371105+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.002619,
@@ -12322,8 +12322,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.103622+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.371813+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.002569,
@@ -12335,8 +12335,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.104687+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.372617+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -12347,7 +12347,7 @@
       "mfe_percent": 3.9444,
       "mae_percent": 4.9587
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:48.252618+03:30",
@@ -12402,8 +12402,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.250390+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.491561+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 2.566,
@@ -12415,8 +12415,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.251307+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.492343+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 2.556,
@@ -12428,8 +12428,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.252273+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.493149+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 2.556,
@@ -12441,8 +12441,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.253323+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.493968+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -12453,7 +12453,7 @@
       "mfe_percent": 1.053,
       "mae_percent": 0.936
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:48.408190+03:30",
@@ -12507,8 +12507,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.401347+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.612241+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.7913,
@@ -12520,8 +12520,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.402285+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.612949+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.792,
@@ -12533,8 +12533,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 04:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.403350+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.613673+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.7848,
@@ -12546,8 +12546,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 00:00:00+00:00",
         "window_end": "2026-10-03 08:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.404421+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.614497+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -12558,7 +12558,7 @@
       "mfe_percent": 2.1223,
       "mae_percent": 1.2558
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:48.542757+03:30",
@@ -12603,8 +12603,8 @@
         "sl_reached": false,
         "window_start": "2026-10-02 21:00:00+00:00",
         "window_end": "2026-10-02 22:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.549738+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.732741+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 84518.01,
@@ -12616,8 +12616,8 @@
         "sl_reached": false,
         "window_start": "2026-10-02 21:00:00+00:00",
         "window_end": "2026-10-02 23:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.550658+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.733451+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 84640.0,
@@ -12629,8 +12629,8 @@
         "sl_reached": false,
         "window_start": "2026-10-02 21:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.551616+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.734259+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 84652.09,
@@ -12642,8 +12642,8 @@
         "sl_reached": false,
         "window_start": "2026-10-02 21:00:00+00:00",
         "window_end": "2026-10-03 05:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.552685+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.735087+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -12659,7 +12659,7 @@
       "mfe_percent": 0.2901,
       "mae_percent": 0.0686
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:48.689978+03:30",
@@ -12710,8 +12710,8 @@
         "sl_reached": false,
         "window_start": "2026-10-02 21:00:00+00:00",
         "window_end": "2026-10-02 22:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.557639+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.738771+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.1005,
@@ -12723,8 +12723,8 @@
         "sl_reached": false,
         "window_start": "2026-10-02 21:00:00+00:00",
         "window_end": "2026-10-02 23:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.558558+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.739480+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.0976,
@@ -12736,8 +12736,8 @@
         "sl_reached": false,
         "window_start": "2026-10-02 21:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.559507+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.740206+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.109,
@@ -12749,8 +12749,8 @@
         "sl_reached": false,
         "window_start": "2026-10-02 21:00:00+00:00",
         "window_end": "2026-10-03 05:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.560604+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.741016+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": true,
@@ -12761,7 +12761,7 @@
       "mfe_percent": 15.507,
       "mae_percent": 4.672
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:48.842703+03:30",
@@ -12806,8 +12806,8 @@
         "sl_reached": false,
         "window_start": "2026-10-02 21:00:00+00:00",
         "window_end": "2026-10-02 22:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.706026+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.859400+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 118.65,
@@ -12819,8 +12819,8 @@
         "sl_reached": false,
         "window_start": "2026-10-02 21:00:00+00:00",
         "window_end": "2026-10-02 23:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.706995+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.860120+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 119.1,
@@ -12832,8 +12832,8 @@
         "sl_reached": false,
         "window_start": "2026-10-02 21:00:00+00:00",
         "window_end": "2026-10-03 01:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.707950+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.860832+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 119.63,
@@ -12845,8 +12845,8 @@
         "sl_reached": false,
         "window_start": "2026-10-02 21:00:00+00:00",
         "window_end": "2026-10-03 05:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.709054+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.861636+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -12862,7 +12862,7 @@
       "mfe_percent": 0.8849,
       "mae_percent": 0.809
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:51.986900+03:30",
@@ -12908,7 +12908,7 @@
     "sl_reached": false,
     "ambiguous_event": false,
     "performance": {},
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:52.135164+03:30",
@@ -12955,7 +12955,7 @@
     "sl_reached": false,
     "ambiguous_event": false,
     "performance": {},
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T03:35:52.277037+03:30",
@@ -13002,7 +13002,7 @@
     "sl_reached": false,
     "ambiguous_event": false,
     "performance": {},
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:15.674013+03:30",
@@ -13052,8 +13052,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.727100+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.875489+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.2138,
@@ -13065,8 +13065,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.728001+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.876202+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.2138,
@@ -13078,8 +13078,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.728976+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.876930+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.2156,
@@ -13091,8 +13091,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.730028+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.877709+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -13108,7 +13108,7 @@
       "mfe_percent": 0.8364,
       "mae_percent": 0.2323
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:15.886095+03:30",
@@ -13164,8 +13164,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.734818+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.881384+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.5538,
@@ -13177,8 +13177,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.735734+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.882070+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.5751,
@@ -13190,8 +13190,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.736677+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.882784+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.6093,
@@ -13203,8 +13203,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.737715+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.883603+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": true,
@@ -13215,7 +13215,7 @@
       "mfe_percent": 7.1851,
       "mae_percent": 4.3319
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:16.129155+03:30",
@@ -13272,8 +13272,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.742578+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.887312+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 1.251,
@@ -13285,8 +13285,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.743463+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.888000+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 1.231,
@@ -13298,8 +13298,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.744398+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.888703+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 1.207,
@@ -13311,8 +13311,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.745435+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:26.889512+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -13323,7 +13323,7 @@
       "mfe_percent": 3.5658,
       "mae_percent": 4.9921
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:16.335876+03:30",
@@ -13374,8 +13374,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.891510+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.007937+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.4801,
@@ -13387,8 +13387,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.892426+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.008634+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.4852,
@@ -13400,8 +13400,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.893495+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.009375+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.4889,
@@ -13413,8 +13413,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:10.894688+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.010253+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -13430,7 +13430,7 @@
       "mfe_percent": 1.3989,
       "mae_percent": 0.8434
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:16.555517+03:30",
@@ -13476,8 +13476,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.040886+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.129068+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.1299,
@@ -13489,8 +13489,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.041780+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.129766+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.1322,
@@ -13502,8 +13502,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.042721+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.130502+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.1339,
@@ -13515,8 +13515,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.043756+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.131345+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -13532,7 +13532,7 @@
       "mfe_percent": 2.0532,
       "mae_percent": 1.749
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:16.759198+03:30",
@@ -13581,8 +13581,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.189833+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.250704+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 4.24e-06,
@@ -13594,8 +13594,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.190748+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.251416+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 4.25e-06,
@@ -13607,8 +13607,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.191715+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.252209+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 4.27e-06,
@@ -13620,8 +13620,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.192782+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.253018+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -13637,7 +13637,7 @@
       "mfe_percent": 0.7059,
       "mae_percent": 1.1765
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:16.967463+03:30",
@@ -13690,8 +13690,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.338138+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.371503+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.217,
@@ -13703,8 +13703,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.339059+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.372212+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.2221,
@@ -13716,8 +13716,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.340110+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.372941+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.226,
@@ -13729,8 +13729,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.341188+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.373731+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -13741,7 +13741,7 @@
       "mfe_percent": 1.0984,
       "mae_percent": 4.2105
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:17.180915+03:30",
@@ -13794,8 +13794,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.346064+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.377533+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 2.463,
@@ -13807,8 +13807,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.346962+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.378254+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 2.483,
@@ -13820,8 +13820,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.347897+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.378988+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 2.495,
@@ -13833,8 +13833,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.348952+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.379776+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -13845,7 +13845,7 @@
       "mfe_percent": 1.1254,
       "mae_percent": 0.5627
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:17.388924+03:30",
@@ -13895,8 +13895,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.494265+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.498101+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 289.2,
@@ -13908,8 +13908,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.495188+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.498795+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 290.1,
@@ -13921,8 +13921,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.496150+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.499575+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 290.4,
@@ -13934,8 +13934,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.497214+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.500403+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -13951,7 +13951,7 @@
       "mfe_percent": 1.4041,
       "mae_percent": 0.2055
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:17.598280+03:30",
@@ -14005,8 +14005,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.642898+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.619193+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.1964,
@@ -14018,8 +14018,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.643783+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.619903+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.2023,
@@ -14031,8 +14031,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.644723+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.620623+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.2025,
@@ -14044,8 +14044,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.645760+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.621448+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -14056,7 +14056,7 @@
       "mfe_percent": 0.9114,
       "mae_percent": 3.0886
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:17.794786+03:30",
@@ -14110,8 +14110,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.650643+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.625209+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 1.147,
@@ -14123,8 +14123,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.651549+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.625901+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 1.163,
@@ -14136,8 +14136,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.652490+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.626607+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 1.206,
@@ -14149,8 +14149,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.653559+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.627421+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -14161,7 +14161,7 @@
       "mfe_percent": 0.8666,
       "mae_percent": 4.9393
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:17.991210+03:30",
@@ -14213,8 +14213,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.799168+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.746255+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 3.61e-06,
@@ -14226,8 +14226,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.800077+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.746966+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 3.61e-06,
@@ -14239,8 +14239,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.801036+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.747697+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 3.68e-06,
@@ -14252,8 +14252,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.802093+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.748509+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -14264,7 +14264,7 @@
       "mfe_percent": 1.0989,
       "mae_percent": 1.9231
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:18.200989+03:30",
@@ -14314,8 +14314,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.806999+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.752220+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 1.4824,
@@ -14327,8 +14327,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.807911+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.752925+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 1.4832,
@@ -14340,8 +14340,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.808904+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.753631+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 1.4867,
@@ -14353,8 +14353,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.809981+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.754430+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -14370,7 +14370,7 @@
       "mfe_percent": 0.5913,
       "mae_percent": 0.0739
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:18.406012+03:30",
@@ -14420,8 +14420,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.955637+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.873976+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.10022,
@@ -14433,8 +14433,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.956546+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.874658+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.1008,
@@ -14446,8 +14446,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.957510+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.875388+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.1018,
@@ -14459,8 +14459,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.958576+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.876194+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -14476,7 +14476,7 @@
       "mfe_percent": 1.3106,
       "mae_percent": 0.6208
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:18.647112+03:30",
@@ -14526,8 +14526,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.963473+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.879886+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.09267,
@@ -14539,8 +14539,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.964393+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.880565+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.09276,
@@ -14552,8 +14552,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.965333+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.881287+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.09292,
@@ -14565,8 +14565,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.966372+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.882096+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -14582,7 +14582,7 @@
       "mfe_percent": 0.8262,
       "mae_percent": 0.0429
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:18.866113+03:30",
@@ -14636,8 +14636,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.971193+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.885822+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.4443,
@@ -14649,8 +14649,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.972084+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.886518+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.4551,
@@ -14662,8 +14662,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.973023+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.887243+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.4636,
@@ -14675,8 +14675,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:11.974077+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:27.888044+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -14687,7 +14687,7 @@
       "mfe_percent": 1.2072,
       "mae_percent": 4.1136
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:19.080709+03:30",
@@ -14737,8 +14737,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.119884+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.006669+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.2322,
@@ -14750,8 +14750,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.120786+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.007392+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.2342,
@@ -14763,8 +14763,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.121739+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.008139+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.2321,
@@ -14776,8 +14776,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.122797+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.008959+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -14793,7 +14793,7 @@
       "mfe_percent": 1.4574,
       "mae_percent": 1.2859
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:19.294011+03:30",
@@ -14847,8 +14847,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.269014+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.127960+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 7.578,
@@ -14860,8 +14860,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.269927+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.128649+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 7.56,
@@ -14873,8 +14873,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.270944+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.129388+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 7.648,
@@ -14886,8 +14886,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.271997+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.130197+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -14898,7 +14898,7 @@
       "mfe_percent": 0.9006,
       "mae_percent": 3.5508
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:19.508013+03:30",
@@ -14953,8 +14953,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.417432+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.248546+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 765.35,
@@ -14966,8 +14966,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.418355+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.249253+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 767.61,
@@ -14979,8 +14979,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.419333+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.249983+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 774.5,
@@ -14992,8 +14992,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.420413+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.250784+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -15004,7 +15004,7 @@
       "mfe_percent": 0.3349,
       "mae_percent": 0.9304
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:19.723795+03:30",
@@ -15056,8 +15056,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.565813+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.369436+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.7594,
@@ -15069,8 +15069,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.566720+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.370146+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.7705,
@@ -15082,8 +15082,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.567744+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.370940+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.7851,
@@ -15095,8 +15095,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.568803+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.371733+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -15107,7 +15107,7 @@
       "mfe_percent": 1.6108,
       "mae_percent": 2.5201
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:19.922284+03:30",
@@ -15156,8 +15156,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.573653+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.375422+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.6909,
@@ -15169,8 +15169,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.574556+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.376127+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.6974,
@@ -15182,8 +15182,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.575504+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.376850+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.6965,
@@ -15195,8 +15195,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.576554+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.377656+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -15212,7 +15212,7 @@
       "mfe_percent": 1.1474,
       "mae_percent": 0.9897
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:20.142358+03:30",
@@ -15261,8 +15261,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.581465+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.381331+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 1313.4,
@@ -15274,8 +15274,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.582365+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.382027+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 1317.98,
@@ -15287,8 +15287,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.583318+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.382735+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 1304.05,
@@ -15300,8 +15300,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.584373+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.383542+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -15317,7 +15317,7 @@
       "mfe_percent": 1.927,
       "mae_percent": 0.18
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:20.351812+03:30",
@@ -15370,8 +15370,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.589223+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.387243+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.03477,
@@ -15383,8 +15383,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.590114+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.387933+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.03336,
@@ -15396,8 +15396,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.591054+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.388639+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.03419,
@@ -15409,8 +15409,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.592087+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.389434+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -15426,7 +15426,7 @@
       "mfe_percent": 5.4732,
       "mae_percent": 6.8985
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:20.590033+03:30",
@@ -15477,8 +15477,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.596953+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.393134+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.1632,
@@ -15490,8 +15490,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.597841+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.393803+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.1636,
@@ -15503,8 +15503,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.598803+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.394540+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.1636,
@@ -15516,8 +15516,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.599887+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.395347+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -15533,7 +15533,7 @@
       "mfe_percent": 1.791,
       "mae_percent": 3.7612
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:20.851890+03:30",
@@ -15587,8 +15587,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.746142+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.514263+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 9.131,
@@ -15600,8 +15600,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.747054+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.514971+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 9.27,
@@ -15613,8 +15613,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.748019+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.515696+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 9.149,
@@ -15626,8 +15626,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.749085+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.516518+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -15638,7 +15638,7 @@
       "mfe_percent": 0.8873,
       "mae_percent": 1.6771
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:21.072696+03:30",
@@ -15691,8 +15691,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.753914+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.520278+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.7886,
@@ -15704,8 +15704,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.754788+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.520972+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.7957,
@@ -15717,8 +15717,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.755754+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.521693+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.8057,
@@ -15730,8 +15730,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.756815+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.522491+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -15742,7 +15742,7 @@
       "mfe_percent": 2.2573,
       "mae_percent": 2.0065
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:21.277735+03:30",
@@ -15791,8 +15791,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.761683+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.526235+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 3.298,
@@ -15804,8 +15804,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.762585+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.526934+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 3.333,
@@ -15817,8 +15817,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.763563+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.527648+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 3.293,
@@ -15830,8 +15830,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.764620+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.528457+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -15847,7 +15847,7 @@
       "mfe_percent": 0.997,
       "mae_percent": 1.3595
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:21.477522+03:30",
@@ -15903,8 +15903,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.769546+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.532161+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.0573,
@@ -15916,8 +15916,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.770473+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.532835+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.0569,
@@ -15929,8 +15929,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.771449+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.533559+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.0566,
@@ -15942,8 +15942,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.772503+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.534357+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -15954,7 +15954,7 @@
       "mfe_percent": 2.0305,
       "mae_percent": 5.0761
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:21.709741+03:30",
@@ -16004,8 +16004,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.777637+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.538059+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 2681.51,
@@ -16017,8 +16017,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.778584+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.538730+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 2680.73,
@@ -16030,8 +16030,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.779552+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.539524+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 2681.99,
@@ -16043,8 +16043,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.780656+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.540324+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -16060,7 +16060,7 @@
       "mfe_percent": 0.1654,
       "mae_percent": 0.3383
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:21.938936+03:30",
@@ -16110,8 +16110,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.926436+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.659582+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 1.0426,
@@ -16123,8 +16123,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.927440+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.660276+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 1.0621,
@@ -16136,8 +16136,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.928428+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.660996+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 1.0626,
@@ -16149,8 +16149,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.929525+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.661780+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -16166,7 +16166,7 @@
       "mfe_percent": 1.5914,
       "mae_percent": 1.4682
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:22.161790+03:30",
@@ -16214,8 +16214,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.934533+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.665583+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 4.681,
@@ -16227,8 +16227,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.935435+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.666284+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 4.672,
@@ -16240,8 +16240,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.936386+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.667025+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 4.641,
@@ -16253,8 +16253,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:12.937438+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.667827+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -16270,7 +16270,7 @@
       "mfe_percent": 1.9699,
       "mae_percent": 0.2118
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:22.441095+03:30",
@@ -16319,8 +16319,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.082840+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.786188+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 5.68e-06,
@@ -16332,8 +16332,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.083758+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.786886+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 5.66e-06,
@@ -16345,8 +16345,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.084734+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.787618+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 5.7e-06,
@@ -16358,8 +16358,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.085793+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.788429+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -16375,7 +16375,7 @@
       "mfe_percent": 1.2238,
       "mae_percent": 0.0
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:22.677558+03:30",
@@ -16418,8 +16418,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.231592+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.907257+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.7938,
@@ -16431,8 +16431,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.232509+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.907962+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.7936,
@@ -16444,8 +16444,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.233551+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.908737+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.7971,
@@ -16457,8 +16457,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.234640+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.909549+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -16474,7 +16474,7 @@
       "mfe_percent": 2.2023,
       "mae_percent": 0.4303
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:22.888730+03:30",
@@ -16517,8 +16517,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.239538+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.913281+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 84560.0,
@@ -16530,8 +16530,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.240435+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.913968+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 84600.01,
@@ -16543,8 +16543,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.241410+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.914675+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 84870.04,
@@ -16556,8 +16556,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.242451+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:28.915488+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -16573,7 +16573,7 @@
       "mfe_percent": 0.3873,
       "mae_percent": 0.0997
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:23.113569+03:30",
@@ -16622,8 +16622,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.388125+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.033969+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 58.56,
@@ -16635,8 +16635,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.389038+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.034647+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 58.98,
@@ -16648,8 +16648,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.389995+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.035387+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 58.55,
@@ -16661,8 +16661,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.391062+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.036201+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -16678,7 +16678,7 @@
       "mfe_percent": 0.8332,
       "mae_percent": 0.5441
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:23.341500+03:30",
@@ -16723,8 +16723,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 01:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.395962+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.039984+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 84699.56,
@@ -16736,8 +16736,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 01:00:00+00:00",
         "window_end": "2026-10-03 03:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.396878+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.040674+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 84652.09,
@@ -16749,8 +16749,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 01:00:00+00:00",
         "window_end": "2026-10-03 05:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.397820+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.041398+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 84600.01,
@@ -16762,8 +16762,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 01:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.398901+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.042205+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -16779,7 +16779,7 @@
       "mfe_percent": 0.1071,
       "mae_percent": 0.1321
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:23.560577+03:30",
@@ -16830,8 +16830,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 01:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.403873+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.045942+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.1056,
@@ -16843,8 +16843,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 01:00:00+00:00",
         "window_end": "2026-10-03 03:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.404784+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.046623+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.109,
@@ -16856,8 +16856,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 01:00:00+00:00",
         "window_end": "2026-10-03 05:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.405738+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.047353+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.104,
@@ -16869,8 +16869,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 01:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.406789+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.048170+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -16881,7 +16881,7 @@
       "mfe_percent": 7.4931,
       "mae_percent": 9.9907
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T09:02:23.779379+03:30",
@@ -16926,8 +16926,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 01:00:00+00:00",
         "window_end": "2026-10-03 02:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.411974+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.052025+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 119.4,
@@ -16939,8 +16939,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 01:00:00+00:00",
         "window_end": "2026-10-03 03:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.412885+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.052707+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 119.63,
@@ -16952,8 +16952,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 01:00:00+00:00",
         "window_end": "2026-10-03 05:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.413815+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.053441+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 119.34,
@@ -16965,8 +16965,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 01:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.414914+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.054250+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -16982,7 +16982,7 @@
       "mfe_percent": 0.2007,
       "mae_percent": 0.6522
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:06.855023+03:30",
@@ -17030,8 +17030,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 11:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.419911+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.058040+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.2251,
@@ -17043,8 +17043,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 12:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.420806+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.058714+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.2301,
@@ -17056,8 +17056,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.421763+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.059433+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.2271,
@@ -17069,8 +17069,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.422672+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.060139+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -17086,7 +17086,7 @@
       "mfe_percent": 2.3009,
       "mae_percent": 1.9912
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:07.030091+03:30",
@@ -17135,8 +17135,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 11:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.568178+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.178832+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.01719,
@@ -17148,8 +17148,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 12:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.569119+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.179570+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.01731,
@@ -17161,8 +17161,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.570096+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.180346+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.01743,
@@ -17174,8 +17174,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.571028+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.181065+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -17191,7 +17191,7 @@
       "mfe_percent": 3.1921,
       "mae_percent": 1.0447
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:07.225896+03:30",
@@ -17237,8 +17237,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 11:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.575793+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.184699+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 8.83,
@@ -17250,8 +17250,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 12:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.576688+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.185405+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 8.88,
@@ -17263,8 +17263,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.577626+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.186128+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 8.84,
@@ -17276,8 +17276,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.578522+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.186802+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -17293,7 +17293,7 @@
       "mfe_percent": 0.907,
       "mae_percent": 0.1134
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:07.398811+03:30",
@@ -17343,8 +17343,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 11:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.723978+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.305418+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 1.1846,
@@ -17356,8 +17356,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 12:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.724903+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.306122+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 1.1847,
@@ -17369,8 +17369,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.725838+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.306839+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 1.1757,
@@ -17382,8 +17382,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.726761+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.307610+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -17399,7 +17399,7 @@
       "mfe_percent": 0.8866,
       "mae_percent": 1.427
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:07.548568+03:30",
@@ -17451,8 +17451,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 11:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.872167+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.426067+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.000589,
@@ -17464,8 +17464,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 12:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.873096+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.426763+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.000599,
@@ -17477,8 +17477,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.874049+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.427507+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.000598,
@@ -17490,8 +17490,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.874981+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.428226+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -17502,7 +17502,7 @@
       "mfe_percent": 0.8518,
       "mae_percent": 2.5554
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:07.715325+03:30",
@@ -17552,8 +17552,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 11:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.879838+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.431923+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 771.65,
@@ -17565,8 +17565,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 12:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.880739+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.432607+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 778.52,
@@ -17578,8 +17578,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.881675+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.433349+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 788.08,
@@ -17591,8 +17591,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.882576+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.434046+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": true,
@@ -17603,7 +17603,7 @@
       "mfe_percent": 3.0105,
       "mae_percent": 0.1054
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:07.861141+03:30",
@@ -17652,8 +17652,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 11:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.887224+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.437691+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.1624,
@@ -17665,8 +17665,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 12:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.888138+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.438378+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.1645,
@@ -17678,8 +17678,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.889078+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.439106+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.1622,
@@ -17691,8 +17691,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.889977+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.439791+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -17708,7 +17708,7 @@
       "mfe_percent": 0.9732,
       "mae_percent": 1.8248
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:08.011823+03:30",
@@ -17764,8 +17764,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 11:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.894649+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.443413+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.6082,
@@ -17777,8 +17777,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 12:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.895546+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.444106+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.6095,
@@ -17790,8 +17790,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.896510+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.444815+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.5969,
@@ -17803,8 +17803,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.897413+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.445516+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -17815,7 +17815,7 @@
       "mfe_percent": 3.355,
       "mae_percent": 4.1729
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:08.155729+03:30",
@@ -17865,8 +17865,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 11:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.902210+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.449141+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 289.3,
@@ -17878,8 +17878,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 12:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.903101+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.449812+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 293.7,
@@ -17891,8 +17891,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.904074+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.450529+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 295.2,
@@ -17904,8 +17904,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.904989+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.451223+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -17921,7 +17921,7 @@
       "mfe_percent": 0.9605,
       "mae_percent": 1.5437
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:08.297249+03:30",
@@ -17970,8 +17970,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 11:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.909703+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.454767+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.10138,
@@ -17983,8 +17983,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 12:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.910623+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.455461+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.10251,
@@ -17996,8 +17996,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.911574+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.456187+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.10216,
@@ -18009,8 +18009,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.912526+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.456853+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -18026,7 +18026,7 @@
       "mfe_percent": 1.1968,
       "mae_percent": 1.03
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:08.443410+03:30",
@@ -18076,8 +18076,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 11:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.917197+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.460423+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 1.0536,
@@ -18089,8 +18089,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 12:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.918099+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.461122+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 1.0797,
@@ -18102,8 +18102,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.919047+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.461827+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 1.0635,
@@ -18115,8 +18115,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.919947+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.462517+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -18132,7 +18132,7 @@
       "mfe_percent": 1.9949,
       "mae_percent": 0.9975
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:08.586729+03:30",
@@ -18182,8 +18182,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 11:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.924683+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.466165+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 3.279,
@@ -18195,8 +18195,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 12:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.925587+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.466843+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 3.302,
@@ -18208,8 +18208,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.926603+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.467576+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 3.299,
@@ -18221,8 +18221,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.927524+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.468284+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -18238,7 +18238,7 @@
       "mfe_percent": 0.4809,
       "mae_percent": 1.8635
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:08.761990+03:30",
@@ -18288,8 +18288,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 11:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.932258+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.586732+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.3737,
@@ -18301,8 +18301,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 12:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.933158+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.587433+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.38,
@@ -18314,8 +18314,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.934100+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.588171+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.3798,
@@ -18327,8 +18327,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.935002+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.588845+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -18344,7 +18344,7 @@
       "mfe_percent": 1.3203,
       "mae_percent": 1.7164
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:08.920814+03:30",
@@ -18399,8 +18399,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 11:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.939667+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.592462+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 9.144,
@@ -18412,8 +18412,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 12:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.940560+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.593159+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 9.138,
@@ -18425,8 +18425,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.941521+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.593897+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 9.023,
@@ -18438,8 +18438,8 @@
         "sl_reached": true,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.942444+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.594575+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": false,
@@ -18450,7 +18450,7 @@
       "mfe_percent": 0.6694,
       "mae_percent": 3.2067
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:09.096836+03:30",
@@ -18500,8 +18500,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 11:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.947162+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.598217+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.1015,
@@ -18513,8 +18513,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 12:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.948062+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.598901+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.1029,
@@ -18526,8 +18526,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.949010+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.599605+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.1062,
@@ -18539,8 +18539,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.949915+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.600346+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -18556,7 +18556,7 @@
       "mfe_percent": 3.8797,
       "mae_percent": 4.8497
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:09.261529+03:30",
@@ -18606,8 +18606,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 11:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.954547+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.604029+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 2.057,
@@ -18619,8 +18619,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 12:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.955457+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.604701+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 2.069,
@@ -18632,8 +18632,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.956405+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.605443+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 2.055,
@@ -18645,8 +18645,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.957299+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.606137+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -18662,7 +18662,7 @@
       "mfe_percent": 1.7349,
       "mae_percent": 0.1446
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:09.426734+03:30",
@@ -18712,8 +18712,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 11:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.961976+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.609740+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.2146,
@@ -18725,8 +18725,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 12:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.962867+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.610447+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.2154,
@@ -18738,8 +18738,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.963791+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.611178+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.2143,
@@ -18751,8 +18751,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:13.964713+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.611853+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -18768,7 +18768,7 @@
       "mfe_percent": 0.6533,
       "mae_percent": 0.7933
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:09.572990+03:30",
@@ -18817,8 +18817,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 11:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.109954+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.730581+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 13.857,
@@ -18830,8 +18830,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 12:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.110865+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.731286+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 13.917,
@@ -18843,8 +18843,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.111805+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.732019+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 13.91,
@@ -18856,8 +18856,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.112733+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.732710+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -18873,7 +18873,7 @@
       "mfe_percent": 1.133,
       "mae_percent": 0.1362
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:09.754804+03:30",
@@ -18921,8 +18921,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 11:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.117444+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.736302+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 4.664,
@@ -18934,8 +18934,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 12:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.118335+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.736999+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 4.67,
@@ -18947,8 +18947,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.119274+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.737714+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 4.688,
@@ -18960,8 +18960,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 10:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.120188+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.738426+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -18977,7 +18977,7 @@
       "mfe_percent": 2.0634,
       "mae_percent": 0.6169
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:09.917568+03:30",
@@ -19024,8 +19024,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.124909+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.742072+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.1632,
@@ -19037,8 +19037,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.125787+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.742751+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.1636,
@@ -19050,8 +19050,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.126723+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.743481+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.1636,
@@ -19063,8 +19063,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.127767+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.744293+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -19080,7 +19080,7 @@
       "mfe_percent": 3.7105,
       "mae_percent": 1.9465
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:10.108059+03:30",
@@ -19127,8 +19127,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.132589+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.747980+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.002574,
@@ -19140,8 +19140,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.133477+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.748649+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.00258,
@@ -19153,8 +19153,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.134413+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.749384+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.002522,
@@ -19166,8 +19166,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.135457+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.750181+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "FINAL",
@@ -19183,7 +19183,7 @@
       "mfe_percent": 8.2372,
       "mae_percent": 0.8357
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:10.293429+03:30",
@@ -19234,8 +19234,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 06:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.140301+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.753884+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.1057,
@@ -19247,8 +19247,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 07:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.141206+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.754580+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.104,
@@ -19260,8 +19260,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 09:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.142164+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.755304+03:30",
+        "engine_version": 54
       },
       "8h": {
         "close": 0.1018,
@@ -19273,8 +19273,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 05:00:00+00:00",
         "window_end": "2026-10-03 13:00:00+00:00",
-        "observed_at": "2026-10-03T22:04:14.143219+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.756114+03:30",
+        "engine_version": 54
       }
     },
     "tp1_reached": true,
@@ -19285,7 +19285,7 @@
       "mfe_percent": 12.7061,
       "mae_percent": 4.8497
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T14:23:10.715966+03:30",
@@ -19331,7 +19331,7 @@
     "sl_reached": false,
     "ambiguous_event": false,
     "performance": {},
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T16:56:12.921285+03:30",
@@ -19388,8 +19388,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 13:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:56.816657+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.763224+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.01728,
@@ -19401,8 +19401,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 13:00:00+00:00",
         "window_end": "2026-10-03 15:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:56.817622+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.763935+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.01743,
@@ -19414,8 +19414,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 13:00:00+00:00",
         "window_end": "2026-10-03 17:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:56.818502+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.764557+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "OPEN",
@@ -19429,7 +19429,7 @@
       "mfe_percent": 2.7453,
       "mae_percent": 0.0584
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T16:56:13.120891+03:30",
@@ -19479,8 +19479,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 13:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:56.963601+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.768150+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.229,
@@ -19492,8 +19492,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 13:00:00+00:00",
         "window_end": "2026-10-03 15:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:56.964565+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.768847+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.2271,
@@ -19505,8 +19505,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 13:00:00+00:00",
         "window_end": "2026-10-03 17:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:56.965397+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.769496+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "OPEN",
@@ -19520,7 +19520,7 @@
       "mfe_percent": 3.6307,
       "mae_percent": 0.2241
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T17:17:24.074814+03:30",
@@ -19573,8 +19573,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 13:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:57.112555+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.888496+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 88.89,
@@ -19586,8 +19586,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 13:00:00+00:00",
         "window_end": "2026-10-03 15:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:57.113487+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.889206+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 89.11,
@@ -19599,8 +19599,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 13:00:00+00:00",
         "window_end": "2026-10-03 17:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:57.114323+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:29.889832+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "OPEN",
@@ -19614,7 +19614,7 @@
       "mfe_percent": 0.7568,
       "mae_percent": 0.4292
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T17:17:24.360417+03:30",
@@ -19667,8 +19667,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 13:00:00+00:00",
         "window_end": "2026-10-03 14:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:57.259780+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.008322+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.1307,
@@ -19680,8 +19680,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 13:00:00+00:00",
         "window_end": "2026-10-03 15:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:57.261035+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.009024+03:30",
+        "engine_version": 54
       },
       "4h": {
         "close": 0.131,
@@ -19693,8 +19693,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 13:00:00+00:00",
         "window_end": "2026-10-03 17:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:57.262165+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.009643+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "OPEN",
@@ -19708,7 +19708,7 @@
       "mfe_percent": 1.6031,
       "mae_percent": 1.374
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T18:31:08.140861+03:30",
@@ -19763,8 +19763,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 16:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:57.407687+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.013286+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.09326,
@@ -19776,8 +19776,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 17:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:57.408491+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.013884+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "OPEN",
@@ -19791,7 +19791,7 @@
       "mfe_percent": 0.1501,
       "mae_percent": 0.4288
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T18:31:08.329405+03:30",
@@ -19850,8 +19850,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 16:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:57.413207+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.017379+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.1622,
@@ -19863,8 +19863,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 17:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:57.413993+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.017982+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "OPEN",
@@ -19878,7 +19878,7 @@
       "mfe_percent": 0.4266,
       "mae_percent": 1.5235
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T18:31:08.522771+03:30",
@@ -19936,8 +19936,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 16:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:57.559289+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.021482+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.1062,
@@ -19949,8 +19949,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 17:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:57.560087+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.022074+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "OPEN",
@@ -19964,7 +19964,7 @@
       "mfe_percent": 4.1829,
       "mae_percent": 0.3891
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T18:31:08.755572+03:30",
@@ -20023,8 +20023,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 16:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:57.564865+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.025554+03:30",
+        "engine_version": 54
       },
       "2h": {
         "close": 0.01743,
@@ -20036,8 +20036,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 17:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:57.565627+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.026158+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "OPEN",
@@ -20051,7 +20051,7 @@
       "mfe_percent": 1.5589,
       "mae_percent": 0.6928
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T21:04:11.316004+03:30",
@@ -20110,8 +20110,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:57.570101+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.029623+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "OPEN",
@@ -20125,7 +20125,7 @@
       "mfe_percent": 0.793,
       "mae_percent": 0.2643
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T21:04:11.509076+03:30",
@@ -20188,8 +20188,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:57.714858+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.032980+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "OPEN",
@@ -20203,7 +20203,7 @@
       "mfe_percent": 0.9442,
       "mae_percent": 0.9652
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T21:04:11.702069+03:30",
@@ -20265,8 +20265,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:57.719332+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.036311+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "OPEN",
@@ -20280,7 +20280,7 @@
       "mfe_percent": 0.4,
       "mae_percent": 0.6857
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T21:04:11.902518+03:30",
@@ -20331,8 +20331,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:57.864050+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.039623+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "OPEN",
@@ -20346,7 +20346,7 @@
       "mfe_percent": 2.0517,
       "mae_percent": 0.964
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T21:04:12.092427+03:30",
@@ -20404,8 +20404,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:58.008660+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.042941+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "OPEN",
@@ -20419,7 +20419,7 @@
       "mfe_percent": 0.4174,
       "mae_percent": 0.4174
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T21:04:12.289976+03:30",
@@ -20478,8 +20478,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:58.013087+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.046246+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "OPEN",
@@ -20493,7 +20493,7 @@
       "mfe_percent": 3.6786,
       "mae_percent": 0.3872
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T21:04:12.510689+03:30",
@@ -20552,8 +20552,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:58.157598+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.049571+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "OPEN",
@@ -20567,7 +20567,7 @@
       "mfe_percent": 0.6729,
       "mae_percent": 0.7887
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T21:04:12.692273+03:30",
@@ -20627,8 +20627,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:58.302611+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.052911+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "OPEN",
@@ -20642,7 +20642,7 @@
       "mfe_percent": 0.4202,
       "mae_percent": 0.1867
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T21:11:44.670048+03:30",
@@ -20698,8 +20698,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:58.447456+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.056236+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "OPEN",
@@ -20713,7 +20713,7 @@
       "mfe_percent": 0.1404,
       "mae_percent": 1.3134
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T21:11:44.844879+03:30",
@@ -20767,8 +20767,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:58.592265+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.059597+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "OPEN",
@@ -20782,7 +20782,7 @@
       "mfe_percent": 0.0754,
       "mae_percent": 0.1271
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T21:11:45.029607+03:30",
@@ -20837,8 +20837,8 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-03T22:07:58.736694+03:30",
-        "engine_version": 53
+        "observed_at": "2026-10-03T22:21:30.062925+03:30",
+        "engine_version": 54
       }
     },
     "outcome_status": "OPEN",
@@ -20852,7 +20852,7 @@
       "mfe_percent": 0.2614,
       "mae_percent": 0.2346
     },
-    "outcome_engine_version": 53
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-03T21:33:30.618354+03:30",
