@@ -3932,9 +3932,36 @@
       "price": 0.2142,
       "candle_time": "2026-10-03 16:00:00+00:00",
       "sent_at": "2026-10-03T21:04:12.692244+03:30"
+    },
+    "BNB|BUY|BOTTOM_HUNTER|1h|2026-10-03 16:00:00+00:00": {
+      "symbol": "BNB",
+      "signal": "BUY",
+      "score": 94,
+      "strength": "EARLY REVERSAL",
+      "price": 790.33,
+      "candle_time": "2026-10-03 16:00:00+00:00",
+      "sent_at": "2026-10-03T21:11:44.670031+03:30"
+    },
+    "BTC|BUY|BOTTOM_HUNTER|1h|2026-10-03 16:00:00+00:00": {
+      "symbol": "BTC",
+      "signal": "BUY",
+      "score": 82,
+      "strength": "EARLY REVERSAL",
+      "price": 84948.0,
+      "candle_time": "2026-10-03 16:00:00+00:00",
+      "sent_at": "2026-10-03T21:11:44.844863+03:30"
+    },
+    "XRP|BUY|BOTTOM_HUNTER|1h|2026-10-03 16:00:00+00:00": {
+      "symbol": "XRP",
+      "signal": "BUY",
+      "score": 82,
+      "strength": "EARLY REVERSAL",
+      "price": 1.4921,
+      "candle_time": "2026-10-03 16:00:00+00:00",
+      "sent_at": "2026-10-03T21:11:45.029591+03:30"
     }
   },
-  "total_scans": 62,
-  "total_signals": 437,
-  "last_scan": "2026-10-03T21:04:12.708769+03:30"
+  "total_scans": 63,
+  "total_signals": 440,
+  "last_scan": "2026-10-03T21:11:45.043690+03:30"
 }
