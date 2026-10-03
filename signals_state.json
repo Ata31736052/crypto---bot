@@ -3959,9 +3959,72 @@
       "price": 1.4921,
       "candle_time": "2026-10-03 16:00:00+00:00",
       "sent_at": "2026-10-03T21:11:45.029591+03:30"
+    },
+    "ZEC|BUY|BOTTOM_HUNTER|1h|2026-10-03 17:00:00+00:00": {
+      "symbol": "ZEC",
+      "signal": "BUY",
+      "score": 95,
+      "strength": "EARLY REVERSAL",
+      "price": 1309.79,
+      "candle_time": "2026-10-03 17:00:00+00:00",
+      "sent_at": "2026-10-03T21:33:30.618332+03:30"
+    },
+    "BNB|BUY|BOTTOM_HUNTER|1h|2026-10-03 17:00:00+00:00": {
+      "symbol": "BNB",
+      "signal": "BUY",
+      "score": 94,
+      "strength": "EARLY REVERSAL",
+      "price": 787.73,
+      "candle_time": "2026-10-03 17:00:00+00:00",
+      "sent_at": "2026-10-03T21:33:30.829268+03:30"
+    },
+    "ENA|BUY|BOTTOM_HUNTER|1h|2026-10-03 17:00:00+00:00": {
+      "symbol": "ENA",
+      "signal": "BUY",
+      "score": 94,
+      "strength": "EARLY REVERSAL",
+      "price": 0.2372,
+      "candle_time": "2026-10-03 17:00:00+00:00",
+      "sent_at": "2026-10-03T21:33:31.028773+03:30"
+    },
+    "FET|BUY|TREND|1h|2026-10-03 17:00:00+00:00": {
+      "symbol": "FET",
+      "signal": "BUY",
+      "score": 88,
+      "strength": "STRONG",
+      "price": 0.2268,
+      "candle_time": "2026-10-03 17:00:00+00:00",
+      "sent_at": "2026-10-03T21:33:31.195796+03:30"
+    },
+    "WLD|BUY|TREND|1h|2026-10-03 17:00:00+00:00": {
+      "symbol": "WLD",
+      "signal": "BUY",
+      "score": 86,
+      "strength": "STRONG",
+      "price": 0.5984,
+      "candle_time": "2026-10-03 17:00:00+00:00",
+      "sent_at": "2026-10-03T21:33:31.394509+03:30"
+    },
+    "CHZ|BUY|TREND|1h|2026-10-03 17:00:00+00:00": {
+      "symbol": "CHZ",
+      "signal": "BUY",
+      "score": 85,
+      "strength": "STRONG",
+      "price": 0.01738,
+      "candle_time": "2026-10-03 17:00:00+00:00",
+      "sent_at": "2026-10-03T21:33:31.570547+03:30"
+    },
+    "MANA|BUY|TREND|1h|2026-10-03 17:00:00+00:00": {
+      "symbol": "MANA",
+      "signal": "BUY",
+      "score": 81,
+      "strength": "STRONG",
+      "price": 0.1068,
+      "candle_time": "2026-10-03 17:00:00+00:00",
+      "sent_at": "2026-10-03T21:33:31.825008+03:30"
     }
   },
-  "total_scans": 65,
-  "total_signals": 440,
-  "last_scan": "2026-10-03T21:25:08.203092+03:30"
+  "total_scans": 66,
+  "total_signals": 447,
+  "last_scan": "2026-10-03T21:33:31.836382+03:30"
 }
