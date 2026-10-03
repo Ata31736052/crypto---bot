@@ -3824,9 +3824,45 @@
       "price": 0.131,
       "candle_time": "2026-10-03 12:00:00+00:00",
       "sent_at": "2026-10-03T17:17:24.360394+03:30"
+    },
+    "DOGE|BUY|BOTTOM_HUNTER|1h|2026-10-03 14:00:00+00:00": {
+      "symbol": "DOGE",
+      "signal": "BUY",
+      "score": 88,
+      "strength": "EARLY REVERSAL",
+      "price": 0.09329,
+      "candle_time": "2026-10-03 14:00:00+00:00",
+      "sent_at": "2026-10-03T18:31:08.140835+03:30"
+    },
+    "APE|BUY|TREND|1h|2026-10-03 14:00:00+00:00": {
+      "symbol": "APE",
+      "signal": "BUY",
+      "score": 84,
+      "strength": "STRONG",
+      "price": 0.1641,
+      "candle_time": "2026-10-03 14:00:00+00:00",
+      "sent_at": "2026-10-03T18:31:08.329358+03:30"
+    },
+    "MANA|BUY|TREND|1h|2026-10-03 14:00:00+00:00": {
+      "symbol": "MANA",
+      "signal": "BUY",
+      "score": 81,
+      "strength": "STRONG",
+      "price": 0.1028,
+      "candle_time": "2026-10-03 14:00:00+00:00",
+      "sent_at": "2026-10-03T18:31:08.522746+03:30"
+    },
+    "CHZ|BUY|TREND|1h|2026-10-03 14:00:00+00:00": {
+      "symbol": "CHZ",
+      "signal": "BUY",
+      "score": 81,
+      "strength": "STRONG",
+      "price": 0.01732,
+      "candle_time": "2026-10-03 14:00:00+00:00",
+      "sent_at": "2026-10-03T18:31:08.755547+03:30"
     }
   },
-  "total_scans": 60,
-  "total_signals": 425,
-  "last_scan": "2026-10-03T17:17:24.374515+03:30"
+  "total_scans": 61,
+  "total_signals": 429,
+  "last_scan": "2026-10-03T18:31:08.765740+03:30"
 }
