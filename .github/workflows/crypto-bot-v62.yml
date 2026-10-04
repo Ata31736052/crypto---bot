@@ -2,18 +2,138 @@ name: Crypto Signal Bot v62
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *"
+
+concurrency:
+  group: crypto-signal-bot
+  cancel-in-progress: false
 
 jobs:
-  test:
+  scan:
     runs-on: ubuntu-latest
 
+    env:
+      TZ: Asia/Tehran
+      RUN_ONCE: "1"
+      TELEGRAM_TEST_ON_START: "0"
+      PYTHONUNBUFFERED: "1"
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
     steps:
-      - name: Test workflow
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
         run: |
-          echo "========================================"
-          echo "✅ CRYPTO BOT WORKFLOW IS RUNNING"
-          echo "========================================"
-          echo "Python:"
-          python --version
-          echo "Runner:"
-          uname -a
+          python -m pip install --upgrade pip
+          pip install requests pandas numpy pyyaml
+
+      - name: Check files
+        run: |
+          echo "Files in repository:"
+          ls -la
+          echo "Checking main.py..."
+          test -f main.py
+          echo "✅ main.py exists"
+
+      - name: Compile main.py
+        run: |
+          python -m py_compile main.py
+          echo "✅ main.py compiled successfully"
+
+      - name: Check v62 quality gate
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          source = Path("main.py").read_text(encoding="utf-8")
+          tree = ast.parse(source)
+
+          functions = {
+              node.name
+              for node in ast.walk(tree)
+              if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+          }
+
+          if "professional_signal_quality_gate" not in functions:
+              raise SystemExit(
+                  "❌ professional_signal_quality_gate() is missing"
+              )
+
+          print("✅ professional_signal_quality_gate() found")
+
+          required = [
+              "PRO_MIN_SCORE",
+              "PRO_SELL_MIN_SCORE",
+              "PRO_BOTTOM_MIN_SCORE",
+              "PRO_MIN_QUALITY_POINTS",
+              "PRO_BOTTOM_MIN_QUALITY_POINTS",
+              "PRO_MIN_1H_ADX",
+              "PRO_MIN_REVERSAL_ADX",
+              "PRO_MIN_30M_ADX",
+              "PRO_MIN_VOLUME_RATIO",
+              "PRO_SELL_MIN_VOLUME_RATIO",
+              "PRO_MIN_30M_CONFIRMATIONS",
+              "PRO_SELL_MIN_30M_CONFIRMATIONS",
+              "PRO_MAX_EMA21_DISTANCE",
+              "PRO_MAX_EMA200_DISTANCE",
+              "PRO_MIN_RR_TP1",
+              "PRO_MIN_RR_TP2",
+          ]
+
+          missing = [
+              name for name in required
+              if name not in source
+          ]
+
+          if missing:
+              raise SystemExit(
+                  "❌ Missing v62 variables: " + ", ".join(missing)
+              )
+
+          print("✅ All v62 quality variables found")
+          print("✅ v62 quality gate source check passed")
+          PY
+
+      - name: Import main.py
+        run: |
+          python - <<'PY'
+          import main
+          print("✅ main.py imported successfully")
+          PY
+
+      - name: Binance connectivity
+        run: |
+          python - <<'PY'
+          import requests
+
+          response = requests.get(
+              "https://api.binance.com/api/v3/ping",
+              timeout=20
+          )
+
+          response.raise_for_status()
+
+          print("✅ Binance API reachable")
+          print(response.text)
+          PY
+
+      - name: Run Crypto Signal Bot
+        run: |
+          echo "============================================================"
+          echo "🚀 STARTING CRYPTO SIGNAL BOT v62"
+          echo "============================================================"
+
+          python -u main.py
+
+          echo "============================================================"
+          echo "✅ BOT FINISHED"
+          echo "============================================================"
