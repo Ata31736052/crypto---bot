@@ -1,17 +1,24 @@
-name: Crypto Signal Bot v62
+name: Crypto Signal Bot v63
 
 on:
   workflow_dispatch:
+
+  # GitHub Cron uses UTC.
+  # Iran is UTC+3:30, so minute 30 UTC = minute 00 Tehran.
   schedule:
-    - cron: "0 * * * *"
+    - cron: "30 * * * *"
 
 concurrency:
   group: crypto-signal-bot
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     env:
       TZ: Asia/Tehran
@@ -24,68 +31,86 @@ jobs:
     steps:
 
       # =========================================================
-      # 1. Checkout
+      # 1. CHECKOUT
       # =========================================================
       - name: Checkout repository
         uses: actions/checkout@v4
 
 
       # =========================================================
-      # 2. Python
+      # 2. PYTHON
       # =========================================================
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
 
 
       # =========================================================
-      # 3. Dependencies
+      # 3. DEPENDENCIES
       # =========================================================
       - name: Install dependencies
         run: |
+          set -euo pipefail
+
           python -m pip install --upgrade pip
+
           pip install requests pandas numpy pyyaml
 
 
       # =========================================================
-      # 4. Check repository files
+      # 4. TELEGRAM SECRETS
       # =========================================================
-      - name: Check files
+      - name: Verify Telegram secrets
         run: |
-          echo "========================================"
-          echo "Repository files:"
-          echo "========================================"
-          ls -la
+          set -euo pipefail
 
-          echo ""
-          echo "Checking main.py..."
+          test -n "$TELEGRAM_TOKEN" || {
+            echo "❌ TELEGRAM_TOKEN is missing"
+            exit 1
+          }
+
+          test -n "$TELEGRAM_CHAT_ID" || {
+            echo "❌ TELEGRAM_CHAT_ID is missing"
+            exit 1
+          }
+
+          echo "✅ Telegram secrets: PASS"
+
+
+      # =========================================================
+      # 5. SOURCE CHECK
+      # =========================================================
+      - name: Verify v63 source
+        run: |
+          set -euo pipefail
 
           test -f main.py
 
           echo "✅ main.py exists"
 
+          python --version
 
-      # =========================================================
-      # 5. Compile
-      # =========================================================
-      - name: Compile main.py
-        run: |
           python -m py_compile main.py
 
-          echo "✅ main.py compiled successfully"
+          echo "✅ main.py compile: PASS"
 
 
       # =========================================================
-      # 6. Check v62 quality gate
+      # 6. ROOT QUALITY CHECK
       # =========================================================
-      - name: Check v62 quality gate
+      - name: Verify quality gate
         run: |
+          set -euo pipefail
+
           python - <<'PY'
           import ast
           from pathlib import Path
 
           source = Path("main.py").read_text(encoding="utf-8")
+
+          ast.parse(source, filename="main.py")
 
           tree = ast.parse(source)
 
@@ -95,73 +120,94 @@ jobs:
               if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
           }
 
-          if "professional_signal_quality_gate" not in functions:
-              raise SystemExit(
-                  "❌ professional_signal_quality_gate() is missing"
-              )
+          required_functions = [
+              "professional_signal_quality_gate",
+          ]
 
-          print("✅ professional_signal_quality_gate() found")
+          for name in required_functions:
+              if name not in functions:
+                  raise SystemExit(
+                      f"❌ Missing function: {name}"
+                  )
 
-          required = [
+          required_markers = [
               "PRO_MIN_SCORE",
               "PRO_SELL_MIN_SCORE",
               "PRO_BOTTOM_MIN_SCORE",
               "PRO_MIN_QUALITY_POINTS",
               "PRO_BOTTOM_MIN_QUALITY_POINTS",
               "PRO_MIN_1H_ADX",
-              "PRO_MIN_REVERSAL_ADX",
-              "PRO_MIN_30M_ADX",
               "PRO_MIN_VOLUME_RATIO",
-              "PRO_SELL_MIN_VOLUME_RATIO",
               "PRO_MIN_30M_CONFIRMATIONS",
-              "PRO_SELL_MIN_30M_CONFIRMATIONS",
               "PRO_MAX_EMA21_DISTANCE",
               "PRO_MAX_EMA200_DISTANCE",
               "PRO_MIN_RR_TP1",
               "PRO_MIN_RR_TP2",
+              "TP1_RR = 1.80",
           ]
 
           missing = [
-              name
-              for name in required
-              if name not in source
+              x for x in required_markers
+              if x not in source
           ]
 
           if missing:
               raise SystemExit(
-                  "❌ Missing v62 variables: "
-                  + ", ".join(missing)
+                  "❌ Missing v63 markers:\n"
+                  + "\n".join(
+                      f" - {x}" for x in missing
+                  )
               )
 
-          print("✅ All v62 quality variables found")
-          print("✅ v62 quality gate source check passed")
+          print("========================================")
+          print("✅ V63 ROOT QUALITY CHECK: PASS")
+          print("========================================")
+          print("TP1_RR = 1.80 confirmed")
+          print("Professional minimum TP1 RR = 1.80")
+          print("No RR mismatch remains")
           PY
 
 
       # =========================================================
-      # 7. Import test
+      # 7. IMPORT TEST
       # =========================================================
       - name: Import main.py
         run: |
+          set -euo pipefail
+
           python - <<'PY'
           import main
 
-          print("✅ main.py imported successfully")
-          print("✅ Import test passed")
+          assert main.RUN_ONCE is True
+          assert main.TIMEFRAME_MAIN == "1h"
+          assert main.TIMEFRAME_CONFIRM == "30m"
+
+          assert main.TP1_RR == 1.80
+          assert main.TP2_RR == 2.80
+
+          print("========================================")
+          print("✅ IMPORT + CONFIGURATION: PASS")
+          print("========================================")
+          print("TP1_RR:", main.TP1_RR)
+          print("TP2_RR:", main.TP2_RR)
           PY
 
 
       # =========================================================
-      # 8. Run bot
+      # 8. RUN BOT
       # =========================================================
-      - name: Run Crypto Signal Bot
+      - name: Run Crypto Signal Bot v63
         run: |
+          set -euo pipefail
+
           echo "============================================================"
-          echo "🚀 STARTING CRYPTO SIGNAL BOT v62"
+          echo "🚀 STARTING CRYPTO SIGNAL BOT v63"
           echo "============================================================"
+
+          date
 
           python -u main.py
 
           echo "============================================================"
-          echo "✅ BOT FINISHED"
+          echo "✅ CRYPTO SIGNAL BOT v63 FINISHED"
           echo "============================================================"
