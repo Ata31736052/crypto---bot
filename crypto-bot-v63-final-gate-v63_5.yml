@@ -1,0 +1,109 @@
+name: Crypto Signal Bot v63
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "7 * * * *"
+
+concurrency:
+  group: crypto-signal-bot
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      RUN_ONCE: "1"
+      TELEGRAM_TEST_ON_START: "0"
+      PYTHONUNBUFFERED: "1"
+      TZ: Asia/Tehran
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install requests pandas numpy pyyaml
+
+      - name: Verify deployed v63.5 diagnostic build
+        run: |
+          set -euo pipefail
+          test -f main.py
+          python -m py_compile main.py
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          source = Path("main.py").read_text(encoding="utf-8")
+          ast.parse(source, filename="main.py")
+          required = [
+              'Version: 2026-10-04 v63.5-FIX1 | COMPONENT DIAGNOSTICS',
+              'DEPLOYMENT_ID = "v63.5-component-diagnostics-fix1-20261004"',
+              'professional_quality_breakdown',
+              'professional_detail_lines',
+              'Professional detail',
+              'Components:',
+              'PRO_MIN_SCORE = 90',
+              'PRO_MIN_QUALITY_POINTS = 15',
+              'required_grade = "A+"',
+              'professional_signal_quality_gate',
+              'validate_risk_levels',
+          ]
+          missing = [x for x in required if x not in source]
+          if missing:
+              raise SystemExit("Missing v63.5 deployment markers: " + ", ".join(missing))
+          print("DEPLOYMENT SOURCE: v63.5-component-diagnostics-fix1-20261004")
+          print("AST + v63.5 diagnostic markers: PASS")
+          print("Lines:", len(source.splitlines()))
+          print("Bytes:", len(source.encode("utf-8")))
+          PY
+
+      - name: Import test
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import importlib.util
+          spec = importlib.util.spec_from_file_location("crypto_signal_bot", "main.py")
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          assert getattr(module, "DEPLOYMENT_ID", "") == "v63.5-component-diagnostics-fix1-20261004"
+          assert callable(module.professional_signal_quality_gate)
+          assert callable(module.final_telegram_quality_gate)
+          print("Import + deployment identity + gates: PASS")
+          PY
+
+      - name: Run Crypto Signal Bot v63.5-FIX1
+        run: |
+          set -euo pipefail
+          python main.py
+
+      - name: Print professional diagnostics artifact
+        if: ${{ always() }}
+        run: |
+          set -euo pipefail
+          if [ -f professional_diagnostics.txt ]; then
+            echo "===== PROFESSIONAL DIAGNOSTICS FILE ====="
+            cat professional_diagnostics.txt
+          else
+            echo "professional_diagnostics.txt was not created"
+          fi
+
+      - name: Upload professional diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: professional-diagnostics-v63-5-fix1
+          path: professional_diagnostics.txt
+          if-no-files-found: warn
