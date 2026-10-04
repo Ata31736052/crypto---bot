@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
   # GitHub Cron uses UTC.
-  # Iran is UTC+3:30, so minute 30 UTC = minute 00 Tehran.
+  # 30 UTC = 00:00 Tehran
   schedule:
     - cron: "30 * * * *"
 
@@ -147,7 +147,8 @@ jobs:
           ]
 
           missing = [
-              x for x in required_markers
+              x
+              for x in required_markers
               if x not in source
           ]
 
