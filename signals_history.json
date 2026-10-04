@@ -22409,7 +22409,7 @@
     "atr_percent": 1.7611065999444897,
     "btc_regime": "BULLISH",
     "candle_time": "2026-10-03 20:00:00+00:00",
-    "outcome_status": "OPEN",
+    "outcome_status": "FINAL",
     "outcome_created_at": "2026-10-04T01:26:00.100610+03:30",
     "horizons": {
       "1h": {
@@ -22422,7 +22422,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-03 22:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.041063+03:30",
+        "observed_at": "2026-10-04T08:30:21.207333+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -22435,7 +22435,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-03 23:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.042158+03:30",
+        "observed_at": "2026-10-04T08:30:21.208066+03:30",
         "engine_version": 54
       },
       "4h": {
@@ -22448,14 +22448,27 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-04 01:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.043334+03:30",
+        "observed_at": "2026-10-04T08:30:21.208847+03:30",
+        "engine_version": 54
+      },
+      "8h": {
+        "close": 0.4752,
+        "change_percent": 1.5168,
+        "mfe_percent": 1.8799,
+        "mae_percent": 0.4486,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-04 05:00:00+00:00",
+        "observed_at": "2026-10-04T08:30:21.209576+03:30",
         "engine_version": 54
       }
     },
-    "first_event": null,
+    "first_event": "NO_LEVEL_HIT",
     "first_event_time": null,
-    "outcome_reason": null,
-    "mfe_percent": 1.5809,
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "mfe_percent": 1.8799,
     "mae_percent": 0.4486,
     "reasons": [
       "Price above EMA200",
@@ -22489,10 +22502,11 @@
     "sl_reached": false,
     "ambiguous_event": false,
     "performance": {
-      "mfe_percent": 1.5809,
+      "mfe_percent": 1.8799,
       "mae_percent": 0.4486
     },
-    "outcome_engine_version": 54
+    "outcome_engine_version": 54,
+    "finalized_at": "2026-10-04T08:30:21.210200+03:30"
   },
   {
     "timestamp": "2026-10-04T01:26:00.323435+03:30",
@@ -22511,7 +22525,7 @@
     "atr_percent": 1.32292490805275,
     "btc_regime": "BULLISH",
     "candle_time": "2026-10-03 20:00:00+00:00",
-    "outcome_status": "OBSERVING_AFTER_EVENT",
+    "outcome_status": "FINAL",
     "outcome_created_at": "2026-10-04T01:26:00.323443+03:30",
     "horizons": {
       "1h": {
@@ -22524,7 +22538,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-03 22:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.048750+03:30",
+        "observed_at": "2026-10-04T08:30:21.376533+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -22537,7 +22551,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-03 23:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.049843+03:30",
+        "observed_at": "2026-10-04T08:30:21.377256+03:30",
         "engine_version": 54
       },
       "4h": {
@@ -22550,7 +22564,20 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-04 01:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.051021+03:30",
+        "observed_at": "2026-10-04T08:30:21.377995+03:30",
+        "engine_version": 54
+      },
+      "8h": {
+        "close": 0.8372,
+        "change_percent": 1.1478,
+        "mfe_percent": 4.0232,
+        "mae_percent": 0.0846,
+        "tp1_reached": true,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-04 05:00:00+00:00",
+        "observed_at": "2026-10-04T08:30:21.378701+03:30",
         "engine_version": 54
       }
     },
@@ -22586,7 +22613,8 @@
       "mfe_percent": 4.0232,
       "mae_percent": 0.0846
     },
-    "outcome_engine_version": 54
+    "outcome_engine_version": 54,
+    "finalized_at": "2026-10-04T08:30:21.379335+03:30"
   },
   {
     "timestamp": "2026-10-04T01:26:00.536342+03:30",
@@ -22605,7 +22633,7 @@
     "atr_percent": 1.279139910964743,
     "btc_regime": "BULLISH",
     "candle_time": "2026-10-03 20:00:00+00:00",
-    "outcome_status": "OPEN",
+    "outcome_status": "FINAL",
     "outcome_created_at": "2026-10-04T01:26:00.536349+03:30",
     "horizons": {
       "1h": {
@@ -22618,7 +22646,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-03 22:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.056422+03:30",
+        "observed_at": "2026-10-04T08:30:21.545985+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -22631,7 +22659,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-03 23:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.057535+03:30",
+        "observed_at": "2026-10-04T08:30:21.546691+03:30",
         "engine_version": 54
       },
       "4h": {
@@ -22644,13 +22672,26 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-04 01:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.058695+03:30",
+        "observed_at": "2026-10-04T08:30:21.547507+03:30",
+        "engine_version": 54
+      },
+      "8h": {
+        "close": 1316.24,
+        "change_percent": -0.0061,
+        "mfe_percent": 0.9253,
+        "mae_percent": 2.5184,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-04 05:00:00+00:00",
+        "observed_at": "2026-10-04T08:30:21.548229+03:30",
         "engine_version": 54
       }
     },
-    "first_event": null,
+    "first_event": "NO_LEVEL_HIT",
     "first_event_time": null,
-    "outcome_reason": null,
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
     "mfe_percent": 0.9253,
     "mae_percent": 2.5184,
     "reasons": [
@@ -22682,7 +22723,8 @@
       "mfe_percent": 0.9253,
       "mae_percent": 2.5184
     },
-    "outcome_engine_version": 54
+    "outcome_engine_version": 54,
+    "finalized_at": "2026-10-04T08:30:21.548821+03:30"
   },
   {
     "timestamp": "2026-10-04T01:26:00.737351+03:30",
@@ -22701,7 +22743,7 @@
     "atr_percent": 1.4260125041147047,
     "btc_regime": "BULLISH",
     "candle_time": "2026-10-03 20:00:00+00:00",
-    "outcome_status": "OPEN",
+    "outcome_status": "FINAL",
     "outcome_created_at": "2026-10-04T01:26:00.737359+03:30",
     "horizons": {
       "1h": {
@@ -22714,7 +22756,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-03 22:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.227644+03:30",
+        "observed_at": "2026-10-04T08:30:21.715906+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -22727,7 +22769,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-03 23:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.228796+03:30",
+        "observed_at": "2026-10-04T08:30:21.716619+03:30",
         "engine_version": 54
       },
       "4h": {
@@ -22740,13 +22782,26 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-04 01:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.229976+03:30",
+        "observed_at": "2026-10-04T08:30:21.717342+03:30",
+        "engine_version": 54
+      },
+      "8h": {
+        "close": 4.813,
+        "change_percent": 1.1985,
+        "mfe_percent": 3.196,
+        "mae_percent": 0.5046,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-04 05:00:00+00:00",
+        "observed_at": "2026-10-04T08:30:21.718014+03:30",
         "engine_version": 54
       }
     },
-    "first_event": null,
+    "first_event": "NO_LEVEL_HIT",
     "first_event_time": null,
-    "outcome_reason": null,
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
     "mfe_percent": 3.196,
     "mae_percent": 0.5046,
     "reasons": [
@@ -22779,7 +22834,8 @@
       "mfe_percent": 3.196,
       "mae_percent": 0.5046
     },
-    "outcome_engine_version": 54
+    "outcome_engine_version": 54,
+    "finalized_at": "2026-10-04T08:30:21.718620+03:30"
   },
   {
     "timestamp": "2026-10-04T01:26:00.945369+03:30",
@@ -22798,7 +22854,7 @@
     "atr_percent": 0.7762106025385856,
     "btc_regime": "BULLISH",
     "candle_time": "2026-10-03 20:00:00+00:00",
-    "outcome_status": "OPEN",
+    "outcome_status": "FINAL",
     "outcome_created_at": "2026-10-04T01:26:00.945383+03:30",
     "horizons": {
       "1h": {
@@ -22811,7 +22867,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-03 22:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.235376+03:30",
+        "observed_at": "2026-10-04T08:30:21.885112+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -22824,7 +22880,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-03 23:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.236503+03:30",
+        "observed_at": "2026-10-04T08:30:21.885820+03:30",
         "engine_version": 54
       },
       "4h": {
@@ -22837,13 +22893,26 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-04 01:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.237677+03:30",
+        "observed_at": "2026-10-04T08:30:21.886603+03:30",
+        "engine_version": 54
+      },
+      "8h": {
+        "close": 0.2158,
+        "change_percent": -0.1388,
+        "mfe_percent": 0.3239,
+        "mae_percent": 0.7404,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-04 05:00:00+00:00",
+        "observed_at": "2026-10-04T08:30:21.887304+03:30",
         "engine_version": 54
       }
     },
-    "first_event": null,
+    "first_event": "NO_LEVEL_HIT",
     "first_event_time": null,
-    "outcome_reason": null,
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
     "mfe_percent": 0.3239,
     "mae_percent": 0.7404,
     "reasons": [
@@ -22877,7 +22946,8 @@
       "mfe_percent": 0.3239,
       "mae_percent": 0.7404
     },
-    "outcome_engine_version": 54
+    "outcome_engine_version": 54,
+    "finalized_at": "2026-10-04T08:30:21.887896+03:30"
   },
   {
     "timestamp": "2026-10-04T01:26:01.178490+03:30",
@@ -22896,7 +22966,7 @@
     "atr_percent": 1.2528268040319013,
     "btc_regime": "BULLISH",
     "candle_time": "2026-10-03 20:00:00+00:00",
-    "outcome_status": "OPEN",
+    "outcome_status": "FINAL",
     "outcome_created_at": "2026-10-04T01:26:01.178498+03:30",
     "horizons": {
       "1h": {
@@ -22909,7 +22979,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-03 22:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.406823+03:30",
+        "observed_at": "2026-10-04T08:30:22.054473+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -22922,7 +22992,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-03 23:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.407923+03:30",
+        "observed_at": "2026-10-04T08:30:22.055165+03:30",
         "engine_version": 54
       },
       "4h": {
@@ -22935,13 +23005,26 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-04 01:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.409092+03:30",
+        "observed_at": "2026-10-04T08:30:22.055902+03:30",
+        "engine_version": 54
+      },
+      "8h": {
+        "close": 1.0673,
+        "change_percent": 0.4423,
+        "mfe_percent": 0.5835,
+        "mae_percent": 0.5741,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-04 05:00:00+00:00",
+        "observed_at": "2026-10-04T08:30:22.056618+03:30",
         "engine_version": 54
       }
     },
-    "first_event": null,
+    "first_event": "NO_LEVEL_HIT",
     "first_event_time": null,
-    "outcome_reason": null,
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
     "mfe_percent": 0.5835,
     "mae_percent": 0.5741,
     "reasons": [
@@ -22978,7 +23061,8 @@
       "mfe_percent": 0.5835,
       "mae_percent": 0.5741
     },
-    "outcome_engine_version": 54
+    "outcome_engine_version": 54,
+    "finalized_at": "2026-10-04T08:30:22.057240+03:30"
   },
   {
     "timestamp": "2026-10-04T01:26:01.391118+03:30",
@@ -22997,7 +23081,7 @@
     "atr_percent": 0.4713894221576661,
     "btc_regime": "BULLISH",
     "candle_time": "2026-10-03 20:00:00+00:00",
-    "outcome_status": "OPEN",
+    "outcome_status": "FINAL",
     "outcome_created_at": "2026-10-04T01:26:01.391126+03:30",
     "horizons": {
       "1h": {
@@ -23010,7 +23094,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-03 22:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.414570+03:30",
+        "observed_at": "2026-10-04T08:30:22.223685+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -23023,7 +23107,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-03 23:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.415663+03:30",
+        "observed_at": "2026-10-04T08:30:22.224403+03:30",
         "engine_version": 54
       },
       "4h": {
@@ -23036,13 +23120,26 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-04 01:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.416846+03:30",
+        "observed_at": "2026-10-04T08:30:22.225204+03:30",
+        "engine_version": 54
+      },
+      "8h": {
+        "close": 784.76,
+        "change_percent": -0.1362,
+        "mfe_percent": 0.5217,
+        "mae_percent": 0.4683,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-04 05:00:00+00:00",
+        "observed_at": "2026-10-04T08:30:22.225913+03:30",
         "engine_version": 54
       }
     },
-    "first_event": null,
+    "first_event": "NO_LEVEL_HIT",
     "first_event_time": null,
-    "outcome_reason": null,
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
     "mfe_percent": 0.5217,
     "mae_percent": 0.4683,
     "reasons": [
@@ -23080,7 +23177,8 @@
       "mfe_percent": 0.5217,
       "mae_percent": 0.4683
     },
-    "outcome_engine_version": 54
+    "outcome_engine_version": 54,
+    "finalized_at": "2026-10-04T08:30:22.226546+03:30"
   },
   {
     "timestamp": "2026-10-04T01:26:01.603776+03:30",
@@ -23099,7 +23197,7 @@
     "atr_percent": 4.808011157293392,
     "btc_regime": "BULLISH",
     "candle_time": "2026-10-03 20:00:00+00:00",
-    "outcome_status": "OPEN",
+    "outcome_status": "FINAL",
     "outcome_created_at": "2026-10-04T01:26:01.603782+03:30",
     "horizons": {
       "1h": {
@@ -23112,7 +23210,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-03 22:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.586281+03:30",
+        "observed_at": "2026-10-04T08:30:22.393050+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -23125,7 +23223,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-03 23:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.587378+03:30",
+        "observed_at": "2026-10-04T08:30:22.393754+03:30",
         "engine_version": 54
       },
       "4h": {
@@ -23138,14 +23236,27 @@
         "sl_reached": false,
         "window_start": "2026-10-03 21:00:00+00:00",
         "window_end": "2026-10-04 01:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.588579+03:30",
+        "observed_at": "2026-10-04T08:30:22.394493+03:30",
+        "engine_version": 54
+      },
+      "8h": {
+        "close": 0.07918,
+        "change_percent": 5.8839,
+        "mfe_percent": 6.3787,
+        "mae_percent": 3.7978,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-04 05:00:00+00:00",
+        "observed_at": "2026-10-04T08:30:22.395204+03:30",
         "engine_version": 54
       }
     },
-    "first_event": null,
+    "first_event": "NO_LEVEL_HIT",
     "first_event_time": null,
-    "outcome_reason": null,
-    "mfe_percent": 3.7844,
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP",
+    "mfe_percent": 6.3787,
     "mae_percent": 3.7978,
     "reasons": [
       "Price above EMA200",
@@ -23180,10 +23291,11 @@
     "sl_reached": false,
     "ambiguous_event": false,
     "performance": {
-      "mfe_percent": 3.7844,
+      "mfe_percent": 6.3787,
       "mae_percent": 3.7978
     },
-    "outcome_engine_version": 54
+    "outcome_engine_version": 54,
+    "finalized_at": "2026-10-04T08:30:22.395784+03:30"
   },
   {
     "timestamp": "2026-10-04T01:26:01.851690+03:30",
@@ -23323,7 +23435,7 @@
         "sl_reached": false,
         "window_start": "2026-10-04 00:00:00+00:00",
         "window_end": "2026-10-04 01:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.603143+03:30",
+        "observed_at": "2026-10-04T08:30:22.398819+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -23336,12 +23448,12 @@
         "sl_reached": false,
         "window_start": "2026-10-04 00:00:00+00:00",
         "window_end": "2026-10-04 02:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.604275+03:30",
+        "observed_at": "2026-10-04T08:30:22.399508+03:30",
         "engine_version": 54
       },
       "4h": {
-        "close": 0.8319,
-        "change_percent": -1.5503,
+        "close": 0.8372,
+        "change_percent": -0.9231,
         "mfe_percent": 0.7574,
         "mae_percent": 1.9408,
         "tp1_reached": false,
@@ -23349,7 +23461,7 @@
         "sl_reached": false,
         "window_start": "2026-10-04 00:00:00+00:00",
         "window_end": "2026-10-04 04:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.605273+03:30",
+        "observed_at": "2026-10-04T08:30:22.400129+03:30",
         "engine_version": 54
       }
     },
@@ -23416,7 +23528,7 @@
         "sl_reached": false,
         "window_start": "2026-10-04 00:00:00+00:00",
         "window_end": "2026-10-04 01:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.610555+03:30",
+        "observed_at": "2026-10-04T08:30:22.403729+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -23429,20 +23541,20 @@
         "sl_reached": false,
         "window_start": "2026-10-04 00:00:00+00:00",
         "window_end": "2026-10-04 02:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.611650+03:30",
+        "observed_at": "2026-10-04T08:30:22.404439+03:30",
         "engine_version": 54
       },
       "4h": {
-        "close": 4.805,
-        "change_percent": 0.1042,
+        "close": 4.813,
+        "change_percent": 0.2708,
         "mfe_percent": 2.25,
-        "mae_percent": 0.2708,
+        "mae_percent": 0.4167,
         "tp1_reached": false,
         "tp2_reached": false,
         "sl_reached": false,
         "window_start": "2026-10-04 00:00:00+00:00",
         "window_end": "2026-10-04 04:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.612637+03:30",
+        "observed_at": "2026-10-04T08:30:22.405076+03:30",
         "engine_version": 54
       }
     },
@@ -23450,7 +23562,7 @@
     "first_event_time": null,
     "outcome_reason": null,
     "mfe_percent": 2.25,
-    "mae_percent": 0.2708,
+    "mae_percent": 0.4167,
     "reasons": [
       "Close to recent low (5.29% above)",
       "RSI recovering (56.1 -> 64.7)",
@@ -23479,7 +23591,7 @@
     "ambiguous_event": false,
     "performance": {
       "mfe_percent": 2.25,
-      "mae_percent": 0.2708
+      "mae_percent": 0.4167
     },
     "outcome_engine_version": 54
   },
@@ -23513,7 +23625,7 @@
         "sl_reached": false,
         "window_start": "2026-10-04 00:00:00+00:00",
         "window_end": "2026-10-04 01:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.781317+03:30",
+        "observed_at": "2026-10-04T08:30:22.572684+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -23526,12 +23638,12 @@
         "sl_reached": false,
         "window_start": "2026-10-04 00:00:00+00:00",
         "window_end": "2026-10-04 02:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.782481+03:30",
+        "observed_at": "2026-10-04T08:30:22.573419+03:30",
         "engine_version": 54
       },
       "4h": {
-        "close": 2.035,
-        "change_percent": -0.3916,
+        "close": 2.043,
+        "change_percent": 0.0,
         "mfe_percent": 0.5384,
         "mae_percent": 0.7342,
         "tp1_reached": false,
@@ -23539,7 +23651,7 @@
         "sl_reached": false,
         "window_start": "2026-10-04 00:00:00+00:00",
         "window_end": "2026-10-04 04:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.783497+03:30",
+        "observed_at": "2026-10-04T08:30:22.574081+03:30",
         "engine_version": 54
       }
     },
@@ -23611,7 +23723,7 @@
         "sl_reached": false,
         "window_start": "2026-10-04 00:00:00+00:00",
         "window_end": "2026-10-04 01:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.952321+03:30",
+        "observed_at": "2026-10-04T08:30:22.741046+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -23624,12 +23736,12 @@
         "sl_reached": false,
         "window_start": "2026-10-04 00:00:00+00:00",
         "window_end": "2026-10-04 02:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.953399+03:30",
+        "observed_at": "2026-10-04T08:30:22.741752+03:30",
         "engine_version": 54
       },
       "4h": {
-        "close": 70.42,
-        "change_percent": 0.3992,
+        "close": 70.36,
+        "change_percent": 0.3137,
         "mfe_percent": 1.055,
         "mae_percent": 0.499,
         "tp1_reached": false,
@@ -23637,7 +23749,7 @@
         "sl_reached": false,
         "window_start": "2026-10-04 00:00:00+00:00",
         "window_end": "2026-10-04 04:00:00+00:00",
-        "observed_at": "2026-10-04T08:22:06.954381+03:30",
+        "observed_at": "2026-10-04T08:30:22.742389+03:30",
         "engine_version": 54
       }
     },
@@ -23694,12 +23806,26 @@
     "candle_time": "2026-10-04 03:00:00+00:00",
     "outcome_status": "OPEN",
     "outcome_created_at": "2026-10-04T08:22:47.584698+03:30",
-    "horizons": {},
+    "horizons": {
+      "1h": {
+        "close": 120.64,
+        "change_percent": 0.0166,
+        "mfe_percent": 0.1658,
+        "mae_percent": 0.1078,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-04 04:00:00+00:00",
+        "window_end": "2026-10-04 05:00:00+00:00",
+        "observed_at": "2026-10-04T08:30:22.909583+03:30",
+        "engine_version": 54
+      }
+    },
     "first_event": null,
     "first_event_time": null,
     "outcome_reason": null,
-    "mfe_percent": 0.0,
-    "mae_percent": 0.0,
+    "mfe_percent": 0.1658,
+    "mae_percent": 0.1078,
     "reasons": [
       "Near 72H low (3.46% above)",
       "RSI recovering (61.7 -> 66.1)",
@@ -23719,7 +23845,16 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.1658,
+      "mae_percent": 0.1078
+    },
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-04T08:22:47.757333+03:30",
@@ -23740,12 +23875,26 @@
     "candle_time": "2026-10-04 03:00:00+00:00",
     "outcome_status": "OPEN",
     "outcome_created_at": "2026-10-04T08:22:47.757343+03:30",
-    "horizons": {},
+    "horizons": {
+      "1h": {
+        "close": 0.8372,
+        "change_percent": 0.0358,
+        "mfe_percent": 0.0836,
+        "mae_percent": 0.6811,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-04 04:00:00+00:00",
+        "window_end": "2026-10-04 05:00:00+00:00",
+        "observed_at": "2026-10-04T08:30:22.912934+03:30",
+        "engine_version": 54
+      }
+    },
     "first_event": null,
     "first_event_time": null,
     "outcome_reason": null,
-    "mfe_percent": 0.0,
-    "mae_percent": 0.0,
+    "mfe_percent": 0.0836,
+    "mae_percent": 0.6811,
     "reasons": [
       "Price above EMA200",
       "EMA9 > EMA21",
@@ -23773,7 +23922,16 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.0836,
+      "mae_percent": 0.6811
+    },
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-04T08:22:47.917569+03:30",
@@ -23794,12 +23952,26 @@
     "candle_time": "2026-10-04 03:00:00+00:00",
     "outcome_status": "OPEN",
     "outcome_created_at": "2026-10-04T08:22:47.917582+03:30",
-    "horizons": {},
+    "horizons": {
+      "1h": {
+        "close": 1.4914,
+        "change_percent": 0.047,
+        "mfe_percent": 0.0872,
+        "mae_percent": 0.1207,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-04 04:00:00+00:00",
+        "window_end": "2026-10-04 05:00:00+00:00",
+        "observed_at": "2026-10-04T08:30:23.079801+03:30",
+        "engine_version": 54
+      }
+    },
     "first_event": null,
     "first_event_time": null,
     "outcome_reason": null,
-    "mfe_percent": 0.0,
-    "mae_percent": 0.0,
+    "mfe_percent": 0.0872,
+    "mae_percent": 0.1207,
     "reasons": [
       "Near 72H low (3.06% above)",
       "RSI recovering (49.8 -> 50.9)",
@@ -23815,6 +23987,426 @@
       "Quality cap: ADX < 15 -> max 82",
       "Quality cap: Volume 0.70-0.90x -> max 88",
       "Raw score 90; quality-adjusted score 82",
+      "Professional filter: directional structure",
+      "Professional filter: ADX/DI",
+      "Professional filter: 30M confirmation",
+      "Professional filter: volume/momentum",
+      "Professional filter: multi-timeframe context",
+      "Professional filter: trade structure/R:R"
+    ],
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.0872,
+      "mae_percent": 0.1207
+    },
+    "outcome_engine_version": 54
+  },
+  {
+    "timestamp": "2026-10-04T08:31:02.942388+03:30",
+    "symbol": "BCH",
+    "signal": "BUY",
+    "score": 93,
+    "strength": "STRONG",
+    "price": 317.6,
+    "entry": 317.6,
+    "stop_loss": 314.03666578626894,
+    "tp1": 323.30133474196975,
+    "tp2": 327.57733579844705,
+    "rsi": 60.05371029422237,
+    "adx": 31.048173567374516,
+    "volume_ratio": 0.6480771186724295,
+    "atr_percent": 0.7479710776093783,
+    "btc_regime": "NEUTRAL",
+    "candle_time": "2026-10-04 04:00:00+00:00",
+    "outcome_status": "OPEN",
+    "outcome_created_at": "2026-10-04T08:31:02.942395+03:30",
+    "horizons": {},
+    "first_event": null,
+    "first_event_time": null,
+    "outcome_reason": null,
+    "mfe_percent": 0.0,
+    "mae_percent": 0.0,
+    "reasons": [
+      "Price above EMA200",
+      "EMA9 > EMA21",
+      "ADX strong bullish (31.0)",
+      "RSI healthy (60.1)",
+      "MACD bullish",
+      "Low volume 0.65x",
+      "Bullish candle",
+      "ATR suitable 0.75%",
+      "30M price above EMA21",
+      "30M EMA9 > EMA21",
+      "30M RSI supportive",
+      "30M ADX/DI directional confirmation",
+      "30M VWAP alignment",
+      "30M RSI momentum supportive",
+      "BTC NEUTRAL",
+      "Bullish price structure",
+      "4H trend bullish",
+      "Daily trend bullish",
+      "Professional filter: directional structure",
+      "Professional filter: ADX/DI",
+      "Professional filter: 30M confirmation",
+      "Professional filter: volume/momentum",
+      "Professional filter: multi-timeframe context",
+      "Professional filter: trade structure/R:R"
+    ]
+  },
+  {
+    "timestamp": "2026-10-04T08:31:03.115439+03:30",
+    "symbol": "AERO",
+    "signal": "BUY",
+    "score": 93,
+    "strength": "STRONG",
+    "price": 0.8369,
+    "entry": 0.8369,
+    "stop_loss": 0.8207426972766901,
+    "tp1": 0.8627516843572958,
+    "tp2": 0.8821404476252676,
+    "rsi": 65.93479162567412,
+    "adx": 43.58463363015814,
+    "volume_ratio": 0.24583445490520808,
+    "atr_percent": 1.2866143273857167,
+    "btc_regime": "NEUTRAL",
+    "candle_time": "2026-10-04 04:00:00+00:00",
+    "outcome_status": "OPEN",
+    "outcome_created_at": "2026-10-04T08:31:03.115446+03:30",
+    "horizons": {},
+    "first_event": null,
+    "first_event_time": null,
+    "outcome_reason": null,
+    "mfe_percent": 0.0,
+    "mae_percent": 0.0,
+    "reasons": [
+      "Price above EMA200",
+      "EMA9 > EMA21",
+      "ADX strong bullish (43.6)",
+      "RSI healthy (65.9)",
+      "MACD bullish",
+      "Low volume 0.25x",
+      "Bullish candle",
+      "ATR suitable 1.29%",
+      "30M price above EMA21",
+      "30M EMA9 > EMA21",
+      "30M RSI supportive",
+      "30M ADX/DI directional confirmation",
+      "30M VWAP alignment",
+      "30M OBV participation alignment",
+      "30M MACD histogram momentum improving",
+      "30M RSI momentum supportive",
+      "BTC NEUTRAL",
+      "RSI bullish divergence",
+      "Bullish price structure",
+      "4H trend bullish",
+      "Professional filter: directional structure",
+      "Professional filter: ADX/DI",
+      "Professional filter: 30M confirmation",
+      "Professional filter: volume/momentum",
+      "Professional filter: multi-timeframe context",
+      "Professional filter: trade structure/R:R"
+    ]
+  },
+  {
+    "timestamp": "2026-10-04T08:31:03.275773+03:30",
+    "symbol": "TIA",
+    "signal": "BUY",
+    "score": 88,
+    "strength": "STRONG",
+    "price": 0.4754,
+    "entry": 0.4754,
+    "stop_loss": 0.46471553170859503,
+    "tp1": 0.49249514926624793,
+    "tp2": 0.5053165112159339,
+    "rsi": 60.464508123374024,
+    "adx": 25.23259480699437,
+    "volume_ratio": 0.43882149572997514,
+    "atr_percent": 1.4989433629917195,
+    "btc_regime": "NEUTRAL",
+    "candle_time": "2026-10-04 04:00:00+00:00",
+    "outcome_status": "OPEN",
+    "outcome_created_at": "2026-10-04T08:31:03.275780+03:30",
+    "horizons": {},
+    "first_event": null,
+    "first_event_time": null,
+    "outcome_reason": null,
+    "mfe_percent": 0.0,
+    "mae_percent": 0.0,
+    "reasons": [
+      "Price above EMA200",
+      "EMA9 > EMA21",
+      "ADX strong bullish (25.2)",
+      "RSI healthy (60.5)",
+      "MACD not bullish",
+      "Low volume 0.44x",
+      "Bullish candle",
+      "ATR suitable 1.50%",
+      "30M price above EMA21",
+      "30M EMA9 > EMA21",
+      "30M RSI supportive",
+      "30M ADX/DI directional confirmation",
+      "30M VWAP alignment",
+      "30M OBV participation alignment",
+      "30M MACD histogram momentum improving",
+      "30M RSI momentum supportive",
+      "BTC NEUTRAL",
+      "RSI bullish divergence, MACD bullish divergence",
+      "Bullish price structure",
+      "4H trend bullish",
+      "Daily trend bullish",
+      "Professional filter: directional structure",
+      "Professional filter: ADX/DI",
+      "Professional filter: 30M confirmation",
+      "Professional filter: volume/momentum",
+      "Professional filter: multi-timeframe context",
+      "Professional filter: trade structure/R:R"
+    ]
+  },
+  {
+    "timestamp": "2026-10-04T08:31:03.430169+03:30",
+    "symbol": "ENA",
+    "signal": "BUY",
+    "score": 88,
+    "strength": "EARLY REVERSAL",
+    "price": 0.238,
+    "entry": 0.238,
+    "stop_loss": 0.2267605,
+    "tp1": 0.25598319999999997,
+    "tp2": 0.26947059999999995,
+    "rsi": 52.7036042974546,
+    "adx": 18.97677279598633,
+    "volume_ratio": 1.3157246663795843,
+    "atr_percent": 1.1208552280301023,
+    "btc_regime": "NEUTRAL",
+    "candle_time": "2026-10-04 04:00:00+00:00",
+    "outcome_status": "OPEN",
+    "outcome_created_at": "2026-10-04T08:31:03.430176+03:30",
+    "horizons": {},
+    "first_event": null,
+    "first_event_time": null,
+    "outcome_reason": null,
+    "mfe_percent": 0.0,
+    "mae_percent": 0.0,
+    "reasons": [
+      "Near 72H low (4.39% above)",
+      "RSI recovering (50.9 -> 52.7)",
+      "RSI bullish divergence",
+      "MACD bullish divergence",
+      "MACD above signal",
+      "Price near Fibonacci 0.618/0.786 zone",
+      "Volume expansion (1.32x)",
+      "Bullish 1H candle",
+      "Price reclaimed previous close",
+      "BTC regime not strongly bearish",
+      "Daily trend bullish",
+      "Quality cap: ADX 15-20 -> max 88",
+      "Raw score 96; quality-adjusted score 88",
+      "Professional filter: directional structure",
+      "Professional filter: ADX/DI",
+      "Professional filter: 30M confirmation",
+      "Professional filter: volume/momentum",
+      "Professional filter: multi-timeframe context",
+      "Professional filter: trade structure/R:R"
+    ]
+  },
+  {
+    "timestamp": "2026-10-04T08:31:03.582847+03:30",
+    "symbol": "OP",
+    "signal": "BUY",
+    "score": 83,
+    "strength": "STRONG",
+    "price": 0.1351,
+    "entry": 0.1351,
+    "stop_loss": 0.13234726614849093,
+    "tp1": 0.1395043741624145,
+    "tp2": 0.14280765478422539,
+    "rsi": 55.614608235739176,
+    "adx": 29.063987469665932,
+    "volume_ratio": 0.33616359472567336,
+    "atr_percent": 1.3593747414859632,
+    "btc_regime": "NEUTRAL",
+    "candle_time": "2026-10-04 04:00:00+00:00",
+    "outcome_status": "OPEN",
+    "outcome_created_at": "2026-10-04T08:31:03.582853+03:30",
+    "horizons": {},
+    "first_event": null,
+    "first_event_time": null,
+    "outcome_reason": null,
+    "mfe_percent": 0.0,
+    "mae_percent": 0.0,
+    "reasons": [
+      "Price above EMA200",
+      "EMA9 > EMA21",
+      "ADX strong bullish (29.1)",
+      "RSI healthy (55.6)",
+      "MACD not bullish",
+      "Low volume 0.34x",
+      "Bullish candle",
+      "ATR suitable 1.36%",
+      "30M price above EMA21",
+      "30M RSI supportive",
+      "30M ADX/DI directional confirmation",
+      "30M OBV participation alignment",
+      "30M MACD histogram momentum improving",
+      "30M RSI momentum supportive",
+      "BTC NEUTRAL",
+      "Bullish price structure",
+      "4H trend bullish",
+      "Daily trend bullish",
+      "Professional filter: directional structure",
+      "Professional filter: ADX/DI",
+      "Professional filter: 30M confirmation",
+      "Professional filter: volume/momentum",
+      "Professional filter: multi-timeframe context",
+      "Professional filter: trade structure/R:R"
+    ]
+  },
+  {
+    "timestamp": "2026-10-04T08:31:03.747956+03:30",
+    "symbol": "ADA",
+    "signal": "BUY",
+    "score": 82,
+    "strength": "EARLY REVERSAL",
+    "price": 0.2437,
+    "entry": 0.2437,
+    "stop_loss": 0.2357155,
+    "tp1": 0.2564752,
+    "tp2": 0.26605660000000003,
+    "rsi": 41.16137397912617,
+    "adx": 10.77122246355722,
+    "volume_ratio": 0.9831167545429448,
+    "atr_percent": 0.702073668274409,
+    "btc_regime": "NEUTRAL",
+    "candle_time": "2026-10-04 04:00:00+00:00",
+    "outcome_status": "OPEN",
+    "outcome_created_at": "2026-10-04T08:31:03.747962+03:30",
+    "horizons": {},
+    "first_event": null,
+    "first_event_time": null,
+    "outcome_reason": null,
+    "mfe_percent": 0.0,
+    "mae_percent": 0.0,
+    "reasons": [
+      "Near 72H low (2.74% above)",
+      "RSI low recovery zone (41.2)",
+      "RSI recovering (39.9 -> 41.2)",
+      "MACD histogram improving",
+      "Price near Fibonacci 0.618/0.786 zone",
+      "Volume acceptable (0.98x)",
+      "Bullish 1H candle",
+      "Price reclaimed previous close",
+      "30M reversal confirmation",
+      "BTC regime not strongly bearish",
+      "Daily trend bullish",
+      "Quality cap: ADX < 15 -> max 82",
+      "Raw score 86; quality-adjusted score 82",
+      "Professional filter: directional structure",
+      "Professional filter: ADX/DI",
+      "Professional filter: 30M confirmation",
+      "Professional filter: volume/momentum",
+      "Professional filter: multi-timeframe context",
+      "Professional filter: trade structure/R:R"
+    ]
+  },
+  {
+    "timestamp": "2026-10-04T08:31:03.927638+03:30",
+    "symbol": "TRUMP",
+    "signal": "BUY",
+    "score": 82,
+    "strength": "EARLY REVERSAL",
+    "price": 2.044,
+    "entry": 2.044,
+    "stop_loss": 1.96811,
+    "tp1": 2.1654240000000002,
+    "tp2": 2.256492,
+    "rsi": 43.83755029514511,
+    "adx": 10.994026331394947,
+    "volume_ratio": 0.9226142766471392,
+    "atr_percent": 0.8216129199111796,
+    "btc_regime": "NEUTRAL",
+    "candle_time": "2026-10-04 04:00:00+00:00",
+    "outcome_status": "OPEN",
+    "outcome_created_at": "2026-10-04T08:31:03.927644+03:30",
+    "horizons": {},
+    "first_event": null,
+    "first_event_time": null,
+    "outcome_reason": null,
+    "mfe_percent": 0.0,
+    "mae_percent": 0.0,
+    "reasons": [
+      "Near 72H low (3.29% above)",
+      "RSI low recovery zone (43.8)",
+      "RSI recovering (39.4 -> 43.8)",
+      "MACD bullish divergence",
+      "MACD histogram improving",
+      "Price near Fibonacci 0.618/0.786 zone",
+      "Volume acceptable (0.92x)",
+      "Bullish 1H candle",
+      "Price reclaimed previous close",
+      "30M reversal confirmation",
+      "BTC regime not strongly bearish",
+      "4H trend bearish (headwind)",
+      "Daily trend bearish (headwind)",
+      "Quality cap: ADX < 15 -> max 82",
+      "Raw score 88; quality-adjusted score 82",
+      "Professional filter: directional structure",
+      "Professional filter: ADX/DI",
+      "Professional filter: 30M confirmation",
+      "Professional filter: volume/momentum",
+      "Professional filter: multi-timeframe context",
+      "Professional filter: trade structure/R:R"
+    ]
+  },
+  {
+    "timestamp": "2026-10-04T08:31:04.097192+03:30",
+    "symbol": "SUI",
+    "signal": "BUY",
+    "score": 78,
+    "strength": "NORMAL",
+    "price": 1.1825,
+    "entry": 1.1825,
+    "stop_loss": 1.1643829935384056,
+    "tp1": 1.2114872103385514,
+    "tp2": 1.2332276180924648,
+    "rsi": 54.99388058512567,
+    "adx": 21.039098971970162,
+    "volume_ratio": 0.5080315344213744,
+    "atr_percent": 1.0221736888735327,
+    "btc_regime": "NEUTRAL",
+    "candle_time": "2026-10-04 04:00:00+00:00",
+    "outcome_status": "OPEN",
+    "outcome_created_at": "2026-10-04T08:31:04.097199+03:30",
+    "horizons": {},
+    "first_event": null,
+    "first_event_time": null,
+    "outcome_reason": null,
+    "mfe_percent": 0.0,
+    "mae_percent": 0.0,
+    "reasons": [
+      "Price above EMA200",
+      "EMA9 > EMA21",
+      "ADX moderate bullish (21.0)",
+      "RSI healthy (55.0)",
+      "MACD not bullish",
+      "Low volume 0.51x",
+      "Bullish candle",
+      "ATR suitable 1.02%",
+      "30M price above EMA21",
+      "30M EMA9 > EMA21",
+      "30M RSI supportive",
+      "30M ADX/DI directional confirmation",
+      "30M volume expansion 1.33x",
+      "30M VWAP alignment",
+      "30M OBV participation alignment",
+      "30M MACD histogram momentum improving",
+      "30M RSI momentum supportive",
+      "BTC NEUTRAL",
+      "Bullish price structure",
+      "4H trend bullish",
+      "Daily trend bullish",
       "Professional filter: directional structure",
       "Professional filter: ADX/DI",
       "Professional filter: 30M confirmation",

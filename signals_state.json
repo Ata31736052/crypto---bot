@@ -4175,9 +4175,81 @@
       "price": 1.4907,
       "candle_time": "2026-10-04 03:00:00+00:00",
       "sent_at": "2026-10-04T08:22:47.917549+03:30"
+    },
+    "BCH|BUY|TREND|1h|2026-10-04 04:00:00+00:00": {
+      "symbol": "BCH",
+      "signal": "BUY",
+      "score": 93,
+      "strength": "STRONG",
+      "price": 317.6,
+      "candle_time": "2026-10-04 04:00:00+00:00",
+      "sent_at": "2026-10-04T08:31:02.942367+03:30"
+    },
+    "AERO|BUY|TREND|1h|2026-10-04 04:00:00+00:00": {
+      "symbol": "AERO",
+      "signal": "BUY",
+      "score": 93,
+      "strength": "STRONG",
+      "price": 0.8369,
+      "candle_time": "2026-10-04 04:00:00+00:00",
+      "sent_at": "2026-10-04T08:31:03.115417+03:30"
+    },
+    "TIA|BUY|TREND|1h|2026-10-04 04:00:00+00:00": {
+      "symbol": "TIA",
+      "signal": "BUY",
+      "score": 88,
+      "strength": "STRONG",
+      "price": 0.4754,
+      "candle_time": "2026-10-04 04:00:00+00:00",
+      "sent_at": "2026-10-04T08:31:03.275751+03:30"
+    },
+    "ENA|BUY|BOTTOM_HUNTER|1h|2026-10-04 04:00:00+00:00": {
+      "symbol": "ENA",
+      "signal": "BUY",
+      "score": 88,
+      "strength": "EARLY REVERSAL",
+      "price": 0.238,
+      "candle_time": "2026-10-04 04:00:00+00:00",
+      "sent_at": "2026-10-04T08:31:03.430130+03:30"
+    },
+    "OP|BUY|TREND|1h|2026-10-04 04:00:00+00:00": {
+      "symbol": "OP",
+      "signal": "BUY",
+      "score": 83,
+      "strength": "STRONG",
+      "price": 0.1351,
+      "candle_time": "2026-10-04 04:00:00+00:00",
+      "sent_at": "2026-10-04T08:31:03.582826+03:30"
+    },
+    "ADA|BUY|BOTTOM_HUNTER|1h|2026-10-04 04:00:00+00:00": {
+      "symbol": "ADA",
+      "signal": "BUY",
+      "score": 82,
+      "strength": "EARLY REVERSAL",
+      "price": 0.2437,
+      "candle_time": "2026-10-04 04:00:00+00:00",
+      "sent_at": "2026-10-04T08:31:03.747935+03:30"
+    },
+    "TRUMP|BUY|BOTTOM_HUNTER|1h|2026-10-04 04:00:00+00:00": {
+      "symbol": "TRUMP",
+      "signal": "BUY",
+      "score": 82,
+      "strength": "EARLY REVERSAL",
+      "price": 2.044,
+      "candle_time": "2026-10-04 04:00:00+00:00",
+      "sent_at": "2026-10-04T08:31:03.927616+03:30"
+    },
+    "SUI|BUY|TREND|1h|2026-10-04 04:00:00+00:00": {
+      "symbol": "SUI",
+      "signal": "BUY",
+      "score": 78,
+      "strength": "NORMAL",
+      "price": 1.1825,
+      "candle_time": "2026-10-04 04:00:00+00:00",
+      "sent_at": "2026-10-04T08:31:04.097171+03:30"
     }
   },
-  "total_scans": 75,
-  "total_signals": 464,
-  "last_scan": "2026-10-04T08:22:47.941139+03:30"
+  "total_scans": 76,
+  "total_signals": 472,
+  "last_scan": "2026-10-04T08:31:04.116532+03:30"
 }
