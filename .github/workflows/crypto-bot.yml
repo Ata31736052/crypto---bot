@@ -18,29 +18,45 @@ jobs:
       TELEGRAM_TEST_ON_START: "0"
       PYTHONUNBUFFERED: "1"
       TZ: Asia/Tehran
+
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
     steps:
+
+      # =========================================================
+      # CHECKOUT
+      # =========================================================
       - name: Checkout
         uses: actions/checkout@v4
 
+      # =========================================================
+      # PYTHON
+      # =========================================================
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      # =========================================================
+      # DEPENDENCIES
+      # =========================================================
       - name: Install dependencies
         run: |
+          set -e
+
           python -m pip install --upgrade pip
           pip install requests pandas numpy
 
+      # =========================================================
+      # VERIFY v59
+      # =========================================================
       - name: Verify main.py
         run: |
           set -e
 
           echo "=========================================="
-          echo "VERIFYING main.py - v58"
+          echo "VERIFYING CRYPTO SIGNAL BOT v59"
           echo "=========================================="
 
           test -f main.py
@@ -51,16 +67,26 @@ jobs:
           echo "Python:"
           python --version
 
+          # -------------------------------------------------------
+          # Python syntax
+          # -------------------------------------------------------
           echo "Checking Python syntax..."
+
           python -m py_compile main.py
+
           echo "Python syntax: OK"
 
+          # -------------------------------------------------------
+          # AST
+          # -------------------------------------------------------
           echo "Checking AST..."
+
           python - <<'PY'
           import ast
+          from pathlib import Path
 
-          with open("main.py", "r", encoding="utf-8") as f:
-              source = f.read()
+          path = Path("main.py")
+          source = path.read_text(encoding="utf-8")
 
           ast.parse(source)
 
@@ -69,27 +95,35 @@ jobs:
           print("Lines:", len(source.splitlines()))
           PY
 
-          echo "Checking v58 markers..."
-          grep -q "v58" main.py
+          # -------------------------------------------------------
+          # v59 marker
+          # -------------------------------------------------------
+          echo "Checking v59 markers..."
+
+          grep -q "v59" main.py
           grep -q "PRO_MIN_SCORE = 78" main.py
           grep -q "PRO_SELL_MIN_SCORE = 82" main.py
 
-          echo "v58 markers: OK"
+          echo "v59 markers: OK"
 
+          # -------------------------------------------------------
+          # BTC context-only protection
+          # -------------------------------------------------------
           echo "Checking BTC context-only protection..."
+
           python - <<'PY'
           from pathlib import Path
 
-          s = Path("main.py").read_text(encoding="utf-8")
+          source = Path("main.py").read_text(encoding="utf-8")
 
-          checks = [
+          required = [
               "BTCUSDT",
               "BTC",
               "context",
           ]
 
-          for item in checks:
-              if item not in s:
+          for item in required:
+              if item not in source:
                   raise SystemExit(
                       f"ERROR: required BTC/context marker missing: {item}"
                   )
@@ -97,16 +131,46 @@ jobs:
           print("BTC/context markers: OK")
           PY
 
+          # -------------------------------------------------------
+          # Professional quality protection
+          # -------------------------------------------------------
+          echo "Checking professional quality filters..."
+
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path("main.py").read_text(encoding="utf-8")
+
+          required = [
+              "PRO_MIN_QUALITY_POINTS",
+              "PRO_MIN_VOLUME_RATIO",
+              "PRO_MIN_30M_CONFIRMATIONS",
+              "PRO_MIN_HTF_ALIGNMENT",
+              "professional_signal_quality_gate",
+          ]
+
+          for item in required:
+              if item not in source:
+                  raise SystemExit(
+                      f"ERROR: required quality filter missing: {item}"
+                  )
+
+          print("Professional quality filters: OK")
+          PY
+
           echo "=========================================="
           echo "VERIFICATION PASSED"
           echo "=========================================="
 
+      # =========================================================
+      # RUN BOT
+      # =========================================================
       - name: Run Crypto Signal Bot
         run: |
           set -e
 
           echo "=========================================="
-          echo "RUNNING CRYPTO SIGNAL BOT v58"
+          echo "RUNNING CRYPTO SIGNAL BOT v59"
           echo "=========================================="
 
           python main.py
