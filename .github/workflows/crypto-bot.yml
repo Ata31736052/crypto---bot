@@ -2,9 +2,7 @@ name: Crypto Signal Bot v62
 
 on:
   workflow_dispatch:
-
   schedule:
-    # اجرای دقیقاً هر ساعت
     - cron: "0 * * * *"
 
 concurrency:
@@ -14,303 +12,202 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
 
     env:
+      TZ: Asia/Tehran
       RUN_ONCE: "1"
       TELEGRAM_TEST_ON_START: "0"
       PYTHONUNBUFFERED: "1"
-      TZ: Asia/Tehran
-
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
     steps:
 
-      # =====================================================
-      # 1. Checkout
-      # =====================================================
+      # =========================================================
+      # 1) CHECKOUT
+      # =========================================================
       - name: Checkout repository
         uses: actions/checkout@v4
 
-
-      # =====================================================
-      # 2. Python
-      # =====================================================
+      # =========================================================
+      # 2) PYTHON
+      # =========================================================
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
+          cache: "pip"
 
-
-      # =====================================================
-      # 3. Dependencies
-      # =====================================================
+      # =========================================================
+      # 3) DEPENDENCIES
+      # =========================================================
       - name: Install dependencies
         run: |
-          set -euo pipefail
-
           python -m pip install --upgrade pip
+          pip install requests pandas numpy pyyaml
 
-          pip install \
-            requests \
-            pandas \
-            numpy \
-            pyyaml
-
-
-      # =====================================================
-      # 4. Verify main.py exists
-      # =====================================================
-      - name: Verify root files
+      # =========================================================
+      # 4) TELEGRAM SECRETS
+      # =========================================================
+      - name: Check Telegram secrets
         run: |
           set -euo pipefail
 
-          echo "=============================================="
-          echo "🔍 Crypto Signal Bot v62 Verification"
-          echo "=============================================="
+          if [ -z "${TELEGRAM_TOKEN:-}" ]; then
+            echo "❌ TELEGRAM_TOKEN is missing"
+            exit 1
+          fi
+
+          if [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
+            echo "❌ TELEGRAM_CHAT_ID is missing"
+            exit 1
+          fi
+
+          echo "✅ Telegram secrets are available"
+
+      # =========================================================
+      # 5) MAIN FILE
+      # =========================================================
+      - name: Check main.py
+        run: |
+          set -euo pipefail
 
           test -f main.py
 
-          echo "main.py:"
-          ls -lh main.py
+          echo "✅ main.py exists"
+          echo "Size:"
+          wc -c main.py
 
-          echo
-          echo "Python:"
-          python --version
-
-
-      # =====================================================
-      # 5. Syntax / AST verification
-      # =====================================================
-      - name: Python syntax verification
+      # =========================================================
+      # 6) PYTHON COMPILE
+      # =========================================================
+      - name: Python compile check
         run: |
           set -euo pipefail
 
           python -m py_compile main.py
 
+          echo "✅ main.py compiled successfully"
+
+      # =========================================================
+      # 7) AST + V62 ROOT MARKERS
+      # =========================================================
+      - name: AST and v62 marker check
+        run: |
+          set -euo pipefail
+
           python - <<'PY'
           import ast
           from pathlib import Path
 
-          source = Path("main.py").read_text(
-              encoding="utf-8"
-          )
+          path = Path("main.py")
+          source = path.read_text(encoding="utf-8")
 
           ast.parse(source)
 
-          print("==============================================")
-          print("✅ py_compile: PASS")
-          print("✅ AST parse: PASS")
-          print("Lines:", len(source.splitlines()))
-          print("Bytes:", len(source.encode("utf-8")))
-          print("==============================================")
-          PY
-
-
-      # =====================================================
-      # 6. Version verification
-      # =====================================================
-      - name: Verify v62
-        run: |
-          set -euo pipefail
-
-          grep -Fq "v62" main.py
-
-          echo "✅ v62 marker: PASS"
-
-
-      # =====================================================
-      # 7. Professional quality engine verification
-      # =====================================================
-      - name: Verify professional quality engine
-        run: |
-          set -euo pipefail
-
-          python - <<'PY'
-          from pathlib import Path
-
-          source = Path("main.py").read_text(
-              encoding="utf-8"
-          )
-
-          required = [
+          required_markers = [
               "professional_signal_quality_gate",
               "professional_quality_grade",
 
-              "PRO_MIN_SCORE",
-              "PRO_SELL_MIN_SCORE",
-              "PRO_BOTTOM_MIN_SCORE",
+              "PRO_MIN_SCORE = 90",
+              "PRO_SELL_MIN_SCORE = 92",
+              "PRO_BOTTOM_MIN_SCORE = 90",
 
-              "PRO_MIN_QUALITY_POINTS",
-              "PRO_BOTTOM_MIN_QUALITY_POINTS",
+              "PRO_MIN_QUALITY_POINTS = 14",
+              "PRO_BOTTOM_MIN_QUALITY_POINTS = 14",
 
-              "PRO_MAX_EMA21_DISTANCE",
-              "PRO_MAX_EMA200_DISTANCE",
+              "PRO_MIN_1H_ADX = 23.0",
+              "PRO_MIN_REVERSAL_ADX = 18.0",
+              "PRO_MIN_30M_ADX = 17.0",
 
-              "PRO_MIN_VOLUME_RATIO",
-              "PRO_MIN_30M_CONFIRMATIONS",
-              "PRO_MIN_HTF_ALIGNMENT",
+              "PRO_MIN_VOLUME_RATIO = 1.35",
+              "PRO_SELL_MIN_VOLUME_RATIO = 1.50",
 
-              "PRO_MIN_1H_ADX",
-              "PRO_SELL_MIN_1H_ADX",
+              "PRO_MIN_30M_CONFIRMATIONS = 6",
+              "PRO_SELL_MIN_30M_CONFIRMATIONS = 6",
 
-              "PRO_MIN_RR_TP1",
-              "PRO_MIN_RR_TP2",
+              "PRO_MAX_EMA21_DISTANCE = 4.00",
+              "PRO_MAX_EMA200_DISTANCE = 12.00",
 
-              "ADX",
-              "volume",
-              "30M",
-              "EMA21",
-              "EMA200",
-              "momentum",
-              "quality",
-              "sell",
+              "PRO_MIN_RR_TP1 = 1.80",
+              "PRO_MIN_RR_TP2 = 2.40",
+
+              "PRO_SELL_MIN_HTF_ALIGNMENT = 2",
+
+              "BTC_CONTEXT_ONLY",
+              "BTC_SYMBOL",
           ]
 
           missing = [
-              item for item in required
-              if item.lower() not in source.lower()
+              marker
+              for marker in required_markers
+              if marker not in source
           ]
 
           if missing:
-              raise SystemExit(
-                  "❌ Missing v62 quality markers: "
-                  + ", ".join(missing)
-              )
+              print("❌ Missing required v62 markers:")
+              for item in missing:
+                  print(" -", item)
+              raise SystemExit(1)
 
-          print("==============================================")
-          print("✅ Professional quality engine: PASS")
-          print("==============================================")
+          print("✅ AST check passed")
+          print("✅ All required v62 root markers found")
           PY
 
-
-      # =====================================================
-      # 8. BTC protection
-      # =====================================================
-      - name: Verify BTC context-only protection
+      # =========================================================
+      # 8) IMPORT TEST
+      # =========================================================
+      - name: Import test
         run: |
           set -euo pipefail
 
           python - <<'PY'
-          from pathlib import Path
+          import main
 
-          source = Path("main.py").read_text(
-              encoding="utf-8"
-          ).lower()
-
-          required = [
-              "btc_symbol",
-              "btcusdt",
-              "btc_context_only",
-              "context",
-          ]
-
-          missing = [
-              item for item in required
-              if item not in source
-          ]
-
-          if missing:
-              raise SystemExit(
-                  "❌ BTC protection markers missing: "
-                  + ", ".join(missing)
-              )
-
-          print("✅ BTC context-only protection: PASS")
+          print("✅ main.py imported successfully")
           PY
 
-
-      # =====================================================
-      # 9. Import test
-      # =====================================================
-      - name: Module import test
+      # =========================================================
+      # 9) ROOT PROFESSIONAL QUALITY TESTS
+      # =========================================================
+      - name: Root behavior tests
         run: |
           set -euo pipefail
 
           python - <<'PY'
-          import importlib.util
+          import numpy as np
+          import pandas as pd
+          import main
 
-          spec = importlib.util.spec_from_file_location(
-              "crypto_signal_bot",
-              "main.py"
-          )
+          print("=" * 70)
+          print("V62 ROOT PROFESSIONAL QUALITY TESTS")
+          print("=" * 70)
 
-          if spec is None or spec.loader is None:
-              raise SystemExit(
-                  "❌ Could not create import specification"
-              )
+          # -----------------------------------------------------
+          # Synthetic 1H data
+          # -----------------------------------------------------
+          n = 120
 
-          module = importlib.util.module_from_spec(spec)
+          close = np.linspace(100, 130, n)
 
-          spec.loader.exec_module(module)
+          df = pd.DataFrame({
+              "close": close,
+              "ema9": close * 1.004,
+              "ema21": close * 0.995,
+              "ema50": close * 0.970,
+              "ema200": close * 0.900,
 
-          print("==============================================")
-          print("✅ Module import: PASS")
-          print("==============================================")
-          PY
+              "adx": np.full(n, 30.0),
+              "volume_ratio": np.full(n, 2.0),
 
+              "distance_ema21": np.full(n, 0.9),
 
-      # =====================================================
-      # 10. Root behavioral tests
-      # =====================================================
-      - name: Run v62 root tests
-        run: |
-          set -euo pipefail
+              "rsi": np.full(n, 58.0),
+              "rsi_prev": np.full(n, 55.0),
 
-          if [ -f test_v62_root.py ]; then
-              python test_v62_root.py
-          else
-              echo "❌ test_v62_root.py is missing"
-              exit 1
-          fi
+              "plus_di": np.full(n, 28.0),
+              "minus_di": np.full(n, 16.0),
 
-
-      # =====================================================
-      # 11. Final verification
-      # =====================================================
-      - name: Final v62 verification
-        run: |
-          set -euo pipefail
-
-          echo
-          echo "=============================================="
-          echo "✅ Crypto Signal Bot v62 VERIFICATION PASSED"
-          echo "=============================================="
-
-          echo
-          echo "Quality protection:"
-          echo "  Score gate        : ENABLED"
-          echo "  Quality grade     : ENABLED"
-          echo "  ADX filter        : ENABLED"
-          echo "  Volume filter     : ENABLED"
-          echo "  30M confirmation  : ENABLED"
-          echo "  HTF confirmation  : ENABLED"
-          echo "  EMA21 protection  : ENABLED"
-          echo "  EMA200 protection : ENABLED"
-          echo "  R:R protection    : ENABLED"
-          echo "  SELL protection   : ENABLED"
-          echo "  BTC context-only  : ENABLED"
-
-          echo
-          echo "=============================================="
-
-
-      # =====================================================
-      # 12. Run bot
-      # =====================================================
-      - name: Run Crypto Signal Bot v62
-        run: |
-          set -euo pipefail
-
-          echo "=============================================="
-          echo "🚀 STARTING CRYPTO SIGNAL BOT v62"
-          echo "=============================================="
-
-          python main.py
-
-          echo
-          echo "=============================================="
-          echo "🏁 BOT FINISHED"
-          echo "=============================================="
+              "macd": np.full(n, 2.0),
+              "macd_signal": np.full(n, 1.0),
+             
