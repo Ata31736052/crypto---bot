@@ -19811,7 +19811,7 @@
     ],
     "outcome_created_at": "2026-10-03T21:44:27.101077+03:30",
     "mfe_percent": 0.1501,
-    "mae_percent": 0.4288,
+    "mae_percent": 0.6003,
     "horizons": {
       "1h": {
         "close": 0.09309,
@@ -19823,7 +19823,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 16:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.545816+03:30",
+        "observed_at": "2026-10-04T03:46:16.905689+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -19836,7 +19836,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 17:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.546778+03:30",
+        "observed_at": "2026-10-04T03:46:16.906378+03:30",
         "engine_version": 54
       },
       "4h": {
@@ -19849,12 +19849,25 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.547895+03:30",
+        "observed_at": "2026-10-04T03:46:16.907045+03:30",
+        "engine_version": 54
+      },
+      "8h": {
+        "close": 0.09282,
+        "change_percent": -0.5038,
+        "mfe_percent": 0.1501,
+        "mae_percent": 0.6003,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 15:00:00+00:00",
+        "window_end": "2026-10-03 23:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:16.907748+03:30",
         "engine_version": 54
       }
     },
-    "outcome_status": "OPEN",
-    "first_event": null,
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
     "first_event_time": null,
     "tp1_reached": false,
     "tp2_reached": false,
@@ -19862,9 +19875,11 @@
     "ambiguous_event": false,
     "performance": {
       "mfe_percent": 0.1501,
-      "mae_percent": 0.4288
+      "mae_percent": 0.6003
     },
-    "outcome_engine_version": 54
+    "outcome_engine_version": 54,
+    "finalized_at": "2026-10-04T03:46:16.908287+03:30",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP"
   },
   {
     "timestamp": "2026-10-03T18:31:08.329405+03:30",
@@ -19923,7 +19938,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 16:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.552748+03:30",
+        "observed_at": "2026-10-04T03:46:16.911073+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -19936,7 +19951,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 17:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.553671+03:30",
+        "observed_at": "2026-10-04T03:46:16.911633+03:30",
         "engine_version": 54
       },
       "4h": {
@@ -19949,12 +19964,25 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.554688+03:30",
+        "observed_at": "2026-10-04T03:46:16.912245+03:30",
+        "engine_version": 54
+      },
+      "8h": {
+        "close": 0.1636,
+        "change_percent": -0.3047,
+        "mfe_percent": 0.4266,
+        "mae_percent": 1.95,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 15:00:00+00:00",
+        "window_end": "2026-10-03 23:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:16.912862+03:30",
         "engine_version": 54
       }
     },
-    "outcome_status": "OPEN",
-    "first_event": null,
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
     "first_event_time": null,
     "tp1_reached": false,
     "tp2_reached": false,
@@ -19964,7 +19992,9 @@
       "mfe_percent": 0.4266,
       "mae_percent": 1.95
     },
-    "outcome_engine_version": 54
+    "outcome_engine_version": 54,
+    "finalized_at": "2026-10-04T03:46:16.913383+03:30",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP"
   },
   {
     "timestamp": "2026-10-03T18:31:08.522771+03:30",
@@ -20009,7 +20039,7 @@
       "Professional filter: trade structure/R:R"
     ],
     "outcome_created_at": "2026-10-03T21:44:27.104311+03:30",
-    "mfe_percent": 4.1829,
+    "mfe_percent": 4.8638,
     "mae_percent": 0.3891,
     "horizons": {
       "1h": {
@@ -20022,7 +20052,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 16:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.676962+03:30",
+        "observed_at": "2026-10-04T03:46:17.056398+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -20035,7 +20065,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 17:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.677962+03:30",
+        "observed_at": "2026-10-04T03:46:17.056997+03:30",
         "engine_version": 54
       },
       "4h": {
@@ -20048,22 +20078,37 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.678952+03:30",
+        "observed_at": "2026-10-04T03:46:17.057699+03:30",
+        "engine_version": 54
+      },
+      "8h": {
+        "close": 0.1045,
+        "change_percent": 1.6537,
+        "mfe_percent": 4.8638,
+        "mae_percent": 0.3891,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 15:00:00+00:00",
+        "window_end": "2026-10-03 23:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:17.058379+03:30",
         "engine_version": 54
       }
     },
-    "outcome_status": "OPEN",
-    "first_event": null,
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
     "first_event_time": null,
     "tp1_reached": false,
     "tp2_reached": false,
     "sl_reached": false,
     "ambiguous_event": false,
     "performance": {
-      "mfe_percent": 4.1829,
+      "mfe_percent": 4.8638,
       "mae_percent": 0.3891
     },
-    "outcome_engine_version": 54
+    "outcome_engine_version": 54,
+    "finalized_at": "2026-10-04T03:46:17.058950+03:30",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP"
   },
   {
     "timestamp": "2026-10-03T18:31:08.755572+03:30",
@@ -20110,7 +20155,7 @@
     ],
     "outcome_created_at": "2026-10-03T21:44:27.105850+03:30",
     "mfe_percent": 1.5589,
-    "mae_percent": 0.7506,
+    "mae_percent": 1.963,
     "horizons": {
       "1h": {
         "close": 0.01738,
@@ -20122,7 +20167,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 16:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.683754+03:30",
+        "observed_at": "2026-10-04T03:46:17.202786+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -20135,7 +20180,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 17:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.684701+03:30",
+        "observed_at": "2026-10-04T03:46:17.203383+03:30",
         "engine_version": 54
       },
       "4h": {
@@ -20148,12 +20193,25 @@
         "sl_reached": false,
         "window_start": "2026-10-03 15:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.685689+03:30",
+        "observed_at": "2026-10-04T03:46:17.203991+03:30",
+        "engine_version": 54
+      },
+      "8h": {
+        "close": 0.01701,
+        "change_percent": -1.7898,
+        "mfe_percent": 1.5589,
+        "mae_percent": 1.963,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 15:00:00+00:00",
+        "window_end": "2026-10-03 23:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:17.204593+03:30",
         "engine_version": 54
       }
     },
-    "outcome_status": "OPEN",
-    "first_event": null,
+    "outcome_status": "FINAL",
+    "first_event": "NO_LEVEL_HIT",
     "first_event_time": null,
     "tp1_reached": false,
     "tp2_reached": false,
@@ -20161,9 +20219,11 @@
     "ambiguous_event": false,
     "performance": {
       "mfe_percent": 1.5589,
-      "mae_percent": 0.7506
+      "mae_percent": 1.963
     },
-    "outcome_engine_version": 54
+    "outcome_engine_version": 54,
+    "finalized_at": "2026-10-04T03:46:17.205142+03:30",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP"
   },
   {
     "timestamp": "2026-10-03T21:04:11.316004+03:30",
@@ -20222,7 +20282,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.690593+03:30",
+        "observed_at": "2026-10-04T03:46:17.348713+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -20235,7 +20295,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.691593+03:30",
+        "observed_at": "2026-10-04T03:46:17.349321+03:30",
         "engine_version": 54
       },
       "4h": {
@@ -20248,7 +20308,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 21:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.692503+03:30",
+        "observed_at": "2026-10-04T03:46:17.349910+03:30",
         "engine_version": 54
       }
     },
@@ -20314,7 +20374,7 @@
     ],
     "outcome_created_at": "2026-10-03T21:44:27.108778+03:30",
     "mfe_percent": 0.9442,
-    "mae_percent": 2.0562,
+    "mae_percent": 2.1611,
     "horizons": {
       "1h": {
         "close": 0.4688,
@@ -20326,7 +20386,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.814635+03:30",
+        "observed_at": "2026-10-04T03:46:17.494328+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -20339,12 +20399,12 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.815585+03:30",
+        "observed_at": "2026-10-04T03:46:17.494916+03:30",
         "engine_version": 54
       },
       "4h": {
-        "close": 0.4728,
-        "change_percent": -0.7973,
+        "close": 0.4686,
+        "change_percent": -1.6786,
         "mfe_percent": 0.9442,
         "mae_percent": 2.0562,
         "tp1_reached": false,
@@ -20352,7 +20412,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 21:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.816433+03:30",
+        "observed_at": "2026-10-04T03:46:17.495504+03:30",
         "engine_version": 54
       }
     },
@@ -20365,7 +20425,7 @@
     "ambiguous_event": false,
     "performance": {
       "mfe_percent": 0.9442,
-      "mae_percent": 2.0562
+      "mae_percent": 2.1611
     },
     "outcome_engine_version": 54
   },
@@ -20417,7 +20477,7 @@
     ],
     "outcome_created_at": "2026-10-03T21:44:27.110141+03:30",
     "mfe_percent": 0.4,
-    "mae_percent": 1.7714,
+    "mae_percent": 2.9714,
     "horizons": {
       "1h": {
         "close": 0.01732,
@@ -20429,7 +20489,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.821328+03:30",
+        "observed_at": "2026-10-04T03:46:17.498728+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -20442,35 +20502,36 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.822283+03:30",
+        "observed_at": "2026-10-04T03:46:17.499307+03:30",
         "engine_version": 54
       },
       "4h": {
-        "close": 0.01724,
-        "change_percent": -1.4857,
+        "close": 0.01717,
+        "change_percent": -1.8857,
         "mfe_percent": 0.4,
-        "mae_percent": 1.7714,
+        "mae_percent": 2.2857,
         "tp1_reached": false,
         "tp2_reached": false,
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 21:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.823166+03:30",
+        "observed_at": "2026-10-04T03:46:17.499903+03:30",
         "engine_version": 54
       }
     },
-    "outcome_status": "OPEN",
-    "first_event": null,
-    "first_event_time": null,
+    "outcome_status": "OBSERVING_AFTER_EVENT",
+    "first_event": "SL",
+    "first_event_time": "2026-10-03 23:00:00+00:00",
     "tp1_reached": false,
     "tp2_reached": false,
-    "sl_reached": false,
+    "sl_reached": true,
     "ambiguous_event": false,
     "performance": {
       "mfe_percent": 0.4,
-      "mae_percent": 1.7714
+      "mae_percent": 2.9714
     },
-    "outcome_engine_version": 54
+    "outcome_engine_version": 54,
+    "outcome_reason": "stop_loss_touched"
   },
   {
     "timestamp": "2026-10-03T21:04:11.902518+03:30",
@@ -20508,7 +20569,7 @@
       "Professional filter: trade structure/R:R"
     ],
     "outcome_created_at": "2026-10-03T21:44:27.111495+03:30",
-    "mfe_percent": 3.8561,
+    "mfe_percent": 6.4145,
     "mae_percent": 0.964,
     "horizons": {
       "1h": {
@@ -20521,7 +20582,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.944703+03:30",
+        "observed_at": "2026-10-04T03:46:17.643325+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -20534,12 +20595,12 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.945680+03:30",
+        "observed_at": "2026-10-04T03:46:17.643972+03:30",
         "engine_version": 54
       },
       "4h": {
-        "close": 0.8358,
-        "change_percent": 3.3,
+        "close": 0.8343,
+        "change_percent": 3.1146,
         "mfe_percent": 3.8561,
         "mae_percent": 0.964,
         "tp1_reached": false,
@@ -20547,7 +20608,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 21:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:24.946552+03:30",
+        "observed_at": "2026-10-04T03:46:17.644960+03:30",
         "engine_version": 54
       }
     },
@@ -20559,7 +20620,7 @@
     "sl_reached": false,
     "ambiguous_event": false,
     "performance": {
-      "mfe_percent": 3.8561,
+      "mfe_percent": 6.4145,
       "mae_percent": 0.964
     },
     "outcome_engine_version": 54
@@ -20608,7 +20669,7 @@
     ],
     "outcome_created_at": "2026-10-03T21:44:27.112979+03:30",
     "mfe_percent": 0.4174,
-    "mae_percent": 0.8347,
+    "mae_percent": 1.6694,
     "horizons": {
       "1h": {
         "close": 1.196,
@@ -20620,7 +20681,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.068370+03:30",
+        "observed_at": "2026-10-04T03:46:17.789772+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -20633,20 +20694,20 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.069358+03:30",
+        "observed_at": "2026-10-04T03:46:17.790353+03:30",
         "engine_version": 54
       },
       "4h": {
-        "close": 1.191,
-        "change_percent": -0.5843,
+        "close": 1.184,
+        "change_percent": -1.1686,
         "mfe_percent": 0.4174,
-        "mae_percent": 0.8347,
+        "mae_percent": 1.1686,
         "tp1_reached": false,
         "tp2_reached": false,
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 21:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.070263+03:30",
+        "observed_at": "2026-10-04T03:46:17.790952+03:30",
         "engine_version": 54
       }
     },
@@ -20659,7 +20720,7 @@
     "ambiguous_event": false,
     "performance": {
       "mfe_percent": 0.4174,
-      "mae_percent": 0.8347
+      "mae_percent": 1.6694
     },
     "outcome_engine_version": 54
   },
@@ -20707,7 +20768,7 @@
       "Professional filter: trade structure/R:R"
     ],
     "outcome_created_at": "2026-10-03T21:44:27.114401+03:30",
-    "mfe_percent": 3.6786,
+    "mfe_percent": 4.3562,
     "mae_percent": 0.3872,
     "horizons": {
       "1h": {
@@ -20720,7 +20781,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.075313+03:30",
+        "observed_at": "2026-10-04T03:46:17.794134+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -20733,20 +20794,20 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.076266+03:30",
+        "observed_at": "2026-10-04T03:46:17.794688+03:30",
         "engine_version": 54
       },
       "4h": {
-        "close": 0.1065,
-        "change_percent": 3.0978,
-        "mfe_percent": 3.6786,
+        "close": 0.1047,
+        "change_percent": 1.3553,
+        "mfe_percent": 4.3562,
         "mae_percent": 0.3872,
         "tp1_reached": false,
         "tp2_reached": false,
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 21:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.077103+03:30",
+        "observed_at": "2026-10-04T03:46:17.795284+03:30",
         "engine_version": 54
       }
     },
@@ -20758,7 +20819,7 @@
     "sl_reached": false,
     "ambiguous_event": false,
     "performance": {
-      "mfe_percent": 3.6786,
+      "mfe_percent": 4.3562,
       "mae_percent": 0.3872
     },
     "outcome_engine_version": 54
@@ -20807,7 +20868,7 @@
       "Professional filter: trade structure/R:R"
     ],
     "outcome_created_at": "2026-10-03T21:44:27.115858+03:30",
-    "mfe_percent": 0.8862,
+    "mfe_percent": 1.5513,
     "mae_percent": 2.4091,
     "horizons": {
       "1h": {
@@ -20820,7 +20881,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.198724+03:30",
+        "observed_at": "2026-10-04T03:46:17.939139+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -20833,12 +20894,12 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.199691+03:30",
+        "observed_at": "2026-10-04T03:46:17.939694+03:30",
         "engine_version": 54
       },
       "4h": {
-        "close": 1323.64,
-        "change_percent": -1.5536,
+        "close": 1315.99,
+        "change_percent": -0.9667,
         "mfe_percent": 0.8862,
         "mae_percent": 2.4091,
         "tp1_reached": false,
@@ -20846,7 +20907,7 @@
         "sl_reached": true,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 21:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.200557+03:30",
+        "observed_at": "2026-10-04T03:46:17.940313+03:30",
         "engine_version": 54
       }
     },
@@ -20858,7 +20919,7 @@
     "sl_reached": true,
     "ambiguous_event": false,
     "performance": {
-      "mfe_percent": 0.8862,
+      "mfe_percent": 1.5513,
       "mae_percent": 2.4091
     },
     "outcome_engine_version": 54,
@@ -20922,7 +20983,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.322781+03:30",
+        "observed_at": "2026-10-04T03:46:18.084047+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -20935,12 +20996,12 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.323782+03:30",
+        "observed_at": "2026-10-04T03:46:18.084631+03:30",
         "engine_version": 54
       },
       "4h": {
-        "close": 0.2163,
-        "change_percent": -0.9804,
+        "close": 0.216,
+        "change_percent": -0.8403,
         "mfe_percent": 0.4202,
         "mae_percent": 1.2605,
         "tp1_reached": false,
@@ -20948,7 +21009,7 @@
         "sl_reached": true,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 21:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.324685+03:30",
+        "observed_at": "2026-10-04T03:46:18.085247+03:30",
         "engine_version": 54
       }
     },
@@ -21020,7 +21081,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.446509+03:30",
+        "observed_at": "2026-10-04T03:46:18.228953+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -21033,12 +21094,12 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.447493+03:30",
+        "observed_at": "2026-10-04T03:46:18.229520+03:30",
         "engine_version": 54
       },
       "4h": {
-        "close": 786.4,
-        "change_percent": -0.4973,
+        "close": 785.09,
+        "change_percent": -0.663,
         "mfe_percent": 0.3151,
         "mae_percent": 1.3134,
         "tp1_reached": false,
@@ -21046,7 +21107,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 21:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.448386+03:30",
+        "observed_at": "2026-10-04T03:46:18.230130+03:30",
         "engine_version": 54
       }
     },
@@ -21103,7 +21164,7 @@
     ],
     "outcome_created_at": "2026-10-03T21:44:27.119924+03:30",
     "mfe_percent": 0.1055,
-    "mae_percent": 0.2919,
+    "mae_percent": 0.4591,
     "horizons": {
       "1h": {
         "close": 84949.99,
@@ -21115,7 +21176,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.570436+03:30",
+        "observed_at": "2026-10-04T03:46:18.373933+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -21128,20 +21189,20 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.571395+03:30",
+        "observed_at": "2026-10-04T03:46:18.374491+03:30",
         "engine_version": 54
       },
       "4h": {
-        "close": 84749.75,
-        "change_percent": -0.2334,
+        "close": 84715.15,
+        "change_percent": -0.2741,
         "mfe_percent": 0.1055,
-        "mae_percent": 0.2919,
+        "mae_percent": 0.4591,
         "tp1_reached": false,
         "tp2_reached": false,
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 21:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.572226+03:30",
+        "observed_at": "2026-10-04T03:46:18.375110+03:30",
         "engine_version": 54
       }
     },
@@ -21154,7 +21215,7 @@
     "ambiguous_event": false,
     "performance": {
       "mfe_percent": 0.1055,
-      "mae_percent": 0.2919
+      "mae_percent": 0.4591
     },
     "outcome_engine_version": 54
   },
@@ -21199,7 +21260,7 @@
     ],
     "outcome_created_at": "2026-10-03T21:44:27.121316+03:30",
     "mfe_percent": 0.2614,
-    "mae_percent": 0.3418,
+    "mae_percent": 0.5295,
     "horizons": {
       "1h": {
         "close": 1.4901,
@@ -21211,7 +21272,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 18:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.694318+03:30",
+        "observed_at": "2026-10-04T03:46:18.518859+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -21224,20 +21285,20 @@
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.695284+03:30",
+        "observed_at": "2026-10-04T03:46:18.519419+03:30",
         "engine_version": 54
       },
       "4h": {
-        "close": 1.4902,
-        "change_percent": -0.1273,
+        "close": 1.4868,
+        "change_percent": -0.3552,
         "mfe_percent": 0.2614,
-        "mae_percent": 0.3418,
+        "mae_percent": 0.3954,
         "tp1_reached": false,
         "tp2_reached": false,
         "sl_reached": false,
         "window_start": "2026-10-03 17:00:00+00:00",
         "window_end": "2026-10-03 21:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.696206+03:30",
+        "observed_at": "2026-10-04T03:46:18.520026+03:30",
         "engine_version": 54
       }
     },
@@ -21250,7 +21311,7 @@
     "ambiguous_event": false,
     "performance": {
       "mfe_percent": 0.2614,
-      "mae_percent": 0.3418
+      "mae_percent": 0.5295
     },
     "outcome_engine_version": 54
   },
@@ -21313,7 +21374,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 18:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.701093+03:30",
+        "observed_at": "2026-10-04T03:46:18.523234+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -21326,16 +21387,29 @@
         "sl_reached": false,
         "window_start": "2026-10-03 18:00:00+00:00",
         "window_end": "2026-10-03 20:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.701925+03:30",
+        "observed_at": "2026-10-04T03:46:18.523812+03:30",
+        "engine_version": 54
+      },
+      "4h": {
+        "close": 1297.89,
+        "change_percent": -0.9085,
+        "mfe_percent": 1.9087,
+        "mae_percent": 1.3704,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 18:00:00+00:00",
+        "window_end": "2026-10-03 22:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.524394+03:30",
         "engine_version": 54
       }
     },
     "performance": {
       "mfe_percent": 1.9087,
-      "mae_percent": 1.3704
+      "mae_percent": 2.0324
     },
     "mfe_percent": 1.9087,
-    "mae_percent": 1.3704,
+    "mae_percent": 2.0324,
     "outcome_engine_version": 54
   },
   {
@@ -21397,7 +21471,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 18:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.706659+03:30",
+        "observed_at": "2026-10-04T03:46:18.527538+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -21410,16 +21484,29 @@
         "sl_reached": false,
         "window_start": "2026-10-03 18:00:00+00:00",
         "window_end": "2026-10-03 20:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.707489+03:30",
+        "observed_at": "2026-10-04T03:46:18.528106+03:30",
+        "engine_version": 54
+      },
+      "4h": {
+        "close": 789.24,
+        "change_percent": 0.1917,
+        "mfe_percent": 0.6462,
+        "mae_percent": 0.3567,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 18:00:00+00:00",
+        "window_end": "2026-10-03 22:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.528691+03:30",
         "engine_version": 54
       }
     },
     "performance": {
       "mfe_percent": 0.6462,
-      "mae_percent": 0.1777
+      "mae_percent": 0.3567
     },
     "mfe_percent": 0.6462,
-    "mae_percent": 0.1777,
+    "mae_percent": 0.3567,
     "outcome_engine_version": 54
   },
   {
@@ -21481,7 +21568,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 18:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.829436+03:30",
+        "observed_at": "2026-10-04T03:46:18.672558+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -21494,15 +21581,28 @@
         "sl_reached": false,
         "window_start": "2026-10-03 18:00:00+00:00",
         "window_end": "2026-10-03 20:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.830312+03:30",
+        "observed_at": "2026-10-04T03:46:18.673135+03:30",
+        "engine_version": 54
+      },
+      "4h": {
+        "close": 0.2383,
+        "change_percent": 0.4637,
+        "mfe_percent": 1.0118,
+        "mae_percent": 0.7589,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 18:00:00+00:00",
+        "window_end": "2026-10-03 22:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.673720+03:30",
         "engine_version": 54
       }
     },
     "performance": {
-      "mfe_percent": 0.8432,
+      "mfe_percent": 1.0961,
       "mae_percent": 0.7589
     },
-    "mfe_percent": 0.8432,
+    "mfe_percent": 1.0961,
     "mae_percent": 0.7589,
     "outcome_engine_version": 54
   },
@@ -21567,7 +21667,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 18:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.835152+03:30",
+        "observed_at": "2026-10-04T03:46:18.676922+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -21580,15 +21680,28 @@
         "sl_reached": false,
         "window_start": "2026-10-03 18:00:00+00:00",
         "window_end": "2026-10-03 20:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.835993+03:30",
+        "observed_at": "2026-10-04T03:46:18.677474+03:30",
+        "engine_version": 54
+      },
+      "4h": {
+        "close": 0.2256,
+        "change_percent": -0.5291,
+        "mfe_percent": 0.1764,
+        "mae_percent": 1.0582,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 18:00:00+00:00",
+        "window_end": "2026-10-03 22:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.678057+03:30",
         "engine_version": 54
       }
     },
     "performance": {
-      "mfe_percent": 0.1764,
+      "mfe_percent": 0.2205,
       "mae_percent": 1.0582
     },
-    "mfe_percent": 0.1764,
+    "mfe_percent": 0.2205,
     "mae_percent": 1.0582,
     "outcome_engine_version": 54
   },
@@ -21655,7 +21768,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 18:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.840833+03:30",
+        "observed_at": "2026-10-04T03:46:18.681156+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -21668,15 +21781,28 @@
         "sl_reached": false,
         "window_start": "2026-10-03 18:00:00+00:00",
         "window_end": "2026-10-03 20:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.841658+03:30",
+        "observed_at": "2026-10-04T03:46:18.681689+03:30",
+        "engine_version": 54
+      },
+      "4h": {
+        "close": 0.6,
+        "change_percent": 0.2674,
+        "mfe_percent": 0.7687,
+        "mae_percent": 1.7213,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 18:00:00+00:00",
+        "window_end": "2026-10-03 22:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.682293+03:30",
         "engine_version": 54
       }
     },
     "performance": {
-      "mfe_percent": 0.117,
+      "mfe_percent": 0.7687,
       "mae_percent": 1.7213
     },
-    "mfe_percent": 0.117,
+    "mfe_percent": 0.7687,
     "mae_percent": 1.7213,
     "outcome_engine_version": 54
   },
@@ -21743,7 +21869,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 18:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.846301+03:30",
+        "observed_at": "2026-10-04T03:46:18.685382+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -21756,16 +21882,29 @@
         "sl_reached": false,
         "window_start": "2026-10-03 18:00:00+00:00",
         "window_end": "2026-10-03 20:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.847097+03:30",
+        "observed_at": "2026-10-04T03:46:18.685968+03:30",
+        "engine_version": 54
+      },
+      "4h": {
+        "close": 0.01714,
+        "change_percent": -1.3809,
+        "mfe_percent": 0.4028,
+        "mae_percent": 1.8412,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 18:00:00+00:00",
+        "window_end": "2026-10-03 22:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.686537+03:30",
         "engine_version": 54
       }
     },
     "performance": {
       "mfe_percent": 0.4028,
-      "mae_percent": 1.0932
+      "mae_percent": 2.3015
     },
     "mfe_percent": 0.4028,
-    "mae_percent": 1.0932,
+    "mae_percent": 2.3015,
     "outcome_engine_version": 54
   },
   {
@@ -21834,7 +21973,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 18:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.851752+03:30",
+        "observed_at": "2026-10-04T03:46:18.689622+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -21847,15 +21986,28 @@
         "sl_reached": false,
         "window_start": "2026-10-03 18:00:00+00:00",
         "window_end": "2026-10-03 20:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.852630+03:30",
+        "observed_at": "2026-10-04T03:46:18.690189+03:30",
+        "engine_version": 54
+      },
+      "4h": {
+        "close": 0.1053,
+        "change_percent": -1.4045,
+        "mfe_percent": 0.9363,
+        "mae_percent": 2.6217,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 18:00:00+00:00",
+        "window_end": "2026-10-03 22:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.690787+03:30",
         "engine_version": 54
       }
     },
     "performance": {
-      "mfe_percent": 0.0936,
+      "mfe_percent": 0.9363,
       "mae_percent": 2.6217
     },
-    "mfe_percent": 0.0936,
+    "mfe_percent": 0.9363,
     "mae_percent": 2.6217,
     "outcome_engine_version": 54
   },
@@ -21889,7 +22041,7 @@
         "sl_reached": false,
         "window_start": "2026-10-03 18:00:00+00:00",
         "window_end": "2026-10-03 19:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.857393+03:30",
+        "observed_at": "2026-10-04T03:46:18.693881+03:30",
         "engine_version": 54
       },
       "2h": {
@@ -21902,7 +22054,20 @@
         "sl_reached": false,
         "window_start": "2026-10-03 18:00:00+00:00",
         "window_end": "2026-10-03 20:00:00+00:00",
-        "observed_at": "2026-10-04T01:25:25.858218+03:30",
+        "observed_at": "2026-10-04T03:46:18.694436+03:30",
+        "engine_version": 54
+      },
+      "4h": {
+        "close": 0.2158,
+        "change_percent": 0.2322,
+        "mfe_percent": 0.7431,
+        "mae_percent": 0.6503,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 18:00:00+00:00",
+        "window_end": "2026-10-03 22:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.695027+03:30",
         "engine_version": 54
       }
     },
@@ -21965,12 +22130,39 @@
     "candle_time": "2026-10-03 20:00:00+00:00",
     "outcome_status": "OPEN",
     "outcome_created_at": "2026-10-04T01:26:00.100610+03:30",
-    "horizons": {},
+    "horizons": {
+      "1h": {
+        "close": 0.4712,
+        "change_percent": 0.6623,
+        "mfe_percent": 1.2177,
+        "mae_percent": 0.3845,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-03 22:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.698188+03:30",
+        "engine_version": 54
+      },
+      "2h": {
+        "close": 0.4732,
+        "change_percent": 1.0895,
+        "mfe_percent": 1.2177,
+        "mae_percent": 0.3845,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-03 23:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.698653+03:30",
+        "engine_version": 54
+      }
+    },
     "first_event": null,
     "first_event_time": null,
     "outcome_reason": null,
-    "mfe_percent": 0.0,
-    "mae_percent": 0.0,
+    "mfe_percent": 1.2177,
+    "mae_percent": 0.3845,
     "reasons": [
       "Price above EMA200",
       "EMA9 > EMA21",
@@ -21997,7 +22189,16 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 1.2177,
+      "mae_percent": 0.3845
+    },
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-04T01:26:00.323435+03:30",
@@ -22016,14 +22217,41 @@
     "atr_percent": 1.32292490805275,
     "btc_regime": "BULLISH",
     "candle_time": "2026-10-03 20:00:00+00:00",
-    "outcome_status": "OPEN",
+    "outcome_status": "OBSERVING_AFTER_EVENT",
     "outcome_created_at": "2026-10-04T01:26:00.323443+03:30",
-    "horizons": {},
-    "first_event": null,
-    "first_event_time": null,
-    "outcome_reason": null,
-    "mfe_percent": 0.0,
-    "mae_percent": 0.0,
+    "horizons": {
+      "1h": {
+        "close": 0.8405,
+        "change_percent": 1.5465,
+        "mfe_percent": 1.921,
+        "mae_percent": 0.0846,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-03 22:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.701669+03:30",
+        "engine_version": 54
+      },
+      "2h": {
+        "close": 0.8479,
+        "change_percent": 2.4405,
+        "mfe_percent": 4.0232,
+        "mae_percent": 0.0846,
+        "tp1_reached": true,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-03 23:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.702157+03:30",
+        "engine_version": 54
+      }
+    },
+    "first_event": "TP1",
+    "first_event_time": "2026-10-03 23:00:00+00:00",
+    "outcome_reason": "tp1_touched",
+    "mfe_percent": 4.0232,
+    "mae_percent": 0.0846,
     "reasons": [
       "1H resistance breakout (0.8298)",
       "Price above EMA200",
@@ -22042,7 +22270,16 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "tp1_reached": true,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 4.0232,
+      "mae_percent": 0.0846
+    },
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-04T01:26:00.536342+03:30",
@@ -22063,12 +22300,39 @@
     "candle_time": "2026-10-03 20:00:00+00:00",
     "outcome_status": "OPEN",
     "outcome_created_at": "2026-10-04T01:26:00.536349+03:30",
-    "horizons": {},
+    "horizons": {
+      "1h": {
+        "close": 1297.89,
+        "change_percent": -1.4001,
+        "mfe_percent": 0.9253,
+        "mae_percent": 1.467,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-03 22:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.705169+03:30",
+        "engine_version": 54
+      },
+      "2h": {
+        "close": 1305.16,
+        "change_percent": -0.8478,
+        "mfe_percent": 0.9253,
+        "mae_percent": 2.5184,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-03 23:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.705652+03:30",
+        "engine_version": 54
+      }
+    },
     "first_event": null,
     "first_event_time": null,
     "outcome_reason": null,
-    "mfe_percent": 0.0,
-    "mae_percent": 0.0,
+    "mfe_percent": 0.9253,
+    "mae_percent": 2.5184,
     "reasons": [
       "Near 72H low (4.13% above)",
       "RSI recovering (51.1 -> 52.8)",
@@ -22089,7 +22353,16 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.9253,
+      "mae_percent": 2.5184
+    },
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-04T01:26:00.737351+03:30",
@@ -22110,12 +22383,39 @@
     "candle_time": "2026-10-03 20:00:00+00:00",
     "outcome_status": "OPEN",
     "outcome_created_at": "2026-10-04T01:26:00.737359+03:30",
-    "horizons": {},
+    "horizons": {
+      "1h": {
+        "close": 4.759,
+        "change_percent": 0.0631,
+        "mfe_percent": 1.0723,
+        "mae_percent": 0.5046,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-03 22:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.849850+03:30",
+        "engine_version": 54
+      },
+      "2h": {
+        "close": 4.833,
+        "change_percent": 1.619,
+        "mfe_percent": 2.4811,
+        "mae_percent": 0.5046,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-03 23:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.850326+03:30",
+        "engine_version": 54
+      }
+    },
     "first_event": null,
     "first_event_time": null,
     "outcome_reason": null,
-    "mfe_percent": 0.0,
-    "mae_percent": 0.0,
+    "mfe_percent": 2.4811,
+    "mae_percent": 0.5046,
     "reasons": [
       "Near 72H low (3.29% above)",
       "RSI recovering (51.7 -> 53.7)",
@@ -22137,7 +22437,16 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 2.4811,
+      "mae_percent": 0.5046
+    },
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-04T01:26:00.945369+03:30",
@@ -22158,12 +22467,39 @@
     "candle_time": "2026-10-03 20:00:00+00:00",
     "outcome_status": "OPEN",
     "outcome_created_at": "2026-10-04T01:26:00.945383+03:30",
-    "horizons": {},
+    "horizons": {
+      "1h": {
+        "close": 0.2158,
+        "change_percent": -0.1388,
+        "mfe_percent": 0.1388,
+        "mae_percent": 0.3239,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-03 22:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.853488+03:30",
+        "engine_version": 54
+      },
+      "2h": {
+        "close": 0.2161,
+        "change_percent": 0.0,
+        "mfe_percent": 0.1388,
+        "mae_percent": 0.4165,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-03 23:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.853976+03:30",
+        "engine_version": 54
+      }
+    },
     "first_event": null,
     "first_event_time": null,
     "outcome_reason": null,
-    "mfe_percent": 0.0,
-    "mae_percent": 0.0,
+    "mfe_percent": 0.1388,
+    "mae_percent": 0.4165,
     "reasons": [
       "Near 72H low (2.90% above)",
       "RSI recovering (48.0 -> 52.7)",
@@ -22186,7 +22522,16 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.1388,
+      "mae_percent": 0.4165
+    },
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-04T01:26:01.178490+03:30",
@@ -22207,12 +22552,39 @@
     "candle_time": "2026-10-03 20:00:00+00:00",
     "outcome_status": "OPEN",
     "outcome_created_at": "2026-10-04T01:26:01.178498+03:30",
-    "horizons": {},
+    "horizons": {
+      "1h": {
+        "close": 1.0644,
+        "change_percent": 0.1694,
+        "mfe_percent": 0.3482,
+        "mae_percent": 0.1694,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-03 22:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.998144+03:30",
+        "engine_version": 54
+      },
+      "2h": {
+        "close": 1.0668,
+        "change_percent": 0.3953,
+        "mfe_percent": 0.5835,
+        "mae_percent": 0.1694,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-03 23:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:18.998617+03:30",
+        "engine_version": 54
+      }
+    },
     "first_event": null,
     "first_event_time": null,
     "outcome_reason": null,
-    "mfe_percent": 0.0,
-    "mae_percent": 0.0,
+    "mfe_percent": 0.5835,
+    "mae_percent": 0.1694,
     "reasons": [
       "Price above EMA200",
       "EMA9 > EMA21",
@@ -22238,7 +22610,16 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.5835,
+      "mae_percent": 0.1694
+    },
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-04T01:26:01.391118+03:30",
@@ -22259,12 +22640,39 @@
     "candle_time": "2026-10-03 20:00:00+00:00",
     "outcome_status": "OPEN",
     "outcome_created_at": "2026-10-04T01:26:01.391126+03:30",
-    "horizons": {},
+    "horizons": {
+      "1h": {
+        "close": 789.24,
+        "change_percent": 0.4339,
+        "mfe_percent": 0.5217,
+        "mae_percent": 0.1158,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-03 22:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:19.001758+03:30",
+        "engine_version": 54
+      },
+      "2h": {
+        "close": 786.88,
+        "change_percent": 0.1336,
+        "mfe_percent": 0.5217,
+        "mae_percent": 0.1158,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-03 23:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:19.002236+03:30",
+        "engine_version": 54
+      }
+    },
     "first_event": null,
     "first_event_time": null,
     "outcome_reason": null,
-    "mfe_percent": 0.0,
-    "mae_percent": 0.0,
+    "mfe_percent": 0.5217,
+    "mae_percent": 0.1158,
     "reasons": [
       "Price above EMA200",
       "EMA9 > EMA21",
@@ -22291,7 +22699,16 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.5217,
+      "mae_percent": 0.1158
+    },
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-04T01:26:01.603776+03:30",
@@ -22312,12 +22729,39 @@
     "candle_time": "2026-10-03 20:00:00+00:00",
     "outcome_status": "OPEN",
     "outcome_created_at": "2026-10-04T01:26:01.603782+03:30",
-    "horizons": {},
+    "horizons": {
+      "1h": {
+        "close": 0.07442,
+        "change_percent": -0.4814,
+        "mfe_percent": 3.0891,
+        "mae_percent": 1.2169,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-03 22:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:19.146638+03:30",
+        "engine_version": 54
+      },
+      "2h": {
+        "close": 0.07509,
+        "change_percent": 0.4145,
+        "mfe_percent": 3.0891,
+        "mae_percent": 1.2169,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 21:00:00+00:00",
+        "window_end": "2026-10-03 23:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:19.147146+03:30",
+        "engine_version": 54
+      }
+    },
     "first_event": null,
     "first_event_time": null,
     "outcome_reason": null,
-    "mfe_percent": 0.0,
-    "mae_percent": 0.0,
+    "mfe_percent": 3.0891,
+    "mae_percent": 1.2169,
     "reasons": [
       "Price above EMA200",
       "EMA9 > EMA21",
@@ -22345,7 +22789,16 @@
       "Professional filter: volume/momentum",
       "Professional filter: multi-timeframe context",
       "Professional filter: trade structure/R:R"
-    ]
+    ],
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 3.0891,
+      "mae_percent": 1.2169
+    },
+    "outcome_engine_version": 54
   },
   {
     "timestamp": "2026-10-04T01:26:01.851690+03:30",
@@ -22366,12 +22819,52 @@
     "candle_time": "2026-10-03 16:00:00+00:00",
     "outcome_status": "OPEN",
     "outcome_created_at": "2026-10-04T01:26:01.851696+03:30",
-    "horizons": {},
+    "horizons": {
+      "1h": {
+        "close": 789.53,
+        "change_percent": 0.4708,
+        "mfe_percent": 0.7139,
+        "mae_percent": 0.7483,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 17:00:00+00:00",
+        "window_end": "2026-10-03 18:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:19.150258+03:30",
+        "engine_version": 54
+      },
+      "2h": {
+        "close": 789.71,
+        "change_percent": 0.4937,
+        "mfe_percent": 0.8895,
+        "mae_percent": 0.7483,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 17:00:00+00:00",
+        "window_end": "2026-10-03 19:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:19.150819+03:30",
+        "engine_version": 54
+      },
+      "4h": {
+        "close": 785.09,
+        "change_percent": -0.0942,
+        "mfe_percent": 0.8895,
+        "mae_percent": 0.7483,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-10-03 17:00:00+00:00",
+        "window_end": "2026-10-03 21:00:00+00:00",
+        "observed_at": "2026-10-04T03:46:19.151403+03:30",
+        "engine_version": 54
+      }
+    },
     "first_event": null,
     "first_event_time": null,
     "outcome_reason": null,
-    "mfe_percent": 0.0,
-    "mae_percent": 0.0,
+    "mfe_percent": 0.8895,
+    "mae_percent": 0.7483,
     "reasons": [
       "4H independent signal setup",
       "Price above EMA200",
@@ -22384,6 +22877,201 @@
       "ATR suitable 1.08%",
       "Daily context bullish",
       "BTC bullish",
+      "Professional filter: directional structure",
+      "Professional filter: ADX/DI",
+      "Professional filter: 30M confirmation",
+      "Professional filter: volume/momentum",
+      "Professional filter: multi-timeframe context",
+      "Professional filter: trade structure/R:R"
+    ],
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {
+      "mfe_percent": 0.8895,
+      "mae_percent": 0.7483
+    },
+    "outcome_engine_version": 54
+  },
+  {
+    "timestamp": "2026-10-04T03:46:55.519857+03:30",
+    "symbol": "AERO",
+    "signal": "BUY",
+    "score": 97,
+    "strength": "STRONG",
+    "price": 0.845,
+    "entry": 0.845,
+    "stop_loss": 0.8273067001290743,
+    "tp1": 0.8733092797934812,
+    "tp2": 0.894541239638592,
+    "rsi": 79.39895635971999,
+    "adx": 37.39958199724091,
+    "volume_ratio": 2.430816050008431,
+    "atr_percent": 1.39114674457882,
+    "btc_regime": "NEUTRAL",
+    "candle_time": "2026-10-03 23:00:00+00:00",
+    "outcome_status": "OPEN",
+    "outcome_created_at": "2026-10-04T03:46:55.519865+03:30",
+    "horizons": {},
+    "first_event": null,
+    "first_event_time": null,
+    "outcome_reason": null,
+    "mfe_percent": 0.0,
+    "mae_percent": 0.0,
+    "reasons": [
+      "1H resistance breakout (0.8436)",
+      "Price above EMA200",
+      "EMA9 > EMA21 > EMA50",
+      "ADX breakout strength (37.4)",
+      "Volume expansion (2.43x)",
+      "ATR suitable (1.39%)",
+      "30M price above EMA21",
+      "30M EMA9 > EMA21",
+      "30M MACD bullish",
+      "BTC NEUTRAL",
+      "Professional filter: directional structure",
+      "Professional filter: ADX/DI",
+      "Professional filter: 30M confirmation",
+      "Professional filter: volume/momentum",
+      "Professional filter: multi-timeframe context",
+      "Professional filter: trade structure/R:R"
+    ]
+  },
+  {
+    "timestamp": "2026-10-04T03:46:55.706858+03:30",
+    "symbol": "NEAR",
+    "signal": "BUY",
+    "score": 94,
+    "strength": "EARLY REVERSAL",
+    "price": 4.8,
+    "entry": 4.8,
+    "stop_loss": 4.56705,
+    "tp1": 5.172719999999999,
+    "tp2": 5.452259999999999,
+    "rsi": 64.72666191913191,
+    "adx": 23.51932767484678,
+    "volume_ratio": 2.839502035696197,
+    "atr_percent": 1.450412777996148,
+    "btc_regime": "NEUTRAL",
+    "candle_time": "2026-10-03 23:00:00+00:00",
+    "outcome_status": "OPEN",
+    "outcome_created_at": "2026-10-04T03:46:55.706863+03:30",
+    "horizons": {},
+    "first_event": null,
+    "first_event_time": null,
+    "outcome_reason": null,
+    "mfe_percent": 0.0,
+    "mae_percent": 0.0,
+    "reasons": [
+      "Close to recent low (5.29% above)",
+      "RSI recovering (56.1 -> 64.7)",
+      "RSI bullish divergence",
+      "MACD histogram improving",
+      "MACD above signal",
+      "Price near Fibonacci 0.618/0.786 zone",
+      "Volume expansion (2.84x)",
+      "Bullish 1H candle",
+      "Price reclaimed previous close",
+      "30M reversal confirmation",
+      "BTC regime not strongly bearish",
+      "Daily trend bullish",
+      "Quality cap: ADX 20-25 -> max 94",
+      "Raw score 97; quality-adjusted score 94",
+      "Professional filter: directional structure",
+      "Professional filter: ADX/DI",
+      "Professional filter: 30M confirmation",
+      "Professional filter: volume/momentum",
+      "Professional filter: multi-timeframe context",
+      "Professional filter: trade structure/R:R"
+    ]
+  },
+  {
+    "timestamp": "2026-10-04T03:46:55.875802+03:30",
+    "symbol": "TRUMP",
+    "signal": "BUY",
+    "score": 82,
+    "strength": "EARLY REVERSAL",
+    "price": 2.043,
+    "entry": 2.043,
+    "stop_loss": 1.96811,
+    "tp1": 2.1628240000000005,
+    "tp2": 2.2526920000000006,
+    "rsi": 42.98874234763738,
+    "adx": 10.38635085363084,
+    "volume_ratio": 1.1096920225725622,
+    "atr_percent": 0.8974137953542519,
+    "btc_regime": "NEUTRAL",
+    "candle_time": "2026-10-03 23:00:00+00:00",
+    "outcome_status": "OPEN",
+    "outcome_created_at": "2026-10-04T03:46:55.875809+03:30",
+    "horizons": {},
+    "first_event": null,
+    "first_event_time": null,
+    "outcome_reason": null,
+    "mfe_percent": 0.0,
+    "mae_percent": 0.0,
+    "reasons": [
+      "Near 72H low (3.49% above)",
+      "RSI low recovery zone (43.0)",
+      "RSI recovering (42.0 -> 43.0)",
+      "MACD bullish divergence",
+      "MACD histogram improving",
+      "Price near Fibonacci 0.618/0.786 zone",
+      "Volume expansion (1.11x)",
+      "Bullish 1H candle",
+      "Price reclaimed previous close",
+      "30M reversal confirmation",
+      "BTC regime not strongly bearish",
+      "4H trend bearish (headwind)",
+      "Daily trend bearish (headwind)",
+      "Quality cap: ADX < 15 -> max 82",
+      "Raw score 92; quality-adjusted score 82",
+      "Professional filter: directional structure",
+      "Professional filter: ADX/DI",
+      "Professional filter: 30M confirmation",
+      "Professional filter: volume/momentum",
+      "Professional filter: multi-timeframe context",
+      "Professional filter: trade structure/R:R"
+    ]
+  },
+  {
+    "timestamp": "2026-10-04T03:46:56.057780+03:30",
+    "symbol": "LTC",
+    "signal": "BUY",
+    "score": 77,
+    "strength": "EARLY REVERSAL",
+    "price": 70.14,
+    "entry": 70.14,
+    "stop_loss": 66.21724999999999,
+    "tp1": 76.41640000000001,
+    "tp2": 81.12370000000001,
+    "rsi": 58.909880593007436,
+    "adx": 13.938594796987685,
+    "volume_ratio": 1.184619794262206,
+    "atr_percent": 0.9412157956314133,
+    "btc_regime": "NEUTRAL",
+    "candle_time": "2026-10-03 23:00:00+00:00",
+    "outcome_status": "OPEN",
+    "outcome_created_at": "2026-10-04T03:46:56.057786+03:30",
+    "horizons": {},
+    "first_event": null,
+    "first_event_time": null,
+    "outcome_reason": null,
+    "mfe_percent": 0.0,
+    "mae_percent": 0.0,
+    "reasons": [
+      "Close to recent low (5.62% above)",
+      "RSI recovering (57.9 -> 58.9)",
+      "MACD histogram improving",
+      "MACD above signal",
+      "Volume expansion (1.18x)",
+      "Bullish 1H candle",
+      "Price reclaimed previous close",
+      "30M reversal confirmation",
+      "BTC regime not strongly bearish",
+      "4H trend bullish",
+      "Daily trend bullish",
       "Professional filter: directional structure",
       "Professional filter: ADX/DI",
       "Professional filter: 30M confirmation",
