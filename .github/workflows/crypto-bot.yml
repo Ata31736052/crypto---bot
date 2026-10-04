@@ -2,7 +2,9 @@ name: Crypto Signal Bot
 
 on:
   workflow_dispatch:
+
   schedule:
+    # اجرا در دقیقه 00 هر ساعت
     - cron: "0 * * * *"
 
 concurrency:
@@ -12,6 +14,7 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     env:
       RUN_ONCE: "1"
@@ -24,26 +27,27 @@ jobs:
 
     steps:
 
-      # ==========================================
+      # =====================================================
       # CHECKOUT
-      # ==========================================
-      - name: Checkout
+      # =====================================================
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ==========================================
+      # =====================================================
       # PYTHON
-      # ==========================================
+      # =====================================================
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
 
-      # ==========================================
+      # =====================================================
       # DEPENDENCIES
-      # ==========================================
+      # =====================================================
       - name: Install dependencies
         run: |
-          set -e
+          set -euo pipefail
 
           python -m pip install --upgrade pip
 
@@ -53,19 +57,20 @@ jobs:
             numpy \
             pyyaml
 
-      # ==========================================
+      # =====================================================
       # ROOT VERIFICATION
-      # ==========================================
-      - name: Verify Crypto Signal Bot v60
+      # =====================================================
+      - name: Verify Crypto Signal Bot v61
         run: |
-          set -e
+          set -euo pipefail
 
           echo "=========================================="
-          echo "VERIFYING CRYPTO SIGNAL BOT v60"
+          echo "VERIFYING CRYPTO SIGNAL BOT v61"
           echo "=========================================="
 
           test -f main.py
 
+          echo
           echo "File:"
           ls -lh main.py
 
@@ -73,11 +78,19 @@ jobs:
           echo "Python:"
           python --version
 
+          # -------------------------------------------------
+          # Syntax
+          # -------------------------------------------------
           echo
           echo "Checking Python syntax..."
-          python -m py_compile main.py
-          echo "Python syntax: OK"
 
+          python -m py_compile main.py
+
+          echo "Python syntax: PASS"
+
+          # -------------------------------------------------
+          # AST
+          # -------------------------------------------------
           echo
           echo "Checking AST..."
 
@@ -85,33 +98,29 @@ jobs:
           import ast
           from pathlib import Path
 
-          path = Path("main.py")
-          source = path.read_text(encoding="utf-8")
-
+          source = Path("main.py").read_text(encoding="utf-8")
           ast.parse(source)
 
-          print("AST: OK")
-          print("Bytes:", len(source.encode("utf-8")))
+          print("AST: PASS")
           print("Lines:", len(source.splitlines()))
+          print("Bytes:", len(source.encode("utf-8")))
           PY
 
-          # ======================================
-          # VERSION CHECK
-          # ======================================
-
+          # -------------------------------------------------
+          # VERSION
+          # -------------------------------------------------
           echo
-          echo "Checking v60 markers..."
+          echo "Checking v61..."
 
-          grep -q "v60" main.py
+          grep -Fq "v61" main.py
 
-          echo "v60 marker: OK"
+          echo "v61 marker: PASS"
 
-          # ======================================
-          # COMPOSITE QUALITY GATE CHECK
-          # ======================================
-
+          # -------------------------------------------------
+          # ROOT QUALITY ENGINE
+          # -------------------------------------------------
           echo
-          echo "Checking Composite Professional Quality Gate..."
+          echo "Checking root quality engine..."
 
           python - <<'PY'
           from pathlib import Path
@@ -122,31 +131,34 @@ jobs:
               "professional_signal_quality_gate",
               "PRO_MIN_SCORE",
               "PRO_SELL_MIN_SCORE",
-              "PRO_MIN_VOLUME_RATIO",
-              "PRO_MIN_30M_CONFIRMATIONS",
+              "PRO_BOTTOM_MIN_SCORE",
               "PRO_MIN_QUALITY_POINTS",
               "PRO_BOTTOM_MIN_QUALITY_POINTS",
+              "PRO_MAX_EMA21_DISTANCE",
+              "PRO_MAX_EMA200_DISTANCE",
+              "PRO_MIN_VOLUME_RATIO",
+              "PRO_MIN_30M_CONFIRMATIONS",
+              "PRO_MIN_HTF_ALIGNMENT",
+              "professional_quality_grade",
           ]
 
           missing = [
-              item
-              for item in required
+              item for item in required
               if item not in source
           ]
 
           if missing:
               raise SystemExit(
-                  "ERROR: Missing quality markers: "
+                  "Missing v61 quality markers: "
                   + ", ".join(missing)
               )
 
-          print("Composite Quality Gate: OK")
+          print("Root quality engine: PASS")
           PY
 
-          # ======================================
-          # BTC CONTEXT-ONLY CHECK
-          # ======================================
-
+          # -------------------------------------------------
+          # BTC CONTEXT ONLY
+          # -------------------------------------------------
           echo
           echo "Checking BTC context-only protection..."
 
@@ -156,60 +168,68 @@ jobs:
           source = Path("main.py").read_text(encoding="utf-8")
 
           required = [
+              "BTC_SYMBOL",
               "BTCUSDT",
-              "BTC",
-              "context",
+              "context-only",
           ]
 
           missing = [
-              item
-              for item in required
-              if item not in source
+              item for item in required
+              if item.lower() not in source.lower()
           ]
 
           if missing:
               raise SystemExit(
-                  "ERROR: BTC/context protection markers missing: "
+                  "BTC protection markers missing: "
                   + ", ".join(missing)
               )
 
-          print("BTC context protection markers: OK")
+          print("BTC context-only protection: PASS")
           PY
 
-          # ======================================
-          # PROFESSIONAL FILTER CHECK
-          # ======================================
-
+          # -------------------------------------------------
+          # PROFESSIONAL FILTERS
+          # -------------------------------------------------
           echo
           echo "Checking professional filters..."
 
           python - <<'PY'
           from pathlib import Path
 
-          source = Path("main.py").read_text(encoding="utf-8")
+          source = Path("main.py").read_text(
+              encoding="utf-8"
+          ).lower()
 
           required = [
-              "ADX",
+              "adx",
               "volume",
-              "30M",
-              "higher",
+              "30m",
+              "higher-timeframe",
               "momentum",
-              "RR",
+              "ema21",
+              "ema200",
+              "rr",
+              "quality",
+              "sell",
           ]
 
-          for item in required:
-              if item.lower() not in source.lower():
-                  raise SystemExit(
-                      f"ERROR: Professional filter marker missing: {item}"
-                  )
+          missing = [
+              item for item in required
+              if item not in source
+          ]
 
-          print("Professional filters: OK")
+          if missing:
+              raise SystemExit(
+                  "Professional filter markers missing: "
+                  + ", ".join(missing)
+              )
+
+          print("Professional filters: PASS")
           PY
 
-          # ======================================
+          # -------------------------------------------------
           # IMPORT TEST
-          # ======================================
-
+          # -------------------------------------------------
           echo
           echo "Checking module import..."
 
@@ -222,34 +242,46 @@ jobs:
           )
 
           module = importlib.util.module_from_spec(spec)
-
           spec.loader.exec_module(module)
 
-          print("Module import: OK")
+          print("Module import: PASS")
           PY
 
-          # ======================================
-          # FINAL VERIFICATION
-          # ======================================
+          # -------------------------------------------------
+          # DETERMINISTIC ROOT TESTS
+          # -------------------------------------------------
+          echo
+          echo "Running deterministic v61 root tests..."
 
+          if [ -f test_v61_root.py ]; then
+              python test_v61_root.py
+          else
+              echo "WARNING: test_v61_root.py not found."
+              echo "Static verification will continue."
+          fi
+
+          # -------------------------------------------------
+          # FINAL VERIFICATION
+          # -------------------------------------------------
           echo
           echo "=========================================="
-          echo "v60 VERIFICATION PASSED"
+          echo "v61 VERIFICATION PASSED"
           echo "=========================================="
 
-      # ==========================================
+      # =====================================================
       # RUN BOT
-      # ==========================================
-      - name: Run Crypto Signal Bot v60
+      # =====================================================
+      - name: Run Crypto Signal Bot v61
         run: |
-          set -e
+          set -euo pipefail
 
           echo "=========================================="
-          echo "RUNNING CRYPTO SIGNAL BOT v60"
+          echo "RUNNING CRYPTO SIGNAL BOT v61"
           echo "=========================================="
 
           python main.py
 
+          echo
           echo "=========================================="
-          echo "BOT FINISHED"
+          echo "CRYPTO SIGNAL BOT v61 FINISHED"
           echo "=========================================="
