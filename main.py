@@ -208,7 +208,7 @@ MAX_ATR_PERCENT = 8.00
 
 SL_ATR_MULTIPLIER = 1.50
 
-TP1_RR = 1.60
+TP1_RR = 1.80
 TP2_RR = 2.80
 
 # Higher-timeframe risk tuning. 4H/Daily candles naturally have larger ATR,
