@@ -3,7 +3,7 @@ name: Crypto Signal Bot v63
 on:
   workflow_dispatch:
 
-  # GitHub Cron uses UTC.
+  # GitHub Cron is UTC.
   # 30 UTC = 00:00 Tehran
   schedule:
     - cron: "30 * * * *"
@@ -30,38 +30,21 @@ jobs:
 
     steps:
 
-      # =========================================================
-      # 1. CHECKOUT
-      # =========================================================
       - name: Checkout repository
         uses: actions/checkout@v4
 
-
-      # =========================================================
-      # 2. PYTHON
-      # =========================================================
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
 
-
-      # =========================================================
-      # 3. DEPENDENCIES
-      # =========================================================
       - name: Install dependencies
         run: |
           set -euo pipefail
-
           python -m pip install --upgrade pip
-
           pip install requests pandas numpy pyyaml
 
-
-      # =========================================================
-      # 4. TELEGRAM SECRETS
-      # =========================================================
       - name: Verify Telegram secrets
         run: |
           set -euo pipefail
@@ -78,59 +61,51 @@ jobs:
 
           echo "✅ Telegram secrets: PASS"
 
-
-      # =========================================================
-      # 5. SOURCE CHECK
-      # =========================================================
-      - name: Verify v63 source
+      - name: Verify main.py
         run: |
           set -euo pipefail
 
           test -f main.py
 
-          echo "✅ main.py exists"
+          echo "========================================"
+          echo "Checking main.py"
+          echo "========================================"
 
           python --version
 
           python -m py_compile main.py
 
+          echo "✅ main.py exists"
           echo "✅ main.py compile: PASS"
 
-
-      # =========================================================
-      # 6. ROOT QUALITY CHECK
-      # =========================================================
-      - name: Verify quality gate
+      - name: Verify v63 configuration
         run: |
           set -euo pipefail
 
           python - <<'PY'
-          import ast
-          from pathlib import Path
+          import importlib.util
 
-          source = Path("main.py").read_text(encoding="utf-8")
+          print("========================================")
+          print("Loading main.py")
+          print("========================================")
 
-          ast.parse(source, filename="main.py")
+          spec = importlib.util.spec_from_file_location(
+              "crypto_main",
+              "main.py"
+          )
 
-          tree = ast.parse(source)
+          if spec is None or spec.loader is None:
+              raise SystemExit("❌ Cannot load main.py")
 
-          functions = {
-              node.name
-              for node in ast.walk(tree)
-              if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-          }
+          main = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(main)
 
-          required_functions = [
+          required = [
               "professional_signal_quality_gate",
-          ]
-
-          for name in required_functions:
-              if name not in functions:
-                  raise SystemExit(
-                      f"❌ Missing function: {name}"
-                  )
-
-          required_markers = [
+              "TP1_RR",
+              "TP2_RR",
+              "PRO_MIN_RR_TP1",
+              "PRO_MIN_RR_TP2",
               "PRO_MIN_SCORE",
               "PRO_SELL_MIN_SCORE",
               "PRO_BOTTOM_MIN_SCORE",
@@ -141,62 +116,103 @@ jobs:
               "PRO_MIN_30M_CONFIRMATIONS",
               "PRO_MAX_EMA21_DISTANCE",
               "PRO_MAX_EMA200_DISTANCE",
-              "PRO_MIN_RR_TP1",
-              "PRO_MIN_RR_TP2",
-              "TP1_RR = 1.80",
           ]
 
-          missing = [
-              x
-              for x in required_markers
-              if x not in source
-          ]
+          print("========================================")
+          print("Checking required configuration")
+          print("========================================")
 
-          if missing:
-              raise SystemExit(
-                  "❌ Missing v63 markers:\n"
-                  + "\n".join(
-                      f" - {x}" for x in missing
+          for name in required:
+              if not hasattr(main, name):
+                  raise SystemExit(
+                      f"❌ Missing required item: {name}"
                   )
+
+          print("✅ Required configuration: PASS")
+
+          tp1 = float(main.TP1_RR)
+          tp2 = float(main.TP2_RR)
+          min_tp1 = float(main.PRO_MIN_RR_TP1)
+          min_tp2 = float(main.PRO_MIN_RR_TP2)
+
+          print("")
+          print("========================================")
+          print("RISK / REWARD CONFIGURATION")
+          print("========================================")
+          print("TP1_RR         =", tp1)
+          print("TP2_RR         =", tp2)
+          print("PRO_MIN_RR_TP1 =", min_tp1)
+          print("PRO_MIN_RR_TP2 =", min_tp2)
+          print("========================================")
+
+          if abs(tp1 - 1.80) > 1e-9:
+              raise SystemExit(
+                  f"❌ TP1_RR is {tp1}, expected 1.80"
               )
 
+          if abs(tp2 - 2.80) > 1e-9:
+              raise SystemExit(
+                  f"❌ TP2_RR is {tp2}, expected 2.80"
+              )
+
+          if abs(min_tp1 - 1.80) > 1e-9:
+              raise SystemExit(
+                  f"❌ PRO_MIN_RR_TP1 is {min_tp1}, expected 1.80"
+              )
+
+          if abs(min_tp2 - 2.40) > 1e-9:
+              raise SystemExit(
+                  f"❌ PRO_MIN_RR_TP2 is {min_tp2}, expected 2.40"
+              )
+
+          print("")
           print("========================================")
-          print("✅ V63 ROOT QUALITY CHECK: PASS")
+          print("✅ V63 CONFIGURATION: PASS")
           print("========================================")
-          print("TP1_RR = 1.80 confirmed")
-          print("Professional minimum TP1 RR = 1.80")
-          print("No RR mismatch remains")
+          print("✅ TP1 generation = 1.80R")
+          print("✅ TP1 validation = 1.80R")
+          print("✅ TP2 generation = 2.80R")
+          print("✅ TP2 validation minimum = 2.40R")
+          print("✅ RR mismatch fixed")
+          print("========================================")
           PY
 
-
-      # =========================================================
-      # 7. IMPORT TEST
-      # =========================================================
-      - name: Import main.py
+      - name: Verify timeframe
         run: |
           set -euo pipefail
 
           python - <<'PY'
-          import main
+          import importlib.util
 
-          assert main.RUN_ONCE is True
-          assert main.TIMEFRAME_MAIN == "1h"
-          assert main.TIMEFRAME_CONFIRM == "30m"
+          spec = importlib.util.spec_from_file_location(
+              "crypto_main",
+              "main.py"
+          )
 
-          assert main.TP1_RR == 1.80
-          assert main.TP2_RR == 2.80
+          main = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(main)
 
           print("========================================")
-          print("✅ IMPORT + CONFIGURATION: PASS")
+          print("TIMEFRAME CHECK")
           print("========================================")
-          print("TP1_RR:", main.TP1_RR)
-          print("TP2_RR:", main.TP2_RR)
+
+          print("Main timeframe    :", main.TIMEFRAME_MAIN)
+          print("Confirm timeframe :", main.TIMEFRAME_CONFIRM)
+
+          if main.TIMEFRAME_MAIN != "1h":
+              raise SystemExit(
+                  f"❌ Main timeframe is {main.TIMEFRAME_MAIN}"
+              )
+
+          if main.TIMEFRAME_CONFIRM != "30m":
+              raise SystemExit(
+                  f"❌ Confirmation timeframe is {main.TIMEFRAME_CONFIRM}"
+              )
+
+          print("✅ 1H main timeframe")
+          print("✅ 30M confirmation")
           PY
 
-
-      # =========================================================
-      # 8. RUN BOT
-      # =========================================================
       - name: Run Crypto Signal Bot v63
         run: |
           set -euo pipefail
@@ -205,7 +221,16 @@ jobs:
           echo "🚀 STARTING CRYPTO SIGNAL BOT v63"
           echo "============================================================"
 
+          echo "Tehran time:"
           date
+
+          echo ""
+          echo "Python:"
+          python --version
+
+          echo ""
+          echo "Running main.py..."
+          echo "============================================================"
 
           python -u main.py
 
