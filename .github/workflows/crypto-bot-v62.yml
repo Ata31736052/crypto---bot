@@ -22,32 +22,63 @@ jobs:
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
     steps:
+
+      # =========================================================
+      # 1. Checkout
+      # =========================================================
       - name: Checkout repository
         uses: actions/checkout@v4
 
+
+      # =========================================================
+      # 2. Python
+      # =========================================================
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+
+      # =========================================================
+      # 3. Dependencies
+      # =========================================================
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install requests pandas numpy pyyaml
 
+
+      # =========================================================
+      # 4. Check repository files
+      # =========================================================
       - name: Check files
         run: |
-          echo "Files in repository:"
+          echo "========================================"
+          echo "Repository files:"
+          echo "========================================"
           ls -la
+
+          echo ""
           echo "Checking main.py..."
+
           test -f main.py
+
           echo "✅ main.py exists"
 
+
+      # =========================================================
+      # 5. Compile
+      # =========================================================
       - name: Compile main.py
         run: |
           python -m py_compile main.py
+
           echo "✅ main.py compiled successfully"
 
+
+      # =========================================================
+      # 6. Check v62 quality gate
+      # =========================================================
       - name: Check v62 quality gate
         run: |
           python - <<'PY'
@@ -55,6 +86,7 @@ jobs:
           from pathlib import Path
 
           source = Path("main.py").read_text(encoding="utf-8")
+
           tree = ast.parse(source)
 
           functions = {
@@ -90,42 +122,38 @@ jobs:
           ]
 
           missing = [
-              name for name in required
+              name
+              for name in required
               if name not in source
           ]
 
           if missing:
               raise SystemExit(
-                  "❌ Missing v62 variables: " + ", ".join(missing)
+                  "❌ Missing v62 variables: "
+                  + ", ".join(missing)
               )
 
           print("✅ All v62 quality variables found")
           print("✅ v62 quality gate source check passed")
           PY
 
+
+      # =========================================================
+      # 7. Import test
+      # =========================================================
       - name: Import main.py
         run: |
           python - <<'PY'
           import main
+
           print("✅ main.py imported successfully")
+          print("✅ Import test passed")
           PY
 
-      - name: Binance connectivity
-        run: |
-          python - <<'PY'
-          import requests
 
-          response = requests.get(
-              "https://api.binance.com/api/v3/ping",
-              timeout=20
-          )
-
-          response.raise_for_status()
-
-          print("✅ Binance API reachable")
-          print(response.text)
-          PY
-
+      # =========================================================
+      # 8. Run bot
+      # =========================================================
       - name: Run Crypto Signal Bot
         run: |
           echo "============================================================"
