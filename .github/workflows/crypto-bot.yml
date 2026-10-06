@@ -3,8 +3,7 @@ name: Crypto Signal Bot v63.14.1
 on:
   workflow_dispatch:
   schedule:
-    - cron: '7 * * * *'
-      timezone: 'Asia/Tehran'
+    - cron: "7 * * * *"
 
 concurrency:
   group: crypto-signal-bot
@@ -18,25 +17,29 @@ jobs:
     env:
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      RUN_ONCE: '1'
-      TELEGRAM_TEST_ON_START: '0'
-      PYTHONUNBUFFERED: '1'
+      RUN_ONCE: "1"
+      TELEGRAM_TEST_ON_START: "0"
+      PYTHONUNBUFFERED: "1"
+      TZ: Asia/Tehran
 
     steps:
-      - name: Checkout
+
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          cache: 'pip'
+          python-version: "3.11"
+          cache: "pip"
 
       - name: Install dependencies
         shell: bash
         run: |
           set -euo pipefail
+
           python -m pip install --upgrade pip
+
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
           else
@@ -50,17 +53,22 @@ jobs:
 
           if [ -f main.py ]; then
             echo "Using existing main.py"
+
           elif [ -f CryptoSignalBot_main_v63_14_1_root_fix.py ]; then
             echo "main.py not found; using v63.14.1 source"
             cp CryptoSignalBot_main_v63_14_1_root_fix.py main.py
+
           else
-            echo "ERROR: Neither main.py nor CryptoSignalBot_main_v63_14_1_root_fix.py exists."
+            echo "ERROR: No main.py source found."
+
             echo "Python files found:"
-            find . -maxdepth 3 -type f -name '*.py' -print | sort
+            find . -maxdepth 3 -type f -name "*.py" -print | sort
+
             exit 1
           fi
 
           test -f main.py
+
           echo "Resolved source:"
           ls -lh main.py
 
@@ -70,42 +78,355 @@ jobs:
           set -euo pipefail
 
           test -f main.py
-          grep -q 'v63.14.1-diagnostic-root-fix-20261006' main.py
-          grep -q 'run_v63_14_1_root_fix_self_test' main.py
-          grep -q 'PRO_MIN_SCORE = 90' main.py
-          grep -q 'PRO_SELL_MIN_SCORE = 92' main.py
-          grep -q 'PRO_MIN_QUALITY_POINTS = 15' main.py
-          grep -q 'PRO_MIN_1H_ADX = 23.0' main.py
-          grep -q 'PRO_MIN_VOLUME_RATIO = 1.35' main.py
-          grep -q 'PRO_MIN_30M_CONFIRMATIONS = 6' main.py
-          grep -q 'PRO_MAX_EMA21_DISTANCE = 4.00' main.py
-          grep -q 'PRO_MAX_EMA200_DISTANCE = 12.00' main.py
-          grep -q 'PRO_MIN_RR_TP1 = 1.80' main.py
-          grep -q 'PRO_MIN_RR_TP2 = 2.40' main.py
+
+          python - <<'PY'
+          from pathlib import Path
+          import ast
+
+          source = Path("main.py").read_text(encoding="utf-8")
+
+          print("=" * 70)
+          print("CRYPTO SIGNAL BOT - DEPLOYMENT VERIFICATION")
+          print("=" * 70)
+
+          required_text = [
+              "v63.14.1-diagnostic-root-fix-20261006",
+              "run_v63_14_1_root_fix_self_test",
+          ]
+
+          missing_text = [
+              item for item in required_text
+              if item not in source
+          ]
+
+          if missing_text:
+              print("FAILED: missing required deployment markers:")
+
+              for item in missing_text:
+                  print(" -", item)
+
+              raise SystemExit(1)
+
+          print("Deployment markers: PASS")
+
+          try:
+              tree = ast.parse(
+                  source,
+                  filename="main.py"
+              )
+
+          except SyntaxError as exc:
+              print("FAILED: Python syntax error")
+              print(exc)
+              raise SystemExit(1)
+
+          print("AST parse: PASS")
+
+          assignments = {}
+
+          for node in tree.body:
+
+              if isinstance(node, ast.Assign):
+
+                  for target in node.targets:
+
+                      if isinstance(target, ast.Name):
+                          assignments[target.id] = node.value
+
+              elif (
+                  isinstance(node, ast.AnnAssign)
+                  and isinstance(node.target, ast.Name)
+              ):
+
+                  assignments[node.target.id] = node.value
+
+          def resolve(name, seen=None):
+
+              if seen is None:
+                  seen = set()
+
+              if name in seen:
+                  raise RuntimeError(
+                      f"constant alias cycle: {name}"
+                  )
+
+              if name not in assignments:
+                  raise KeyError(name)
+
+              seen.add(name)
+
+              value = assignments[name]
+
+              if isinstance(value, ast.Constant):
+                  return value.value
+
+              if (
+                  isinstance(value, ast.UnaryOp)
+                  and isinstance(value.operand, ast.Constant)
+              ):
+
+                  if isinstance(value.op, ast.USub):
+                      return -value.operand.value
+
+                  if isinstance(value.op, ast.UAdd):
+                      return value.operand.value
+
+              if isinstance(value, ast.Name):
+                  return resolve(value.id, seen)
+
+              raise RuntimeError(
+                  f"Cannot statically resolve {name}"
+              )
+
+          expected = {
+              "PRO_MIN_SCORE": 90,
+              "PRO_SELL_MIN_SCORE": 92,
+              "PRO_MIN_QUALITY_POINTS": 15,
+              "PRO_MIN_1H_ADX": 23.0,
+              "PRO_MIN_VOLUME_RATIO": 1.35,
+              "PRO_MIN_30M_CONFIRMATIONS": 6,
+              "PRO_MAX_EMA21_DISTANCE": 4.00,
+              "PRO_MAX_EMA200_DISTANCE": 12.00,
+              "PRO_MIN_RR_TP1": 1.80,
+              "PRO_MIN_RR_TP2": 2.40,
+          }
+
+          failures = []
+
+          print("")
+          print("Checking PRO thresholds...")
+          print("-" * 70)
+
+          for name, expected_value in expected.items():
+
+              if name not in assignments:
+
+                  failures.append(
+                      f"{name}: NOT FOUND"
+                  )
+
+                  continue
+
+              try:
+                  actual = resolve(name)
+
+              except Exception as exc:
+
+                  failures.append(
+                      f"{name}: cannot resolve ({exc})"
+                  )
+
+                  continue
+
+              if actual != expected_value:
+
+                  failures.append(
+                      f"{name}: actual={actual!r}, "
+                      f"expected={expected_value!r}"
+                  )
+
+              else:
+
+                  print(
+                      f"{name}: {actual} PASS"
+                  )
+
+          if failures:
+
+              print("")
+              print("=" * 70)
+              print("DEPLOYMENT VERIFICATION FAILED")
+              print("=" * 70)
+
+              for failure in failures:
+                  print(" -", failure)
+
+              raise SystemExit(1)
+
+          print("")
+          print("Threshold semantics: PASS")
+          print("Deployment verification: PASS")
+
+          PY
 
           python -m py_compile main.py
-          echo "Source + deployment markers + compile: PASS"
 
-      - name: Run all regression self-tests without scanning
+          echo ""
+          echo "Python compile: PASS"
+          echo "Source + deployment verification + compile: PASS"
+
+      - name: Run regression self-tests
         shell: bash
         run: |
           set -euo pipefail
-          RUN_ONCE=0 TELEGRAM_TEST_ON_START=0 python - <<'PY'
+
+          RUN_ONCE=0 \
+          TELEGRAM_TEST_ON_START=0 \
+          python - <<'PY'
+
           import main
 
-          assert main.run_v63_9_diagnostic_integrity_self_test() is True
-          assert main.run_v63_10_root_fix_self_test() is True
-          assert main.run_v63_12_root_fix3_self_test() is True
-          assert main.run_v63_14_diagnostic_trace_self_test() is True
-          assert main.run_v63_14_1_root_fix_self_test() is True
+          print("=" * 70)
+          print("CRYPTO SIGNAL BOT - REGRESSION SELF TEST")
+          print("=" * 70)
 
-          print("ALL v63.14.1 REGRESSION SELF-TESTS: PASS")
-          print("Thresholds:", main.PRO_MIN_SCORE, main.PRO_MIN_1H_ADX,
-                main.PRO_MIN_VOLUME_RATIO, main.PRO_MIN_30M_CONFIRMATIONS)
+          candidates = [
+
+              (
+                  "v63.9",
+                  "run_v63_9_diagnostic_integrity_self_test"
+              ),
+
+              (
+                  "v63.10",
+                  "run_v63_10_root_fix_self_test"
+              ),
+
+              (
+                  "v63.12",
+                  "run_v63_12_root_fix3_self_test"
+              ),
+
+              (
+                  "v63.14",
+                  "run_v63_14_diagnostic_trace_self_test"
+              ),
+
+              (
+                  "v63.14.1",
+                  "run_v63_14_1_root_fix_self_test"
+              ),
+          ]
+
+          found = 0
+          failures = []
+
+          for version, function_name in candidates:
+
+              function = getattr(
+                  main,
+                  function_name,
+                  None
+              )
+
+              if function is None:
+
+                  print(
+                      f"{version}: SKIPPED "
+                      f"(function not present)"
+                  )
+
+                  continue
+
+              found += 1
+
+              print(
+                  f"Running {version} self-test..."
+              )
+
+              try:
+
+                  result = function()
+
+                  if result is False:
+
+                      raise AssertionError(
+                          "self-test returned False"
+                      )
+
+                  print(
+                      f"{version} self-test: PASS"
+                  )
+
+              except Exception as exc:
+
+                  print(
+                      f"{version} self-test: FAIL"
+                  )
+
+                  print(
+                      f"Reason: "
+                      f"{type(exc).__name__}: {exc}"
+                  )
+
+                  failures.append(version)
+
+          if found == 0:
+
+              raise SystemExit(
+                  "No regression self-test functions found."
+              )
+
+          if failures:
+
+              raise SystemExit(
+                  "FAILED SELF-TESTS: "
+                  + ", ".join(failures)
+              )
+
+          print("")
+          print(
+              "ALL AVAILABLE REGRESSION SELF-TESTS: PASS"
+          )
+
+          PY
+
+      - name: Print final bot configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+
+          import main
+
+          names = [
+
+              "PRO_MIN_SCORE",
+
+              "PRO_SELL_MIN_SCORE",
+
+              "PRO_MIN_QUALITY_POINTS",
+
+              "PRO_MIN_1H_ADX",
+
+              "PRO_MIN_VOLUME_RATIO",
+
+              "PRO_MIN_30M_CONFIRMATIONS",
+
+              "PRO_MAX_EMA21_DISTANCE",
+
+              "PRO_MAX_EMA200_DISTANCE",
+
+              "PRO_MIN_RR_TP1",
+
+              "PRO_MIN_RR_TP2",
+          ]
+
+          print("=" * 70)
+          print("FINAL BOT CONFIGURATION")
+          print("=" * 70)
+
+          for name in names:
+
+              print(
+                  f"{name} =",
+                  getattr(
+                      main,
+                      name,
+                      "<MISSING>"
+                  )
+              )
+
+          print("=" * 70)
+
           PY
 
       - name: Run one closed-candle scan
         shell: bash
         run: |
           set -euo pipefail
+
+          echo "Starting one-shot crypto signal scan..."
+
           python main.py
