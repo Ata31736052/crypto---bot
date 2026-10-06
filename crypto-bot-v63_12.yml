@@ -1,0 +1,78 @@
+name: Crypto Signal Bot v63.12
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '7 * * * *'
+      timezone: 'Asia/Tehran'
+
+concurrency:
+  group: crypto-signal-bot
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      RUN_ONCE: '1'
+      TELEGRAM_TEST_ON_START: '0'
+      PYTHONUNBUFFERED: '1'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            pip install requests pandas numpy
+          fi
+
+      - name: Verify deployment and compile
+        shell: bash
+        run: |
+          test -f main.py
+          grep -q 'v63.12-root-fix3-20261006' main.py
+          python -m py_compile main.py
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          p = Path('main.py')
+          tree = ast.parse(p.read_text(encoding='utf-8'))
+          names = {n.name for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+          required = {'professional_signal_quality_gate', 'run_v63_12_root_fix3_self_test'}
+          missing = required - names
+          if missing:
+              raise SystemExit(f'Missing required functions: {sorted(missing)}')
+          print('AST OK; deployment marker OK; required functions OK')
+          PY
+
+      - name: Run self-tests without scanning
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          os.environ['RUN_ONCE'] = '0'
+          os.environ['TELEGRAM_TEST_ON_START'] = '0'
+          import main
+          assert main.run_v63_9_diagnostic_integrity_self_test() is True
+          assert main.run_v63_10_root_fix_self_test() is True
+          assert main.run_v63_12_root_fix3_self_test() is True
+          print('ALL SELF-TESTS PASSED')
+          PY
+
+      - name: Run one closed-candle scan
+        run: python main.py
