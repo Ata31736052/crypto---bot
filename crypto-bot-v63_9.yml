@@ -1,0 +1,103 @@
+name: Crypto Signal Bot v63.9
+
+on:
+  # Every hour, exactly at minute 00 (GitHub Actions uses UTC).
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: crypto-signal-bot
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      TZ: Asia/Tehran
+      RUN_ONCE: "1"
+      TELEGRAM_TEST_ON_START: "0"
+      PYTHONUNBUFFERED: "1"
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install requests pandas numpy
+
+      - name: Verify v63.9 deployment and run self-test
+        run: |
+          set -euo pipefail
+
+          test -f main.py
+
+          python - <<'PY'
+          import importlib.util
+          import sys
+
+          path = "main.py"
+          spec = importlib.util.spec_from_file_location("main", path)
+          if spec is None or spec.loader is None:
+              raise SystemExit("Cannot load main.py")
+
+          main = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(main)
+
+          expected = "v63.9-diagnostic-integrity-20261006"
+          actual = getattr(main, "DEPLOYMENT_ID", None)
+          if actual != expected:
+              raise SystemExit(
+                  f"Wrong deployment ID: {actual!r}; expected {expected!r}"
+              )
+
+          required = [
+              "professional_signal_quality_gate",
+              "final_telegram_quality_gate",
+              "record_professional_rejection",
+              "run_v63_9_diagnostic_integrity_self_test",
+              "selected_engine_diagnostics",
+          ]
+
+          missing = [name for name in required if not hasattr(main, name)]
+          if missing:
+              raise SystemExit(
+                  "Missing v63.9 deployment markers: " + ", ".join(missing)
+              )
+
+          if main.run_v63_9_diagnostic_integrity_self_test() is not True:
+              raise SystemExit("v63.9 diagnostic integrity self-test failed")
+
+          print("v63.9 deployment verification: PASS")
+          print("v63.9 diagnostic integrity self-test: PASS")
+          print("Hourly schedule: 0 * * * *")
+          PY
+
+      - name: Compile check
+        run: |
+          set -euo pipefail
+          python -m py_compile main.py
+          echo "main.py compile check: PASS"
+
+      - name: Run one closed-candle scan
+        run: |
+          set -euo pipefail
+          echo "Starting v63.9 hourly scan..."
+          echo "Schedule target: minute 00 of every hour"
+          python -u main.py
