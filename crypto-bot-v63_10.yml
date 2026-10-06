@@ -1,0 +1,101 @@
+name: Crypto Signal Bot v63.10
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Hourly, offset from the top of the hour to reduce GitHub Actions congestion.
+    - cron: "7 * * * *"
+      timezone: "Asia/Tehran"
+
+concurrency:
+  group: crypto-signal-bot
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      TZ: Asia/Tehran
+      RUN_ONCE: "1"
+      TELEGRAM_TEST_ON_START: "0"
+      PYTHONUNBUFFERED: "1"
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install requests pandas numpy
+
+      - name: Verify exact v63.10 deployment
+        run: |
+          set -euo pipefail
+          test -f main.py
+          python -m py_compile main.py
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          source = Path("main.py").read_text(encoding="utf-8")
+          ast.parse(source, filename="main.py")
+          required = [
+              'Version: 2026-10-06 v63.10 | ROOT FIX | DIAGNOSTIC INTEGRITY | RR BOUNDARY | A+ ONLY | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only',
+              'DEPLOYMENT_ID = "v63.10-root-fix-20261006"',
+              'def professional_signal_quality_gate',
+              'def final_telegram_quality_gate',
+              'def _validate_selected_engine_signal',
+              'def _log_selected_engine_diagnostic',
+              'def run_v63_10_root_fix_self_test',
+              'RR_EPSILON = 1e-9',
+              'TP1_RR = 1.80',
+              'TP2_RR = 2.40',
+          ]
+          missing = [x for x in required if x not in source]
+          if missing:
+              raise SystemExit("Missing v63.10 deployment markers: " + ", ".join(missing))
+          print("DEPLOYMENT SOURCE: v63.10-root-fix-20261006")
+          print("AST + markers: PASS")
+          print("Lines:", len(source.splitlines()))
+          print("Bytes:", len(source.encode("utf-8")))
+          PY
+
+      - name: Import and root-fix self-tests
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import importlib.util
+          spec = importlib.util.spec_from_file_location("crypto_signal_bot", "main.py")
+          if spec is None or spec.loader is None:
+              raise SystemExit("Cannot load main.py")
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          assert module.DEPLOYMENT_ID == "v63.10-root-fix-20261006"
+          assert module.run_v63_10_root_fix_self_test() is True
+          assert module.run_v63_9_diagnostic_integrity_self_test() is True
+          print("IMPORT + v63.10 ROOT-FIX SELF-TESTS: PASS")
+          print("Rejected/UNKNOWN/zero-metric engine isolation: PASS")
+          print("Inclusive RR boundary: PASS")
+          PY
+
+      - name: Run one closed-candle scan
+        run: |
+          set -euo pipefail
+          echo "Starting v63.10 hourly scan..."
+          echo "Schedule: minute 07 of every hour (Asia/Tehran)"
+          python -u main.py
