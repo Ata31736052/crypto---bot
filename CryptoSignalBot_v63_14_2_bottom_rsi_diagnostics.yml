@@ -1,0 +1,117 @@
+name: Crypto Signal Bot v63.14.2 | Bottom RSI
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '7 * * * *'
+      timezone: 'Asia/Tehran'
+
+concurrency:
+  group: crypto-signal-bot
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      RUN_ONCE: '1'
+      TELEGRAM_TEST_ON_START: '0'
+      PYTHONUNBUFFERED: '1'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            python -m pip install -r requirements.txt
+          else
+            python -m pip install requests pandas numpy
+          fi
+
+      - name: Verify source identity and configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f main.py ]; then
+            echo "ERROR: main.py is missing at repository root."
+            echo "Python files found:"
+            find . -maxdepth 3 -type f -name '*.py' -print | sort
+            exit 1
+          fi
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          source = Path('main.py').read_text(encoding='utf-8')
+          checks = {
+              'v63.14.2 deployment marker': 'DEPLOYMENT_ID = "v63.14.2-bottom-rsi-root-fix-20261009"' in source,
+              'Bottom RSI lower bound': re.search(r'^BOTTOM_RSI_MIN\s*=\s*20\s*$', source, re.M) is not None,
+              'Bottom RSI upper bound': re.search(r'^BOTTOM_RSI_MAX\s*=\s*44\s*$', source, re.M) is not None,
+              'shared professional RSI gate': 'rsi_ok = (BOTTOM_RSI_MIN <= rsi <= BOTTOM_RSI_MAX) if side == "BUY" else (56 <= rsi <= 76)' in source,
+              'RSI regression self-test': 'def run_v63_14_2_bottom_rsi_self_test():' in source,
+              'score gate unchanged': 'PRO_MIN_SCORE = 90' in source,
+              'sell score gate unchanged': 'PRO_SELL_MIN_SCORE = 92' in source,
+              'ADX gate unchanged': 'PRO_MIN_1H_ADX = 23.0' in source,
+              'volume gate unchanged': 'PRO_MIN_VOLUME_RATIO = 1.35' in source,
+          }
+          for label, passed in checks.items():
+              print(f"{'PASS' if passed else 'FAIL'}: {label}")
+          failed = [label for label, passed in checks.items() if not passed]
+          if failed:
+              raise SystemExit('Source verification failed: ' + ', '.join(failed))
+          print('Source identity/configuration: PASS')
+          PY
+          python -m py_compile main.py
+          echo "Python compile: PASS"
+
+      - name: Run regression self-tests without scanning
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ONCE=0 TELEGRAM_TEST_ON_START=0 python - <<'PY'
+          import main
+          tests = [
+              ('v63.9 diagnostic integrity', main.run_v63_9_diagnostic_integrity_self_test),
+              ('v63.10 root fix', main.run_v63_10_root_fix_self_test),
+              ('v63.12 root fix', main.run_v63_12_root_fix3_self_test),
+              ('v63.14 diagnostic trace', main.run_v63_14_diagnostic_trace_self_test),
+              ('v63.14.1 root fix', main.run_v63_14_1_root_fix_self_test),
+              ('v63.14.2 Bottom RSI', main.run_v63_14_2_bottom_rsi_self_test),
+          ]
+          for label, test in tests:
+              assert test() is True, f'{label} failed'
+              print(f'PASS: {label}')
+          print('ALL REGRESSION SELF-TESTS: PASS')
+          print('RSI bounds:', main.BOTTOM_RSI_MIN, main.BOTTOM_RSI_MAX)
+          print('Core gates:', main.PRO_MIN_SCORE, main.PRO_MIN_1H_ADX,
+                main.PRO_MIN_VOLUME_RATIO, main.PRO_MIN_30M_CONFIRMATIONS)
+          PY
+
+      - name: Run one closed-candle scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          python main.py
+
+      - name: Upload scan diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crypto-bot-diagnostics-v63.14.2-${{ github.run_number }}
+          path: |
+            professional_diagnostics.txt
+            symbol_diagnostics.txt
+          if-no-files-found: warn
+          retention-days: 7
