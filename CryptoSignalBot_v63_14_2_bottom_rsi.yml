@@ -1,0 +1,117 @@
+name: Crypto Signal Bot v63.14.2 | Bottom RSI
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '7 * * * *'
+      timezone: 'Asia/Tehran'
+
+concurrency:
+  group: crypto-signal-bot
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      RUN_ONCE: '1'
+      TELEGRAM_TEST_ON_START: '0'
+      PYTHONUNBUFFERED: '1'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            pip install requests pandas numpy
+          fi
+
+      - name: Resolve bot source
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -f CryptoSignalBot_main_v63_14_2_bottom_rsi.py ]; then
+            echo "Using v63.14.2 Bottom RSI source"
+            cp CryptoSignalBot_main_v63_14_2_bottom_rsi.py main.py
+          elif [ -f main.py ]; then
+            echo "Using existing main.py (fallback)"
+          elif [ -f CryptoSignalBot_main_v63_14_1_root_fix.py ]; then
+            echo "main.py not found; using v63.14.1 fallback source"
+            cp CryptoSignalBot_main_v63_14_1_root_fix.py main.py
+          else
+            echo "ERROR: No supported bot source file found."
+            echo "Python files found:"
+            find . -maxdepth 3 -type f -name '*.py' -print | sort
+            exit 1
+          fi
+
+          test -f main.py
+          echo "Resolved source:"
+          ls -lh main.py
+
+      - name: Verify deployment and compile
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f main.py
+          grep -q 'v63.14.2-bottom-rsi-lower-20261009' main.py
+          grep -q 'run_v63_14_2_bottom_rsi_self_test' main.py
+          grep -q 'PRO_MIN_SCORE = 90' main.py
+          grep -q 'PRO_SELL_MIN_SCORE = 92' main.py
+          grep -q 'PRO_MIN_QUALITY_POINTS = 15' main.py
+          grep -q 'PRO_MIN_1H_ADX = 23.0' main.py
+          grep -q 'PRO_MIN_VOLUME_RATIO = 1.35' main.py
+          grep -q 'PRO_MIN_30M_CONFIRMATIONS = 6' main.py
+          grep -q 'PRO_MAX_EMA21_DISTANCE = 4.00' main.py
+          grep -q 'PRO_MAX_EMA200_DISTANCE = 12.00' main.py
+          grep -q 'PRO_MIN_RR_TP1 = 1.80' main.py
+          grep -q 'PRO_MIN_RR_TP2 = 2.40' main.py
+          grep -q 'BOTTOM_RSI_MIN = 20' main.py
+          grep -q 'BOTTOM_RSI_MAX = 44' main.py
+
+          python -m py_compile main.py
+          echo "Source + deployment markers + compile: PASS"
+
+      - name: Run all regression self-tests without scanning
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ONCE=0 TELEGRAM_TEST_ON_START=0 python - <<'PY'
+          import main
+
+          assert main.run_v63_9_diagnostic_integrity_self_test() is True
+          assert main.run_v63_10_root_fix_self_test() is True
+          assert main.run_v63_12_root_fix3_self_test() is True
+          assert main.run_v63_14_diagnostic_trace_self_test() is True
+          assert main.run_v63_14_1_root_fix_self_test() is True
+          assert main.run_v63_14_2_bottom_rsi_self_test() is True
+
+          print("ALL v63.14.2 REGRESSION SELF-TESTS: PASS")
+          print("Thresholds:", main.PRO_MIN_SCORE, main.PRO_MIN_1H_ADX,
+                main.PRO_MIN_VOLUME_RATIO, main.PRO_MIN_30M_CONFIRMATIONS)
+          PY
+
+      - name: Run one closed-candle scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          python main.py
