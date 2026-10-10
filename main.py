@@ -30,7 +30,7 @@ RUN_ONCE = os.getenv("RUN_ONCE", "0") == "1"
 TELEGRAM_TEST_ON_START = False
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.8-confirmation-diagnostic-truth-20261009"
+DEPLOYMENT_ID = "v63.14.9-engine-rejection-trace-20261010"
 
 
 
@@ -7743,6 +7743,54 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
 
 
 
+# =========================================================
+# v63.14.9 ENGINE REJECTION TRACE
+# Diagnostic helpers only; signal thresholds remain unchanged.
+# =========================================================
+def summarize_engine_trace(trace):
+    trace = trace if isinstance(trace, dict) else {}
+    result, stage_counts = {}, {}
+    for engine in ('trend', 'reversal', 'breakout'):
+        entry = trace.get(engine) if isinstance(trace.get(engine), dict) else {}
+        rejected = list(entry.get('professional_rejection') or [])
+        if rejected:
+            stage, reason = 'PROFESSIONAL_REJECT', ' | '.join(str(x) for x in rejected[:6])
+        elif entry.get('candidate'):
+            stage, reason = 'CANDIDATE', 'CANDIDATE_REACHED_GATE'
+        else:
+            stage = 'NO_CANDIDATE'
+            reason = str(entry.get('reason') or entry.get('first_rejection') or 'NO_CANDIDATE_REASON')
+        result[engine] = {'stage': stage, 'reason': reason}
+        stage_counts[stage] = stage_counts.get(stage, 0) + 1
+    raw_htf = trace.get('higher_tf') if isinstance(trace.get('higher_tf'), dict) else {}
+    htf = {}
+    for tf in ('4h', '1d'):
+        entry = raw_htf.get(tf) if isinstance(raw_htf.get(tf), dict) else {}
+        stage = str(entry.get('stage') or 'NOT_EVALUATED')
+        reason = str(entry.get('reason') or stage)
+        htf[tf] = {'stage': stage, 'reason': reason}
+        stage_counts[stage] = stage_counts.get(stage, 0) + 1
+    result['higher_tf'] = htf
+    result['stage_counts'] = stage_counts
+    return result
+
+def run_v63_14_9_engine_rejection_trace_self_test():
+    sample = summarize_engine_trace({
+        'trend': {'candidate': False, 'reason': 'NO_TREND_SETUP'},
+        'reversal': {'candidate': True, 'professional_rejection': ['score 80 < 90']},
+        'breakout': {'candidate': False, 'reason': 'NO_BREAKOUT_SETUP'},
+        'higher_tf': {
+            '4h': {'stage': 'SCORE_REJECT', 'reason': 'score 82 < 90'},
+            '1d': {'stage': 'DATA_REJECT', 'reason': 'context data unavailable'},
+        },
+    })
+    assert sample['trend']['stage'] == 'NO_CANDIDATE'
+    assert sample['reversal']['stage'] == 'PROFESSIONAL_REJECT'
+    assert sample['higher_tf']['4h']['stage'] == 'SCORE_REJECT'
+    assert sample['higher_tf']['1d']['stage'] == 'DATA_REJECT'
+    assert PRO_MIN_SCORE == 90 and PRO_HIGHER_TF_MIN_SCORE == 90
+    return True
+
 def analyze_higher_timeframe_signal(symbol, data, timeframe, btc_regime=None):
     """Generate an independent 4H or Daily signal.
 
@@ -7752,7 +7800,12 @@ def analyze_higher_timeframe_signal(symbol, data, timeframe, btc_regime=None):
     with their own timeframe-aware duplicate key.
     """
     tf = str(timeframe).lower()
+    diagnostic = data.setdefault("_higher_tf_diagnostic", {}) if isinstance(data, dict) else {}
+    trace = {"timeframe": tf, "stage": "STARTED", "reason": "EVALUATING"}
+    if isinstance(diagnostic, dict) and tf in ("4h", "1d"):
+        diagnostic[tf] = trace
     if tf not in ("4h", "1d") or not data:
+        trace.update({"stage": "NO_CANDIDATE", "reason": "INVALID_TIMEFRAME_OR_NO_DATA"})
         return None
 
     main_df = data.get(tf)
@@ -7760,11 +7813,14 @@ def analyze_higher_timeframe_signal(symbol, data, timeframe, btc_regime=None):
     context_tf = "1d" if tf == "4h" else "4h"
     context_df = data.get(context_tf)
     if main_df is None or context_df is None or len(main_df) < 50 or len(context_df) < 50:
+        trace.update({"stage": "DATA_REJECT", "reason": f"PRIMARY_OR_CONTEXT_DATA_INSUFFICIENT primary={0 if main_df is None else len(main_df)} context={0 if context_df is None else len(context_df)}"})
         return None
 
     buy = score_timeframe(main_df, "BUY", label)
     sell = score_timeframe(main_df, "SELL", label)
+    trace.update({"buy_score": safe_int(buy.get("score", 0)), "sell_score": safe_int(sell.get("score", 0)), "buy_hard_pass": bool(buy.get("hard_pass")), "sell_hard_pass": bool(sell.get("hard_pass"))})
     if not buy.get("hard_pass") and not sell.get("hard_pass"):
+        trace.update({"stage": "SETUP_REJECT", "reason": "BOTH_DIRECTIONS_FAILED_HARD_SETUP", "buy_reasons": list(buy.get("reasons", []))[:6], "sell_reasons": list(sell.get("reasons", []))[:6]})
         return None
 
     # Choose the stronger side; do not force a signal when both are weak/equal.
@@ -7773,12 +7829,14 @@ def analyze_higher_timeframe_signal(symbol, data, timeframe, btc_regime=None):
     elif sell.get("score", 0) > buy.get("score", 0):
         side, base = "SELL", sell
     else:
+        trace.update({"stage": "SETUP_REJECT", "reason": "BUY_SELL_SCORE_TIE"})
         return None
 
     row = main_df.iloc[-1]
     context_row = context_df.iloc[-1]
     close = safe_float(row.get("close"))
     if close <= 0 or not indicators_ready(row):
+        trace.update({"stage": "INDICATOR_REJECT", "reason": "INVALID_CLOSE_OR_INDICATORS_NOT_READY", "close": close})
         return None
 
     # Higher timeframe context: modest adjustment, never a hard block.
@@ -7812,7 +7870,9 @@ def analyze_higher_timeframe_signal(symbol, data, timeframe, btc_regime=None):
             btc_reason = f"BTC {combined.lower()} headwind"
 
     score = max(0, min(100, int(round(base.get("score", 0) + adjustment))))
+    trace.update({"side": side, "base_score": safe_int(base.get("score", 0)), "context_trend": context_trend, "context_adjustment": adjustment, "final_score": score, "required_score": HIGHER_TF_MIN_SCORE})
     if score < HIGHER_TF_MIN_SCORE:
+        trace.update({"stage": "SCORE_REJECT", "reason": f"SCORE_BELOW_THRESHOLD score={score} required={HIGHER_TF_MIN_SCORE}"})
         return None
 
     adx = safe_float(row.get("adx"))
@@ -7824,6 +7884,7 @@ def analyze_higher_timeframe_signal(symbol, data, timeframe, btc_regime=None):
     if btc_reason:
         reasons.append(btc_reason)
 
+    trace.update({"stage": "CANDIDATE", "reason": "HIGHER_TF_SETUP_PASSED", "strength": strength})
     return {
         "symbol": symbol,
         "signal": side,
@@ -8461,6 +8522,7 @@ def analyze_one_symbol(symbol, btc_regime):
             "trend": {},
             "reversal": {},
             "breakout": {},
+            "higher_tf": {},
         }
         trend_signal = evaluate_final_signal(symbol=symbol, data=data, btc_regime=btc_regime)
         raw_trend_signal = trend_signal
@@ -8475,6 +8537,10 @@ def analyze_one_symbol(symbol, btc_regime):
             trend_signal["engine"] = "TREND"
             trend_signal = attach_trade_levels(trend_signal)
             if not validate_risk_levels(trend_signal):
+                risk_reason = str(trend_signal.get("risk_reject_reason") or "RISK_LEVELS_INVALID")
+                trace["trend"]["risk_rejection"] = risk_reason
+                if trace["first_rejection"] is None:
+                    trace["first_rejection"] = "TREND:RISK_REJECT:" + risk_reason
                 trend_signal = None
             else:
                 passed, reasons, _ = professional_signal_quality_gate(trend_signal, data, btc_regime)
@@ -8588,6 +8654,10 @@ def analyze_one_symbol(symbol, btc_regime):
         if breakout_signal:
             breakout_signal = attach_trade_levels(breakout_signal)
             if not validate_risk_levels(breakout_signal):
+                risk_reason = str(breakout_signal.get("risk_reject_reason") or "RISK_LEVELS_INVALID")
+                trace["breakout"]["risk_rejection"] = risk_reason
+                if trace["first_rejection"] is None:
+                    trace["first_rejection"] = "BREAKOUT:RISK_REJECT:" + risk_reason
                 breakout_signal = None
             else:
                 passed, _, _ = professional_signal_quality_gate(breakout_signal, data, btc_regime)
@@ -8623,20 +8693,40 @@ def analyze_one_symbol(symbol, btc_regime):
         higher_signals = []
         if ENABLE_4H_SIGNALS:
             sig_4h = analyze_higher_timeframe_signal(symbol, data, "4h", btc_regime)
+            htf_trace = (data.get("_higher_tf_diagnostic", {}) or {}).get("4h", {})
+            trace["higher_tf"]["4h"] = dict(htf_trace) if isinstance(htf_trace, dict) else {"stage": "NO_CANDIDATE", "reason": "NO_TRACE"}
             if sig_4h:
                 sig_4h = attach_trade_levels(sig_4h)
-                if validate_risk_levels(sig_4h):
-                    passed, _, _ = professional_signal_quality_gate(sig_4h, data, btc_regime)
+                if not validate_risk_levels(sig_4h):
+                    reason = str(sig_4h.get("risk_reject_reason") or "RISK_LEVELS_INVALID")
+                    trace["higher_tf"]["4h"].update({"stage": "RISK_REJECT", "reason": reason})
+                else:
+                    passed, reject_reasons, _ = professional_signal_quality_gate(sig_4h, data, btc_regime)
                     if passed:
+                        trace["higher_tf"]["4h"].update({"stage": "ACCEPTED", "reason": "PASSED_PROFESSIONAL_GATE"})
                         higher_signals.append(sig_4h)
+                    else:
+                        p = sig_4h.get("professional_quality_breakdown", {})
+                        reasons = (p.get("reject_reasons", []) if isinstance(p, dict) else []) or reject_reasons or ["PROFESSIONAL_GATE_REJECT"]
+                        trace["higher_tf"]["4h"].update({"stage": "PROFESSIONAL_REJECT", "reason": " | ".join(str(x) for x in reasons[:6])})
         if ENABLE_DAILY_SIGNALS:
             sig_1d = analyze_higher_timeframe_signal(symbol, data, "1d", btc_regime)
+            htf_trace = (data.get("_higher_tf_diagnostic", {}) or {}).get("1d", {})
+            trace["higher_tf"]["1d"] = dict(htf_trace) if isinstance(htf_trace, dict) else {"stage": "NO_CANDIDATE", "reason": "NO_TRACE"}
             if sig_1d:
                 sig_1d = attach_trade_levels(sig_1d)
-                if validate_risk_levels(sig_1d):
-                    passed, _, _ = professional_signal_quality_gate(sig_1d, data, btc_regime)
+                if not validate_risk_levels(sig_1d):
+                    reason = str(sig_1d.get("risk_reject_reason") or "RISK_LEVELS_INVALID")
+                    trace["higher_tf"]["1d"].update({"stage": "RISK_REJECT", "reason": reason})
+                else:
+                    passed, reject_reasons, _ = professional_signal_quality_gate(sig_1d, data, btc_regime)
                     if passed:
+                        trace["higher_tf"]["1d"].update({"stage": "ACCEPTED", "reason": "PASSED_PROFESSIONAL_GATE"})
                         higher_signals.append(sig_1d)
+                    else:
+                        p = sig_1d.get("professional_quality_breakdown", {})
+                        reasons = (p.get("reject_reasons", []) if isinstance(p, dict) else []) or reject_reasons or ["PROFESSIONAL_GATE_REJECT"]
+                        trace["higher_tf"]["1d"].update({"stage": "PROFESSIONAL_REJECT", "reason": " | ".join(str(x) for x in reasons[:6])})
 
         if selected:
             selected.setdefault("signal_timeframe", TIMEFRAME_MAIN)
@@ -9490,6 +9580,8 @@ def scan_market():
                 fh.write(f"  SELECTED: {tr.get('selected') or 'NONE'}\n")
                 for engine in ('trend','reversal','breakout'):
                     fh.write(f"  {engine.upper()}: {tr.get(engine) or {}}\n")
+                fh.write(f"  HIGHER_TF: {tr.get('higher_tf') or {}}\n")
+                fh.write(f"  STAGE_SUMMARY: {summarize_engine_trace(tr)}\n")
                 fh.write("\n")
         log(f"Symbol diagnostics file: {symbol_diag_path}")
     except Exception as exc:
@@ -10544,6 +10636,7 @@ if __name__ == "__main__":
     assert run_v63_14_3_outcome_boundary_self_test() is True
     assert run_v63_14_7_final_gate_consistency_self_test() is True
     assert run_v63_14_8_confirmation_diagnostic_self_test() is True
+    assert run_v63_14_9_engine_rejection_trace_self_test() is True
 
     try:
 
