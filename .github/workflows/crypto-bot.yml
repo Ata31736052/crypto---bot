@@ -1,4 +1,4 @@
-name: Crypto Signal Bot v63.14.14 | Invalid FINAL Outcome Repair
+name: Crypto Signal Bot v63.14.15 | Extended History Outcome Repair
 # PR event runs verification and regression tests only; live scan is skipped.
 
 on:
@@ -58,7 +58,7 @@ jobs:
           import re
           source = Path('main.py').read_text(encoding='utf-8')
           checks = {
-              'v63.14.13 deployment marker': 'DEPLOYMENT_ID = "v63.14.14-invalid-final-outcome-repair-20261010"' in source,
+              'v63.14.13 deployment marker': 'DEPLOYMENT_ID = "v63.14.15-extended-history-outcome-repair-20261010"' in source,
               'Bottom RSI lower bound': re.search(r'^BOTTOM_RSI_MIN\s*=\s*20\s*$', source, re.M) is not None,
               'Bottom RSI upper bound': re.search(r'^BOTTOM_RSI_MAX\s*=\s*44\s*$', source, re.M) is not None,
               'shared professional RSI gate': 'rsi_ok = (BOTTOM_RSI_MIN <= rsi <= BOTTOM_RSI_MAX) if side == "BUY" else (56 <= rsi <= 76)' in source,
@@ -145,7 +145,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: crypto-bot-diagnostics-v63.14.14-${{ github.run_number }}
+          name: crypto-bot-diagnostics-v63.14.15-${{ github.run_number }}
           path: |
             professional_diagnostics.txt
             symbol_diagnostics.txt
