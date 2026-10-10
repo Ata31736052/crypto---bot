@@ -118,7 +118,7 @@ jobs:
               ('v63.14.8 confirmation diagnostic truth', main.run_v63_14_8_confirmation_diagnostic_self_test),
               ('v63.14.9 engine rejection trace', main.run_v63_14_9_engine_rejection_trace_self_test),
               ('v63.14.10 score-grade diagnostic', main.run_v63_14_10_score_grade_diagnostic_self_test),
-  ('v63.14.11 analytics scope', main.run_v63_14_11_analytics_scope_self_test),
+              ('v63.14.11 analytics scope', main.run_v63_14_11_analytics_scope_self_test),
           ]
           for label, test in tests:
               assert test() is True, f'{label} failed'
