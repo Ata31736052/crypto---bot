@@ -8919,13 +8919,13 @@ def run_v63_14_3_outcome_boundary_self_test():
     assert _is_anchored_historical_window(start_ms, None) is False
 
     # Empty placeholder horizon dictionaries must not suppress historical repair.
-    incomplete_v55 = {
-        "outcome_engine_version": 55,
+    incomplete_v56 = {
+        "outcome_engine_version": 56,
         "horizons": {f"{h}h": {} for h in OUTCOME_HORIZONS_HOURS},
     }
-    assert not _has_complete_outcome_horizons(incomplete_v55)
-    complete_v55 = {
-        "outcome_engine_version": 55,
+    assert not _has_complete_outcome_horizons(incomplete_v56)
+    complete_v56 = {
+        "outcome_engine_version": 56,
         "horizons": {
             f"{h}h": {"change_percent": 0.0, "mfe_percent": 0.0,
                        "mae_percent": 0.0, "tp1_reached": False,
@@ -8933,7 +8933,7 @@ def run_v63_14_3_outcome_boundary_self_test():
             for h in OUTCOME_HORIZONS_HOURS
         },
     }
-    assert _has_complete_outcome_horizons(complete_v55)
+    assert _has_complete_outcome_horizons(complete_v56)
     assert DEPLOYMENT_ID == "v63.14.12-outcome-coverage-gate-20261010"
 
     # Low score must not suppress other rejection reasons in diagnostics.
