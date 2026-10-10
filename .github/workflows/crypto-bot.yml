@@ -143,7 +143,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: crypto-bot-diagnostics-v63.14.11-${{ github.run_number }}
+          name: crypto-bot-diagnostics-v63.14.12-${{ github.run_number }}
           path: |
             professional_diagnostics.txt
             symbol_diagnostics.txt
