@@ -5,7 +5,7 @@
 # Confirmation TF: 30M
 # Higher TF Context: 4H + Daily
 # Binance Spot only | No auto-trading
-# Version: 2026-10-10 v63.14.10 | SCORE-GRADE SEMANTICS | REJECTION TRACE CLARITY | NO THRESHOLD RELAXATION | OUTCOME WINDOW BOUNDARY FIX | BOTTOM RSI | FAIL-CLOSED | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
+# Version: 2026-10-10 v63.14.12 | OUTCOME CANDLE-COVERAGE GATE | SCORE-GRADE SEMANTICS | NO THRESHOLD RELAXATION | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
 # =========================================================
 
 import os
@@ -30,7 +30,7 @@ RUN_ONCE = os.getenv("RUN_ONCE", "0") == "1"
 TELEGRAM_TEST_ON_START = False
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.11-analytics-scope-diagnostic-20261010"
+DEPLOYMENT_ID = "v63.14.12-outcome-coverage-gate-20261010"
 
 
 
@@ -6833,6 +6833,29 @@ def _horizon_is_complete(now_utc, candle_ts, hours):
     return now_utc >= signal_close + pd.Timedelta(hours=hours)
 
 
+def _outcome_window_has_complete_candles(window, start_time, end_time):
+    """Require every expected 1H candle in [start_time, end_time).
+
+    Elapsed wall-clock time alone is not evidence that the historical OHLC
+    window was fetched completely. Missing bars must not be interpreted as
+    NO_LEVEL_HIT or used to publish incomplete horizon metrics.
+    """
+    if not isinstance(window, pd.DataFrame) or window.empty or "open_time" not in window.columns:
+        return False
+    start = pd.to_datetime(start_time, utc=True, errors="coerce")
+    end = pd.to_datetime(end_time, utc=True, errors="coerce")
+    if pd.isna(start) or pd.isna(end) or end <= start:
+        return False
+    span_seconds = (end - start).total_seconds()
+    if span_seconds % 3600 != 0:
+        return False
+    expected_count = int(span_seconds // 3600)
+    observed = pd.to_datetime(window["open_time"], utc=True, errors="coerce").dropna()
+    observed = set(observed.tolist())
+    expected = {start + pd.Timedelta(hours=i) for i in range(expected_count)}
+    return expected.issubset(observed)
+
+
 def _outcome_window_ms(candle_ts):
     """Return Binance millisecond bounds for the 8H post-signal window.
 
@@ -6902,9 +6925,9 @@ def _update_signal_outcome_record(record, df, now_utc):
     record.setdefault("performance", {})
 
     changed = False
-    # v55 corrects an off-by-one horizon boundary. Recompute legacy v54 outcomes
-    # rather than preserving their potentially contaminated first-event metrics.
-    if safe_int(record.get("outcome_engine_version", 0)) < 55:
+    # v56 adds a strict candle-coverage gate. Recompute earlier outcomes so
+    # missing OHLC bars cannot be mistaken for NO_LEVEL_HIT or finalized results.
+    if safe_int(record.get("outcome_engine_version", 0)) < 56:
         record["first_event"] = None
         record["first_event_time"] = None
         record["ambiguous_event"] = False
@@ -6932,7 +6955,7 @@ def _update_signal_outcome_record(record, df, now_utc):
             continue
 
         available = future[future["open_time"] < horizon_end].copy()
-        if available.empty:
+        if not _outcome_window_has_complete_candles(available, signal_close, horizon_end):
             continue
 
         last = available.iloc[-1]
@@ -6974,7 +6997,8 @@ def _update_signal_outcome_record(record, df, now_utc):
     # This is descriptive only; it does NOT stop horizon tracking.
     # ---------------------------------------------------------
     observation = future[future["open_time"] < final_end].copy()
-    if not observation.empty:
+    observation_complete = _outcome_window_has_complete_candles(observation, signal_close, final_end)
+    if observation_complete:
         any_tp1 = False
         any_tp2 = False
         any_sl = False
@@ -7030,7 +7054,7 @@ def _update_signal_outcome_record(record, df, now_utc):
     # ---------------------------------------------------------
     # Finalization only after the complete 8H window is available.
     # ---------------------------------------------------------
-    if now_utc >= final_end:
+    if now_utc >= final_end and observation_complete:
         if record.get("outcome_status") != "FINAL":
             record["outcome_status"] = "FINAL"
             record["finalized_at"] = now_iran().isoformat()
@@ -7043,7 +7067,7 @@ def _update_signal_outcome_record(record, df, now_utc):
         record["outcome_status"] = "OBSERVING_AFTER_EVENT"
         changed = True
 
-    record["outcome_engine_version"] = 55
+    record["outcome_engine_version"] = 56
     return changed
 
 
@@ -7186,6 +7210,40 @@ def run_v63_14_11_analytics_scope_self_test():
     return True
 
 
+def run_v63_14_12_outcome_coverage_self_test():
+    t0 = pd.Timestamp("2026-01-01T00:00:00Z")
+    signal_close = t0 + pd.Timedelta(hours=1)
+    final_end = signal_close + pd.Timedelta(hours=8)
+    complete = pd.DataFrame([
+        {"open_time": signal_close + pd.Timedelta(hours=i), "high": 104.0,
+         "low": 99.0, "close": 101.0}
+        for i in range(8)
+    ])
+    assert _outcome_window_has_complete_candles(complete, signal_close, final_end)
+
+    missing_middle = complete.drop(index=3)
+    assert not _outcome_window_has_complete_candles(missing_middle, signal_close, final_end)
+
+    record = {
+        "candle_time": t0.isoformat(), "signal": "BUY", "entry": 100.0,
+        "stop_loss": 95.0, "tp1": 105.0, "tp2": 110.0,
+        "outcome_status": "OPEN", "first_event": None,
+        "first_event_time": None, "horizons": {}, "performance": {},
+    }
+    now = t0 + pd.Timedelta(hours=10)
+    _update_signal_outcome_record(record, missing_middle, now)
+    assert record["outcome_status"] != "FINAL", "incomplete 8H candle window was finalized"
+    assert record.get("first_event") is None, "incomplete window produced a first-event claim"
+    assert "8h" not in record["horizons"], "incomplete horizon was published"
+
+    _update_signal_outcome_record(record, complete, now)
+    assert record["outcome_status"] == "FINAL"
+    assert record["first_event"] == "NO_LEVEL_HIT"
+    assert record["outcome_engine_version"] == 56
+    assert _has_complete_outcome_horizons(record)
+    return True
+
+
 def build_outcome_analytics(history):
     """Build descriptive analytics by mode, score band, and direction."""
     finalized = [
@@ -7271,7 +7329,7 @@ def _has_complete_outcome_horizons(record):
     placeholder dictionaries could therefore make an incomplete FINAL record
     look migrated forever and suppress future repair attempts.
     """
-    if not isinstance(record, dict) or safe_int(record.get("outcome_engine_version", 0)) < 55:
+    if not isinstance(record, dict) or safe_int(record.get("outcome_engine_version", 0)) < 56:
         return False
     horizons = record.get("horizons")
     if not isinstance(horizons, dict):
@@ -7287,9 +7345,9 @@ def _has_complete_outcome_horizons(record):
 def update_signal_outcomes(history):
     """Refresh/migrate signal outcomes using closed Binance 1H candles.
 
-    v55 revisits legacy FINAL records because v54 horizon windows could include
-    the candle opening exactly at the horizon boundary. Once a record has a
-    valid v55 profile it is skipped.
+    v56 revisits prior records because elapsed time alone previously allowed
+    incomplete historical OHLC windows to be finalized. Only complete v56
+    profiles are skipped.
     """
     if not OUTCOME_TRACKER_ENABLED or not isinstance(history, list) or not history:
         return {"updated": 0, "finalized": 0, "tracked": 0, "migrated": 0}
@@ -7308,8 +7366,8 @@ def update_signal_outcomes(history):
         if str(record.get("signal", "")).upper() not in ("BUY", "SELL"):
             continue
         version = safe_int(record.get("outcome_engine_version", 0))
-        complete_v55 = _has_complete_outcome_horizons(record)
-        if complete_v55 and str(record.get("outcome_status", "OPEN")).upper() == "FINAL":
+        complete_v56 = _has_complete_outcome_horizons(record)
+        if complete_v56 and str(record.get("outcome_status", "OPEN")).upper() == "FINAL":
             continue
         records.append(record)
 
@@ -8826,7 +8884,7 @@ def run_v63_14_3_outcome_boundary_self_test():
     _update_signal_outcome_record(record, candles, t0 + pd.Timedelta(hours=3))
     assert record["horizons"]["1h"]["tp1_reached"] is False, "boundary candle leaked into 1H window"
     assert record["horizons"]["2h"]["tp1_reached"] is True, "2H window did not include the correct candle"
-    assert record["outcome_engine_version"] == 55
+    assert record["outcome_engine_version"] == 56
 
     # A legacy FINAL v54 record must be recalculated; a TP only at t+9 is outside 8H.
     t0 = pd.Timestamp("2026-01-01T00:00:00Z")
@@ -8843,7 +8901,7 @@ def run_v63_14_3_outcome_boundary_self_test():
               "horizons": {f"{h}h": {"tp1_reached": True} for h in OUTCOME_HORIZONS_HOURS},
               "performance": {}}
     _update_signal_outcome_record(legacy, pd.DataFrame(rows), t0 + pd.Timedelta(hours=10))
-    assert legacy["outcome_engine_version"] == 55
+    assert legacy["outcome_engine_version"] == 56
     assert legacy["first_event"] == "NO_LEVEL_HIT", "legacy boundary event was not corrected"
     assert legacy["horizons"]["8h"]["tp1_reached"] is False, "8H stats included t+9 boundary candle"
 
@@ -10695,6 +10753,7 @@ if __name__ == "__main__":
     assert run_v63_14_9_engine_rejection_trace_self_test() is True
     assert run_v63_14_10_score_grade_diagnostic_self_test() is True
     assert run_v63_14_11_analytics_scope_self_test() is True
+    assert run_v63_14_12_outcome_coverage_self_test() is True
 
     try:
 
