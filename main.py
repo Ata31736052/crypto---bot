@@ -5,7 +5,7 @@
 # Confirmation TF: 30M
 # Higher TF Context: 4H + Daily
 # Binance Spot only | No auto-trading
-# Version: 2026-10-10 v63.14.12 | OUTCOME CANDLE-COVERAGE GATE | SCORE-GRADE SEMANTICS | NO THRESHOLD RELAXATION | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
+# Version: 2026-10-10 v63.14.13 | OUTCOME CANDLE-COVERAGE GATE | SCORE-GRADE SEMANTICS | NO THRESHOLD RELAXATION | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
 # =========================================================
 
 import os
@@ -30,7 +30,7 @@ RUN_ONCE = os.getenv("RUN_ONCE", "0") == "1"
 TELEGRAM_TEST_ON_START = False
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.12-outcome-coverage-gate-20261010"
+DEPLOYMENT_ID = "v63.14.13-finalization-metrics-gate-20261010"
 
 
 
@@ -6856,6 +6856,30 @@ def _outcome_window_has_complete_candles(window, start_time, end_time):
     return expected.issubset(observed)
 
 
+def _outcome_horizon_payloads_complete(record):
+    """Require usable metrics for every expected horizon, independent of schema version."""
+    if not isinstance(record, dict):
+        return False
+    horizons = record.get("horizons")
+    if not isinstance(horizons, dict):
+        return False
+    required = ("change_percent", "mfe_percent", "mae_percent", "tp1_reached", "tp2_reached", "sl_reached")
+    for hours in OUTCOME_HORIZONS_HOURS:
+        payload = horizons.get(f"{hours}h")
+        if not isinstance(payload, dict):
+            return False
+        for key in required:
+            if key not in payload or payload.get(key) is None:
+                return False
+            if key in ("change_percent", "mfe_percent", "mae_percent"):
+                try:
+                    if not np.isfinite(float(payload[key])):
+                        return False
+                except (TypeError, ValueError):
+                    return False
+    return True
+
+
 def _outcome_window_ms(candle_ts):
     """Return Binance millisecond bounds for the 8H post-signal window.
 
@@ -6927,7 +6951,7 @@ def _update_signal_outcome_record(record, df, now_utc):
     changed = False
     # v56 adds a strict candle-coverage gate. Recompute earlier outcomes so
     # missing OHLC bars cannot be mistaken for NO_LEVEL_HIT or finalized results.
-    if safe_int(record.get("outcome_engine_version", 0)) < 56:
+    if safe_int(record.get("outcome_engine_version", 0)) < 57:
         record["first_event"] = None
         record["first_event_time"] = None
         record["ambiguous_event"] = False
@@ -6986,7 +7010,7 @@ def _update_signal_outcome_record(record, df, now_utc):
             "window_start": str(signal_close),
             "window_end": str(horizon_end),
             "observed_at": now_iran().isoformat(),
-            "engine_version": 55,
+            "engine_version": 57,
         }
         if horizon_payload.get(key) != payload:
             horizon_payload[key] = payload
@@ -7051,10 +7075,14 @@ def _update_signal_outcome_record(record, df, now_utc):
             record["mae_percent"] = round(mae, 4)
             changed = True
 
+    # Finalization requires complete candles AND usable metrics for all horizons.
+    # Timestamp coverage alone must not finalize a record when an OHLC-derived
+    # horizon metric is invalid or missing.
+    horizon_metrics_complete = _outcome_horizon_payloads_complete(record)
     # ---------------------------------------------------------
-    # Finalization only after the complete 8H window is available.
+    # Finalization only after the complete 8H window and metrics are available.
     # ---------------------------------------------------------
-    if now_utc >= final_end and observation_complete:
+    if now_utc >= final_end and observation_complete and horizon_metrics_complete:
         if record.get("outcome_status") != "FINAL":
             record["outcome_status"] = "FINAL"
             record["finalized_at"] = now_iran().isoformat()
@@ -7067,7 +7095,7 @@ def _update_signal_outcome_record(record, df, now_utc):
         record["outcome_status"] = "OBSERVING_AFTER_EVENT"
         changed = True
 
-    record["outcome_engine_version"] = 56
+    record["outcome_engine_version"] = 57
     return changed
 
 
@@ -7239,8 +7267,21 @@ def run_v63_14_12_outcome_coverage_self_test():
     _update_signal_outcome_record(record, complete, now)
     assert record["outcome_status"] == "FINAL"
     assert record["first_event"] == "NO_LEVEL_HIT"
-    assert record["outcome_engine_version"] == 56
+    assert record["outcome_engine_version"] == 57
     assert _has_complete_outcome_horizons(record)
+
+    # Timestamp coverage alone is insufficient if a required OHLC metric is unusable.
+    invalid_ohlc = complete.copy()
+    invalid_ohlc.loc[invalid_ohlc.index[-1], "close"] = 0.0
+    invalid_record = {
+        "candle_time": t0.isoformat(), "signal": "BUY", "entry": 100.0,
+        "stop_loss": 95.0, "tp1": 105.0, "tp2": 110.0,
+        "outcome_status": "OPEN", "first_event": None,
+        "first_event_time": None, "horizons": {}, "performance": {},
+    }
+    _update_signal_outcome_record(invalid_record, invalid_ohlc, now)
+    assert invalid_record["outcome_status"] != "FINAL", "invalid 8H metric window was finalized"
+    assert not _outcome_horizon_payloads_complete(invalid_record)
     return True
 
 
@@ -7329,17 +7370,12 @@ def _has_complete_outcome_horizons(record):
     placeholder dictionaries could therefore make an incomplete FINAL record
     look migrated forever and suppress future repair attempts.
     """
-    if not isinstance(record, dict) or safe_int(record.get("outcome_engine_version", 0)) < 56:
+    if not isinstance(record, dict) or safe_int(record.get("outcome_engine_version", 0)) < 57:
         return False
     horizons = record.get("horizons")
     if not isinstance(horizons, dict):
         return False
-    required = ("change_percent", "mfe_percent", "mae_percent", "tp1_reached", "tp2_reached", "sl_reached")
-    for hours in OUTCOME_HORIZONS_HOURS:
-        payload = horizons.get(f"{hours}h")
-        if not isinstance(payload, dict) or any(key not in payload or payload.get(key) is None for key in required):
-            return False
-    return True
+    return _outcome_horizon_payloads_complete(record)
 
 
 def update_signal_outcomes(history):
@@ -7366,8 +7402,8 @@ def update_signal_outcomes(history):
         if str(record.get("signal", "")).upper() not in ("BUY", "SELL"):
             continue
         version = safe_int(record.get("outcome_engine_version", 0))
-        complete_v56 = _has_complete_outcome_horizons(record)
-        if complete_v56 and str(record.get("outcome_status", "OPEN")).upper() == "FINAL":
+        complete_v57 = _has_complete_outcome_horizons(record)
+        if complete_v57 and str(record.get("outcome_status", "OPEN")).upper() == "FINAL":
             continue
         records.append(record)
 
@@ -8884,7 +8920,7 @@ def run_v63_14_3_outcome_boundary_self_test():
     _update_signal_outcome_record(record, candles, t0 + pd.Timedelta(hours=3))
     assert record["horizons"]["1h"]["tp1_reached"] is False, "boundary candle leaked into 1H window"
     assert record["horizons"]["2h"]["tp1_reached"] is True, "2H window did not include the correct candle"
-    assert record["outcome_engine_version"] == 56
+    assert record["outcome_engine_version"] == 57
 
     # A legacy FINAL v54 record must be recalculated; a TP only at t+9 is outside 8H.
     t0 = pd.Timestamp("2026-01-01T00:00:00Z")
@@ -8901,7 +8937,7 @@ def run_v63_14_3_outcome_boundary_self_test():
               "horizons": {f"{h}h": {"tp1_reached": True} for h in OUTCOME_HORIZONS_HOURS},
               "performance": {}}
     _update_signal_outcome_record(legacy, pd.DataFrame(rows), t0 + pd.Timedelta(hours=10))
-    assert legacy["outcome_engine_version"] == 56
+    assert legacy["outcome_engine_version"] == 57
     assert legacy["first_event"] == "NO_LEVEL_HIT", "legacy boundary event was not corrected"
     assert legacy["horizons"]["8h"]["tp1_reached"] is False, "8H stats included t+9 boundary candle"
 
@@ -8919,13 +8955,13 @@ def run_v63_14_3_outcome_boundary_self_test():
     assert _is_anchored_historical_window(start_ms, None) is False
 
     # Empty placeholder horizon dictionaries must not suppress historical repair.
-    incomplete_v56 = {
-        "outcome_engine_version": 56,
+    incomplete_v57 = {
+        "outcome_engine_version": 57,
         "horizons": {f"{h}h": {} for h in OUTCOME_HORIZONS_HOURS},
     }
-    assert not _has_complete_outcome_horizons(incomplete_v56)
-    complete_v56 = {
-        "outcome_engine_version": 56,
+    assert not _has_complete_outcome_horizons(incomplete_v57)
+    complete_v57 = {
+        "outcome_engine_version": 57,
         "horizons": {
             f"{h}h": {"change_percent": 0.0, "mfe_percent": 0.0,
                        "mae_percent": 0.0, "tp1_reached": False,
@@ -8933,8 +8969,8 @@ def run_v63_14_3_outcome_boundary_self_test():
             for h in OUTCOME_HORIZONS_HOURS
         },
     }
-    assert _has_complete_outcome_horizons(complete_v56)
-    assert DEPLOYMENT_ID == "v63.14.12-outcome-coverage-gate-20261010"
+    assert _has_complete_outcome_horizons(complete_v57)
+    assert DEPLOYMENT_ID == "v63.14.13-finalization-metrics-gate-20261010"
 
     # Low score must not suppress other rejection reasons in diagnostics.
     row = {
@@ -8962,7 +8998,7 @@ def run_v63_14_3_outcome_boundary_self_test():
     assert any("reversal ADX too weak" in reason for reason in reject_reasons)
     assert any("reversal volume below professional minimum" in reason for reason in reject_reasons)
     assert any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
-    assert DEPLOYMENT_ID == "v63.14.12-outcome-coverage-gate-20261010"
+    assert DEPLOYMENT_ID == "v63.14.13-finalization-metrics-gate-20261010"
     return True
 
 
@@ -8986,7 +9022,7 @@ def run_v63_14_8_confirmation_diagnostic_self_test():
     assert format_confirmation_diagnostic({
         "confirmations_30m": 3, "required_30m": 6,
     }) == "30M=3 (required >= 6)"
-    assert DEPLOYMENT_ID == "v63.14.12-outcome-coverage-gate-20261010"
+    assert DEPLOYMENT_ID == "v63.14.13-finalization-metrics-gate-20261010"
     return True
 
 
@@ -9059,7 +9095,7 @@ def run_v63_14_7_final_gate_consistency_self_test():
     assert PRO_MIN_1H_ADX == 23.0
     assert PRO_MIN_VOLUME_RATIO == 1.35
     assert PRO_BOTTOM_MIN_30M_CONFIRMATIONS == 6
-    assert DEPLOYMENT_ID == "v63.14.12-outcome-coverage-gate-20261010"
+    assert DEPLOYMENT_ID == "v63.14.13-finalization-metrics-gate-20261010"
     return True
 
 
@@ -9074,7 +9110,7 @@ def run_v63_14_2_bottom_rsi_self_test():
     assert BOTTOM_RSI_MIN <= 23 <= BOTTOM_RSI_MAX
     assert not (BOTTOM_RSI_MIN <= 19 <= BOTTOM_RSI_MAX)
     assert not (BOTTOM_RSI_MIN <= 45 <= BOTTOM_RSI_MAX)
-    assert DEPLOYMENT_ID == "v63.14.12-outcome-coverage-gate-20261010"
+    assert DEPLOYMENT_ID == "v63.14.13-finalization-metrics-gate-20261010"
     return True
 
 
