@@ -5,7 +5,7 @@
 # Confirmation TF: 30M
 # Higher TF Context: 4H + Daily
 # Binance Spot only | No auto-trading
-# Version: 2026-10-09 v63.14.7 | FULL REJECTION DIAGNOSTICS | OUTCOME WINDOW BOUNDARY FIX | BOTTOM RSI | ROOT FIX 4 | GRADE CLASSIFICATION | HARD EVIDENCE GATE | REVERSAL 2OF3 | DIAGNOSTIC LABELS | FAIL-CLOSED | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
+# Version: 2026-10-10 v63.14.10 | SCORE-GRADE SEMANTICS | REJECTION TRACE CLARITY | NO THRESHOLD RELAXATION | OUTCOME WINDOW BOUNDARY FIX | BOTTOM RSI | FAIL-CLOSED | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
 # =========================================================
 
 import os
@@ -30,7 +30,7 @@ RUN_ONCE = os.getenv("RUN_ONCE", "0") == "1"
 TELEGRAM_TEST_ON_START = False
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.9-engine-rejection-trace-20261010"
+DEPLOYMENT_ID = "v63.14.10-score-grade-trace-20261010"
 
 
 
@@ -7774,6 +7774,37 @@ def summarize_engine_trace(trace):
     result['stage_counts'] = stage_counts
     return result
 
+def professional_quality_grade(raw_score, quality_points):
+    """Classify setup grade from raw setup score plus evidence points.
+
+    quality_score is a separate capped index and must not be used as a
+    substitute for raw_score when assigning A/A+/B/C.
+    """
+    raw = safe_float(raw_score)
+    points = safe_int(quality_points)
+    if raw >= 95 and points >= 15:
+        return "A+"
+    if raw >= 90 and points >= 14:
+        return "A"
+    if raw >= 85 and points >= 12:
+        return "B"
+    return "C"
+
+
+def run_v63_14_10_score_grade_diagnostic_self_test():
+    # Preserve strict production thresholds; diagnostics must never loosen them.
+    assert PRO_MIN_SCORE == 90
+    assert PRO_SELL_MIN_SCORE == 92
+    assert PRO_BOTTOM_MIN_ADX == 23.0
+    assert PRO_BOTTOM_MIN_VOLUME_RATIO == 1.35
+    # High capped quality index cannot disguise a low raw setup score.
+    assert professional_quality_grade(80, 16) == "C"
+    assert professional_quality_grade(87, 15) == "B"
+    assert professional_quality_grade(94, 19) == "A"
+    assert professional_quality_grade(95, 15) == "A+"
+    return True
+
+
 def run_v63_14_9_engine_rejection_trace_self_test():
     sample = summarize_engine_trace({
         'trend': {'candidate': False, 'reason': 'NO_TREND_SETUP'},
@@ -8356,23 +8387,19 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     quality_score = min(100, int(round(55 + quality * 3)))
     min_quality_points = PRO_BOTTOM_MIN_QUALITY_POINTS if mode == "BOTTOM_HUNTER" else PRO_MIN_QUALITY_POINTS
 
-    # Independent grade: this is deliberately separate from raw Score.
-    # A high Score cannot become A/A+ unless the professional evidence agrees.
-    if raw_score >= 95 and quality >= 15:
-        quality_grade = "A+"
-    elif raw_score >= 90 and quality >= 14:
-        quality_grade = "A"
-    elif raw_score >= 85 and quality >= 12:
-        quality_grade = "B"
-    else:
-        quality_grade = "C"
+    # Grade intentionally combines the raw setup score with independent
+    # professional evidence points. It is NOT derived from quality_score:
+    # that index is capped at 100 and can saturate even when raw_score is low.
+    quality_grade = professional_quality_grade(raw_score, quality)
     signal["professional_quality_grade"] = quality_grade
 
     # v63.5 diagnostic breakdown: evidence only; does NOT weaken the gate.
     signal["professional_quality_breakdown"] = {
         "mode": mode, "side": side, "raw_score": round(raw_score, 1),
         "quality_points": int(quality), "quality_score": int(quality_score),
-        "grade": quality_grade, "min_quality_points": int(min_quality_points),
+        "grade": quality_grade, "grade_basis": "raw_score_and_quality_points",
+        "quality_score_basis": "capped_index_55_plus_3x_quality_points",
+        "min_quality_points": int(min_quality_points),
         "required_grade": "A+", "adx": round(adx, 2),
         "volume_ratio": round(volume, 2),
         "confirmation_timeframe": confirmation_tf_label,
@@ -8590,8 +8617,8 @@ def analyze_one_symbol(symbol, btc_regime):
                         bottom_diagnostic[qkey] = safe_int(bottom_diagnostic.get(qkey, 0)) + 1
                         pname = str(bottom_signal.get("symbol") or symbol or "UNKNOWN")
                         log(
-                            f"  Professional detail {pname}: raw_score={raw_score_diag:.1f}, quality_score={pscore}, quality_points={pquality}, "
-                            f"grade={pbreak.get('grade', '')}, ADX={pbreak.get('adx', 0)}, "
+                            f"  Professional detail {pname}: raw_score={raw_score_diag:.1f}, quality_index={pscore}/100 (capped), quality_points={pquality}, "
+                            f"grade={pbreak.get('grade', '')} [grade_basis=raw_score+quality_points], ADX={pbreak.get('adx', 0)}, "
                             f"volume={pbreak.get('volume_ratio', 0)}x, "
                             f"{format_confirmation_diagnostic(pbreak)}, "
                             f"HTF={pbreak.get('htf_alignment', 0)}/{pbreak.get('required_htf_alignment', 0)}, "
@@ -10637,6 +10664,7 @@ if __name__ == "__main__":
     assert run_v63_14_7_final_gate_consistency_self_test() is True
     assert run_v63_14_8_confirmation_diagnostic_self_test() is True
     assert run_v63_14_9_engine_rejection_trace_self_test() is True
+    assert run_v63_14_10_score_grade_diagnostic_self_test() is True
 
     try:
 
