@@ -6850,10 +6850,31 @@ def _outcome_window_has_complete_candles(window, start_time, end_time):
     if span_seconds % 3600 != 0:
         return False
     expected_count = int(span_seconds // 3600)
-    observed = pd.to_datetime(window["open_time"], utc=True, errors="coerce").dropna()
-    observed = set(observed.tolist())
+    observed_times = pd.to_datetime(window["open_time"], utc=True, errors="coerce")
+    if observed_times.isna().any():
+        return False
+    observed = set(observed_times.tolist())
     expected = {start + pd.Timedelta(hours=i) for i in range(expected_count)}
-    return expected.issubset(observed)
+    if not expected.issubset(observed):
+        return False
+
+    # Timestamp continuity is not enough: reject malformed OHLC rows so they
+    # cannot create sticky first-event labels or falsely complete analytics.
+    required_ohlc = ("high", "low", "close")
+    if any(column not in window.columns for column in required_ohlc):
+        return False
+    for column in required_ohlc:
+        values = pd.to_numeric(window[column], errors="coerce")
+        if values.isna().any() or not np.isfinite(values.to_numpy(dtype=float)).all():
+            return False
+        if (values <= 0).any():
+            return False
+    highs = pd.to_numeric(window["high"], errors="coerce")
+    lows = pd.to_numeric(window["low"], errors="coerce")
+    closes = pd.to_numeric(window["close"], errors="coerce")
+    if (lows > highs).any() or (closes < lows).any() or (closes > highs).any():
+        return False
+    return True
 
 
 def _outcome_horizon_payloads_complete(record):
@@ -7281,6 +7302,7 @@ def run_v63_14_13_finalization_metrics_self_test():
     }
     _update_signal_outcome_record(invalid_record, invalid_ohlc, now)
     assert invalid_record["outcome_status"] != "FINAL", "invalid 8H metric window was finalized"
+    assert invalid_record.get("first_event") is None, "invalid OHLC data produced a sticky first-event label"
     assert not _outcome_horizon_payloads_complete(invalid_record)
     return True
 
