@@ -2,6 +2,7 @@ name: Crypto Signal Bot v63.14.9 | Engine Rejection Trace
 
 on:
   workflow_dispatch:
+  pull_request:
   schedule:
     - cron: '7 * * * *'
       timezone: 'Asia/Tehran'
@@ -124,6 +125,7 @@ jobs:
           PY
 
       - name: Run one closed-candle scan
+        if: github.event_name != 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
