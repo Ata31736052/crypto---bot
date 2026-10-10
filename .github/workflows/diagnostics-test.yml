@@ -42,7 +42,7 @@ jobs:
           checks = {
               'v63.14.13 deployment marker': 'DEPLOYMENT_ID = "v63.14.14-invalid-final-outcome-repair-20261010"' in source,
               'new diagnostic self-test exists': 'def run_v63_14_11_analytics_scope_self_test():' in source,
-              'outcome coverage self-test exists': 'def run_v63_14_13_finalization_metrics_self_test():' in source,
+              'outcome coverage self-test exists': 'def run_v63_14_14_finalization_metrics_self_test():' in source,
               'missing hourly candles fail closed': 'def _outcome_window_has_complete_candles(' in source,
               'finalization requires valid metrics': 'horizon_metrics_complete' in source and 'observation_complete and horizon_metrics_complete' in source,
               'invalid metrics regression self-test': 'invalid 8H metric window was finalized' in source,
@@ -73,7 +73,7 @@ jobs:
               ('v63.14.8 confirmation diagnostic truth', main.run_v63_14_8_confirmation_diagnostic_self_test),
               ('v63.14.9 engine rejection trace', main.run_v63_14_9_engine_rejection_trace_self_test),
               ('v63.14.11 analytics scope', main.run_v63_14_11_analytics_scope_self_test),
-              ('v63.14.13 outcome candle coverage', main.run_v63_14_13_finalization_metrics_self_test),
+              ('v63.14.13 outcome candle coverage', main.run_v63_14_14_finalization_metrics_self_test),
           ]
           for label, test in tests:
               assert test() is True, f'{label} failed'
