@@ -30,7 +30,7 @@ RUN_ONCE = os.getenv("RUN_ONCE", "0") == "1"
 TELEGRAM_TEST_ON_START = False
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.13-finalization-metrics-gate-20261010"
+DEPLOYMENT_ID = "v63.14.14-invalid-final-outcome-repair-20261010"
 
 
 
@@ -6972,16 +6972,29 @@ def _update_signal_outcome_record(record, df, now_utc):
     changed = False
     # v56 adds a strict candle-coverage gate. Recompute earlier outcomes so
     # missing OHLC bars cannot be mistaken for NO_LEVEL_HIT or finalized results.
-    if safe_int(record.get("outcome_engine_version", 0)) < 57:
+    # Repair legacy or previously finalized records whose horizon metrics are
+    # incomplete. Otherwise a stale FINAL status can survive the metrics gate
+    # and contaminate historical performance summaries indefinitely.
+    needs_outcome_repair = (
+        safe_int(record.get("outcome_engine_version", 0)) < 57
+        or (
+            str(record.get("outcome_status", "OPEN")).upper() == "FINAL"
+            and not _outcome_horizon_payloads_complete(record)
+        )
+    )
+    if needs_outcome_repair:
         record["first_event"] = None
         record["first_event_time"] = None
         record["ambiguous_event"] = False
         record.pop("outcome_reason", None)
+        record.pop("finalized_at", None)
         record["horizons"] = {}
         record["performance"] = {}
         record["tp1_reached"] = False
         record["tp2_reached"] = False
         record["sl_reached"] = False
+        if str(record.get("outcome_status", "OPEN")).upper() == "FINAL":
+            record["outcome_status"] = "OPEN"
         changed = True
     signal_close = candle_ts + pd.Timedelta(hours=1)
     max_hours = max(OUTCOME_HORIZONS_HOURS)
@@ -7259,7 +7272,7 @@ def run_v63_14_11_analytics_scope_self_test():
     return True
 
 
-def run_v63_14_13_finalization_metrics_self_test():
+def run_v63_14_14_finalization_metrics_self_test():
     t0 = pd.Timestamp("2026-01-01T00:00:00Z")
     signal_close = t0 + pd.Timedelta(hours=1)
     final_end = signal_close + pd.Timedelta(hours=8)
@@ -7304,6 +7317,22 @@ def run_v63_14_13_finalization_metrics_self_test():
     assert invalid_record["outcome_status"] != "FINAL", "invalid 8H metric window was finalized"
     assert invalid_record.get("first_event") is None, "invalid OHLC data produced a sticky first-event label"
     assert not _outcome_horizon_payloads_complete(invalid_record)
+
+    # A stale FINAL record with missing metrics must be reopened, not counted
+    # as a valid finalized outcome while the historical window is repaired.
+    stale_final = {
+        "candle_time": t0.isoformat(), "signal": "BUY", "entry": 100.0,
+        "stop_loss": 95.0, "tp1": 105.0, "tp2": 110.0,
+        "outcome_status": "FINAL", "finalized_at": "2026-01-01T10:00:00+00:00",
+        "first_event": "NO_LEVEL_HIT", "first_event_time": None,
+        "outcome_engine_version": 57,
+        "horizons": {"1h": {"change_percent": 0.1}},
+        "performance": {"mfe_percent": 1.0, "mae_percent": 1.0},
+    }
+    _update_signal_outcome_record(stale_final, invalid_ohlc, now)
+    assert stale_final["outcome_status"] != "FINAL", "stale incomplete FINAL record was not reopened"
+    assert stale_final.get("first_event") is None, "stale first-event label survived incomplete metrics"
+    assert "finalized_at" not in stale_final, "stale finalization timestamp survived repair"
     return True
 
 
@@ -10811,7 +10840,7 @@ if __name__ == "__main__":
     assert run_v63_14_9_engine_rejection_trace_self_test() is True
     assert run_v63_14_10_score_grade_diagnostic_self_test() is True
     assert run_v63_14_11_analytics_scope_self_test() is True
-    assert run_v63_14_13_finalization_metrics_self_test() is True
+    assert run_v63_14_14_finalization_metrics_self_test() is True
 
     try:
 
