@@ -7333,6 +7333,40 @@ def run_v63_14_14_finalization_metrics_self_test():
     assert stale_final["outcome_status"] != "FINAL", "stale incomplete FINAL record was not reopened"
     assert stale_final.get("first_event") is None, "stale first-event label survived incomplete metrics"
     assert "finalized_at" not in stale_final, "stale finalization timestamp survived repair"
+
+    # The history refresh limit must not hide older FINAL records with missing
+    # metrics from repair. Keep this test independent of network access.
+    old_incomplete = {
+        "signal": "BUY", "outcome_status": "FINAL", "outcome_engine_version": 57,
+        "horizons": {"1h": {"change_percent": 0.1}},
+    }
+    recent_complete = {
+        "signal": "BUY", "outcome_status": "FINAL", "outcome_engine_version": 57,
+        "horizons": {
+            f"{hours}h": {
+                "change_percent": 0.1, "mfe_percent": 0.2, "mae_percent": 0.1,
+                "tp1_reached": False, "tp2_reached": False, "sl_reached": False,
+            } for hours in OUTCOME_HORIZONS_HOURS
+        },
+    }
+    original_limit = OUTCOME_MAX_HISTORY_SCAN
+    try:
+        globals()["OUTCOME_MAX_HISTORY_SCAN"] = 1
+        selected_history = [old_incomplete, recent_complete]
+        recent_start = max(0, len(selected_history) - OUTCOME_MAX_HISTORY_SCAN)
+        selected = list(selected_history[recent_start:])
+        if recent_start:
+            for candidate in selected_history[:recent_start]:
+                if (isinstance(candidate, dict)
+                    and str(candidate.get("signal", "")).upper() in ("BUY", "SELL")
+                    and str(candidate.get("outcome_status", "OPEN")).upper() == "FINAL"
+                    and (safe_int(candidate.get("outcome_engine_version", 0)) < 57
+                         or not _has_complete_outcome_horizons(candidate))):
+                    selected.append(candidate)
+        assert old_incomplete in selected, "older incomplete FINAL record fell outside repair scan"
+        assert recent_complete in selected, "recent record disappeared from repair scan"
+    finally:
+        globals()["OUTCOME_MAX_HISTORY_SCAN"] = original_limit
     return True
 
 
@@ -7447,7 +7481,26 @@ def update_signal_outcomes(history):
     cache = {}
 
     records = []
-    for record in history[-OUTCOME_MAX_HISTORY_SCAN:]:
+    recent_start = max(0, len(history) - OUTCOME_MAX_HISTORY_SCAN)
+    scan_records = list(history[recent_start:])
+
+    # Analytics summarizes the full history, but the regular refresh window is
+    # intentionally bounded. Also revisit older FINAL records with incomplete
+    # outcome payloads; otherwise they remain permanently counted as FINAL
+    # while missing 8H metrics, even though they sit outside the recent window.
+    if recent_start:
+        for old_record in history[:recent_start]:
+            if not isinstance(old_record, dict):
+                continue
+            if str(old_record.get("signal", "")).upper() not in ("BUY", "SELL"):
+                continue
+            old_version = safe_int(old_record.get("outcome_engine_version", 0))
+            old_complete = _has_complete_outcome_horizons(old_record)
+            old_final = str(old_record.get("outcome_status", "OPEN")).upper() == "FINAL"
+            if old_final and (old_version < 57 or not old_complete):
+                scan_records.append(old_record)
+
+    for record in scan_records:
         if not isinstance(record, dict):
             continue
         if str(record.get("signal", "")).upper() not in ("BUY", "SELL"):
