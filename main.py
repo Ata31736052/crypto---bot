@@ -7238,7 +7238,7 @@ def run_v63_14_11_analytics_scope_self_test():
     return True
 
 
-def run_v63_14_12_outcome_coverage_self_test():
+def run_v63_14_13_finalization_metrics_self_test():
     t0 = pd.Timestamp("2026-01-01T00:00:00Z")
     signal_close = t0 + pd.Timedelta(hours=1)
     final_end = signal_close + pd.Timedelta(hours=8)
@@ -10789,7 +10789,7 @@ if __name__ == "__main__":
     assert run_v63_14_9_engine_rejection_trace_self_test() is True
     assert run_v63_14_10_score_grade_diagnostic_self_test() is True
     assert run_v63_14_11_analytics_scope_self_test() is True
-    assert run_v63_14_12_outcome_coverage_self_test() is True
+    assert run_v63_14_13_finalization_metrics_self_test() is True
 
     try:
 
