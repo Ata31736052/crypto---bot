@@ -40,7 +40,7 @@ jobs:
           import re
           source = Path('main.py').read_text(encoding='utf-8')
           checks = {
-              'v63.14.13 deployment marker': 'DEPLOYMENT_ID = "v63.14.14-invalid-final-outcome-repair-20261010"' in source,
+              'v63.14.13 deployment marker': 'DEPLOYMENT_ID = "v63.14.15-extended-history-outcome-repair-20261010"' in source,
               'new diagnostic self-test exists': 'def run_v63_14_11_analytics_scope_self_test():' in source,
               'outcome coverage self-test exists': 'def run_v63_14_14_finalization_metrics_self_test():' in source,
               'missing hourly candles fail closed': 'def _outcome_window_has_complete_candles(' in source,
