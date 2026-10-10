@@ -1,0 +1,74 @@
+name: Crypto Bot Diagnostics Tests
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUN_ONCE: '0'
+      TELEGRAM_TEST_ON_START: '0'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - name: Checkout proposed code
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            python -m pip install -r requirements.txt
+          else
+            python -m pip install requests pandas numpy
+          fi
+      - name: Verify source and compile
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          source = Path('main.py').read_text(encoding='utf-8')
+          checks = {
+              'v63.14.9 deployment marker': 'DEPLOYMENT_ID = "v63.14.9-engine-rejection-trace-20261010"' in source,
+              'new diagnostic self-test exists': 'def run_v63_14_9_engine_rejection_trace_self_test():' in source,
+              'score gate unchanged': re.search(r'^PRO_MIN_SCORE\s*=\s*90\s*$', source, re.M) is not None,
+              'ADX gate unchanged': re.search(r'^PRO_MIN_1H_ADX\s*=\s*23\.0\s*$', source, re.M) is not None,
+              'volume gate unchanged': re.search(r'^PRO_MIN_VOLUME_RATIO\s*=\s*1\.35\s*$', source, re.M) is not None,
+          }
+          for label, passed in checks.items():
+              print(f"{'PASS' if passed else 'FAIL'}: {label}")
+          failed = [label for label, passed in checks.items() if not passed]
+          if failed:
+              raise SystemExit('Source verification failed: ' + ', '.join(failed))
+          PY
+          python -m py_compile main.py
+      - name: Run regression tests (no market scan, no Telegram)
+        run: |
+          python - <<'PY'
+          import main
+          tests = [
+              ('v63.9 diagnostic integrity', main.run_v63_9_diagnostic_integrity_self_test),
+              ('v63.10 root fix', main.run_v63_10_root_fix_self_test),
+              ('v63.12 root fix', main.run_v63_12_root_fix3_self_test),
+              ('v63.14 diagnostic trace', main.run_v63_14_diagnostic_trace_self_test),
+              ('v63.14.1 root fix', main.run_v63_14_1_root_fix_self_test),
+              ('v63.14.2 Bottom RSI regression', main.run_v63_14_2_bottom_rsi_self_test),
+              ('v63.14.3 outcome boundary + historical freshness', main.run_v63_14_3_outcome_boundary_self_test),
+              ('v63.14.7 final gate consistency', main.run_v63_14_7_final_gate_consistency_self_test),
+              ('v63.14.8 confirmation diagnostic truth', main.run_v63_14_8_confirmation_diagnostic_self_test),
+              ('v63.14.9 engine rejection trace', main.run_v63_14_9_engine_rejection_trace_self_test),
+          ]
+          for label, test in tests:
+              assert test() is True, f'{label} failed'
+              print(f'PASS: {label}')
+          print('ALL REGRESSION SELF-TESTS: PASS')
+          PY
