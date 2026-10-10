@@ -1,4 +1,4 @@
-name: Crypto Signal Bot v63.14.11 | Analytics Scope Diagnostics
+name: Crypto Signal Bot v63.14.12 | Outcome Coverage Gate
 # PR event runs verification and regression tests only; live scan is skipped.
 
 on:
@@ -58,7 +58,7 @@ jobs:
           import re
           source = Path('main.py').read_text(encoding='utf-8')
           checks = {
-              'v63.14.11 deployment marker': 'DEPLOYMENT_ID = "v63.14.11-analytics-scope-diagnostic-20261010"' in source,
+              'v63.14.12 deployment marker': 'DEPLOYMENT_ID = "v63.14.12-outcome-coverage-gate-20261010"' in source,
               'Bottom RSI lower bound': re.search(r'^BOTTOM_RSI_MIN\s*=\s*20\s*$', source, re.M) is not None,
               'Bottom RSI upper bound': re.search(r'^BOTTOM_RSI_MAX\s*=\s*44\s*$', source, re.M) is not None,
               'shared professional RSI gate': 'rsi_ok = (BOTTOM_RSI_MIN <= rsi <= BOTTOM_RSI_MAX) if side == "BUY" else (56 <= rsi <= 76)' in source,
@@ -77,13 +77,13 @@ jobs:
               'freshness remains enforced for live requests': 'if not historical_window:' in source and 'STALE DATA:' in source,
               'horizon boundary excludes next candle': 'future["open_time"] < horizon_end' in source,
               '8H boundary excludes next candle': 'future["open_time"] < final_end' in source,
-              'outcome schema version bumped': 'record["outcome_engine_version"] = 55' in source,
+              'outcome schema version bumped': 'record["outcome_engine_version"] = 56' in source,
               'historical klines use anchored time window': 'start_time_ms=start_ms' in source and 'end_time_ms=end_ms' in source,
               'outcome fetch uses Binance startTime/endTime': 'params["startTime"] = int(start_time_ms)' in source and 'params["endTime"] = int(end_time_ms)' in source,
               'horizon coverage is reported': 'horizon_coverage_8H=' in source,
               'outcome fetch window self-test': 'def _outcome_window_ms(candle_ts):' in source,
               'incomplete horizon payloads are repaired': 'def _has_complete_outcome_horizons(record):' in source and '_has_complete_outcome_horizons(record)' in source,
-              'legacy outcome migration': 'complete_v55' in source,
+              'legacy outcome migration': 'complete_v56' in source,
               'score rejection continues to other diagnostics': 'Diagnostic-only root fix: record the score failure but continue evaluating' in source,
               'score gate unchanged': 'PRO_MIN_SCORE = 90' in source,
               'sell score gate unchanged': 'PRO_SELL_MIN_SCORE = 92' in source,
@@ -119,6 +119,7 @@ jobs:
               ('v63.14.9 engine rejection trace', main.run_v63_14_9_engine_rejection_trace_self_test),
               ('v63.14.10 score-grade diagnostic', main.run_v63_14_10_score_grade_diagnostic_self_test),
               ('v63.14.11 analytics scope', main.run_v63_14_11_analytics_scope_self_test),
+              ('v63.14.12 outcome candle coverage', main.run_v63_14_12_outcome_coverage_self_test),
           ]
           for label, test in tests:
               assert test() is True, f'{label} failed'
