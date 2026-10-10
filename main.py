@@ -30,7 +30,7 @@ RUN_ONCE = os.getenv("RUN_ONCE", "0") == "1"
 TELEGRAM_TEST_ON_START = False
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.10-score-grade-trace-20261010"
+DEPLOYMENT_ID = "v63.14.11-analytics-scope-diagnostic-20261010"
 
 
 
@@ -7163,6 +7163,29 @@ def _outcome_group_stats(records):
     return result
 
 
+def summarize_outcome_history_coverage(history):
+    """Count tracked records separately from the FINAL-only performance sample."""
+    valid = [
+        r for r in (history if isinstance(history, list) else [])
+        if isinstance(r, dict) and str(r.get("signal", "")).upper() in ("BUY", "SELL")
+    ]
+    finalized = sum(1 for r in valid if str(r.get("outcome_status", "OPEN")).upper() == "FINAL")
+    return {"tracked": len(valid), "finalized": finalized, "open": len(valid) - finalized}
+
+
+def run_v63_14_11_analytics_scope_self_test():
+    sample = [
+        {"signal": "BUY", "outcome_status": "FINAL"},
+        {"signal": "SELL", "outcome_status": "OPEN"},
+        {"signal": "BUY", "outcome_status": "FINAL"},
+        {"signal": "NONE", "outcome_status": "OPEN"},
+    ]
+    summary = summarize_outcome_history_coverage(sample)
+    assert summary == {"tracked": 3, "finalized": 2, "open": 1}
+    assert PRO_MIN_SCORE == 90 and PRO_SELL_MIN_SCORE == 92
+    return True
+
+
 def build_outcome_analytics(history):
     """Build descriptive analytics by mode, score band, and direction."""
     finalized = [
@@ -7198,7 +7221,13 @@ def build_outcome_analytics(history):
 
 def log_outcome_analytics(history):
     analytics = build_outcome_analytics(history)
+    coverage = summarize_outcome_history_coverage(history)
     log("ADVANCED OUTCOME ANALYTICS v55")
+    log(
+        "HISTORY COVERAGE: "
+        f"tracked={coverage['tracked']} finalized={coverage['finalized']} open={coverage['open']} | "
+        "performance groups below use FINAL records only"
+    )
     log("--------------------------------------")
     for name, data in analytics.items():
         events = data.get("first_events", {})
@@ -9510,6 +9539,7 @@ def scan_market():
     # -----------------------------------------------------
     bd = scan.get("bottom_diagnostic", {})
     log("BOTTOM HUNTER DIAGNOSTIC")
+    log("Counter scope: engine-pass counts are pre-risk; rejection reason counts may overlap.")
     log(f"Data ready        : {safe_int(bd.get('data_ready'))}")
     log(f"Near recent low   : {safe_int(bd.get('near_low'))}")
     log(f"RSI zone          : {safe_int(bd.get('rsi_zone'))}")
@@ -9517,14 +9547,13 @@ def scan_market():
     log(f"30M confirmation  : {safe_int(bd.get('confirm_30m'))}")
     log(f"BTC allowed       : {safe_int(bd.get('btc_allowed'))}")
     log(f"Score pass        : {safe_int(bd.get('score_pass'))}")
-    log(f"Final rejected    : {safe_int(bd.get('final_rejected'))}")
-    log(f"Final passed      : {safe_int(bd.get('final_passed'))}")
-    log(f"Risk valid        : {safe_int(bd.get('risk_valid'))}")
-    log(f"Risk rejected     : {safe_int(bd.get('risk_rejected'))}")
-    log(f"Post-risk valid    : {safe_int(bd.get('risk_valid'))}")
-    log(f"Post-risk rejected : {safe_int(bd.get('risk_rejected'))}")
-    log(f"Professional pass  : {safe_int(bd.get('professional_passed'))}")
-    log(f"Professional reject: {safe_int(bd.get('professional_rejected'))}")
+    log(f"Engine final rejected (pre-risk): {safe_int(bd.get('final_rejected'))}")
+    log(f"Engine final passed (pre-risk)  : {safe_int(bd.get('final_passed'))}")
+    log(f"Risk validation pass            : {safe_int(bd.get('risk_valid'))}")
+    log(f"Risk validation reject          : {safe_int(bd.get('risk_rejected'))}")
+    log(f"Professional gate inputs        : {safe_int(bd.get('risk_valid'))}")
+    log(f"Professional gate pass           : {safe_int(bd.get('professional_passed'))}")
+    log(f"Professional gate reject         : {safe_int(bd.get('professional_rejected'))}")
     risk_reason_keys = sorted(
         key for key in bd.keys()
         if str(key).startswith("risk_reject_")
@@ -10665,6 +10694,7 @@ if __name__ == "__main__":
     assert run_v63_14_8_confirmation_diagnostic_self_test() is True
     assert run_v63_14_9_engine_rejection_trace_self_test() is True
     assert run_v63_14_10_score_grade_diagnostic_self_test() is True
+    assert run_v63_14_11_analytics_scope_self_test() is True
 
     try:
 
