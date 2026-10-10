@@ -73,6 +73,8 @@ jobs:
               'engine rejection trace regression test': 'def run_v63_14_9_engine_rejection_trace_self_test():' in source,
               'score-grade diagnostic regression test': 'def run_v63_14_10_score_grade_diagnostic_self_test():' in source and 'grade_basis=raw_score+quality_points' in source,
               'analytics scope self-test': 'def run_v63_14_11_analytics_scope_self_test():' in source and 'performance groups below use FINAL records only' in source,
+              'outcome coverage self-test': 'def run_v63_14_12_outcome_coverage_self_test():' in source,
+              'missing hourly candles fail closed': 'def _outcome_window_has_complete_candles(' in source,
               'historical outcome bypasses live freshness': 'historical_window = _is_anchored_historical_window(start_time_ms, end_time_ms)' in source and 'def _is_anchored_historical_window(' in source,
               'freshness remains enforced for live requests': 'if not historical_window:' in source and 'STALE DATA:' in source,
               'horizon boundary excludes next candle': 'future["open_time"] < horizon_end' in source,
