@@ -2,6 +2,9 @@ name: Bottom Hunter Binance Dry Run (No Telegram)
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - test/bottom-hunter-dry-run-v63-14-16
 
 permissions:
   contents: read
