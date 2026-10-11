@@ -57,7 +57,8 @@ jobs:
               "Final delivery rejection reasons are specific": "BLOCKED_FINAL_QUALITY_GATE" in source and "BLOCKED_SIGNAL_QUALITY" in source and "BLOCKED_RISK_VALIDATION" in source,
               "Generic Telegram-or-quality rejection removed": "Reason=TELEGRAM_OR_QUALITY_VALIDATION" not in source,
               "Bottom Hunter rejection diagnostic self-test exists": "def run_v63_14_16_bottom_rejection_diagnostic_self_test():" in source,
-              "production thresholds unchanged": "PRO_BOTTOM_MIN_SCORE = 90" in source and "PRO_BOTTOM_MIN_ADX = 23.0" in source and "PRO_BOTTOM_MIN_VOLUME_RATIO = 1.35" in source,
+              "controlled early-reversal exception exists": "def bottom_hunter_adx_gate_pass(" in source and "PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE = 95" in source,
+              "standard production thresholds unchanged": "PRO_BOTTOM_MIN_SCORE = 90" in source and "PRO_BOTTOM_MIN_ADX = 23.0" in source and "PRO_BOTTOM_MIN_VOLUME_RATIO = 1.35" in source,
           }
           for label, ok in checks.items():
               print(f"{'PASS' if ok else 'FAIL'}: {label}")
@@ -77,6 +78,7 @@ jobs:
               ("v63.12 root fix", main.run_v63_12_root_fix3_self_test),
               ("v63.14 diagnostic trace", main.run_v63_14_diagnostic_trace_self_test),
               ("v63.14.16 Bottom Hunter rejection diagnostics", main.run_v63_14_16_bottom_rejection_diagnostic_self_test),
+              ("v63.14.17 controlled early-reversal ADX exception", main.run_v63_14_17_early_reversal_gate_self_test),
               ("v63.14.1 root fix", main.run_v63_14_1_root_fix_self_test),
               ("v63.14.2 Bottom RSI regression", main.run_v63_14_2_bottom_rsi_self_test),
               ("v63.14.3 outcome boundary", main.run_v63_14_3_outcome_boundary_self_test),
