@@ -5,7 +5,7 @@
 # Confirmation TF: 30M
 # Higher TF Context: 4H + Daily
 # Binance Spot only | No auto-trading
-# Version: 2026-10-11 v63.14.16 | BOTTOM-HUNTER REJECTION DIAGNOSTICS | VERSION IDENTITY ALIGNED | NO THRESHOLD RELAXATION | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
+# Version: 2026-10-11 v63.14.18 | BOTTOM SCORE CALIBRATION + CONTROLLED EARLY-REVERSAL GATE | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
 # =========================================================
 
 import os
@@ -29,8 +29,11 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 RUN_ONCE = os.getenv("RUN_ONCE", "0") == "1"
 TELEGRAM_TEST_ON_START = False
 
+# Safe diagnostics mode: scan Binance data, but never deliver Telegram messages.
+DRY_RUN = os.getenv("DRY_RUN", "0").strip().lower() in ("1", "true", "yes", "on")
+
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.16-bottom-hunter-rejection-diagnostics-20261011"
+DEPLOYMENT_ID = "v63.14.18-bottom-score-calibration-20261011"
 
 
 
@@ -79,7 +82,7 @@ PRO_SELL_MIN_1H_ADX = 26.0
 PRO_SELL_MIN_VOLUME_RATIO = 1.50
 PRO_SELL_MIN_30M_CONFIRMATIONS = 6
 PRO_BREAKOUT_MIN_SCORE = 90
-PRO_BOTTOM_MIN_SCORE = 90
+PRO_BOTTOM_MIN_SCORE = 85
 PRO_HIGHER_TF_MIN_SCORE = 90
 PRO_MIN_QUALITY_POINTS = 15
 PRO_BOTTOM_MIN_QUALITY_POINTS = 15
@@ -112,6 +115,10 @@ PRO_BOTTOM_REQUIRE_HTF_ALIGNMENT = 1
 # This removes the contradictory old logic that first allowed OR, then required
 # RSI AND MACD simultaneously, while keeping ADX and volume/30M/HTF hard gates.
 PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS = 2
+# v63.14.17: narrow early-reversal ADX exception; all other quality gates remain active.
+PRO_BOTTOM_EARLY_ADX_FLOOR = 18.0
+PRO_BOTTOM_EARLY_ADX_MIN_VOLUME = 1.50
+PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE = 95
 BREAKOUT_LOOKBACK = 20
 BREAKOUT_BUFFER_PERCENT = 0.15
 BREAKOUT_MIN_VOLUME_RATIO = 1.25
@@ -5344,6 +5351,10 @@ def send_telegram_message(
     ارسال پیام به Telegram
     """
 
+    if DRY_RUN:
+        log("DRY_RUN active: Telegram delivery suppressed.")
+        return False
+
     if not TELEGRAM_TOKEN:
 
         log(
@@ -5813,6 +5824,8 @@ def _final_gate_reject(signal, reason):
     if isinstance(signal, dict):
         signal["final_telegram_gate_rejections"] = [str(reason)]
         signal["final_telegram_quality_gate"] = False
+        signal["delivery_diagnostic_status"] = "BLOCKED_FINAL_QUALITY_GATE"
+        signal["delivery_diagnostic_reason"] = str(reason)
     return False
 
 
@@ -5841,12 +5854,14 @@ def final_telegram_quality_gate(signal):
 
     side = str(signal.get("signal", "")).upper()
     mode = str(signal.get("signal_mode", "TREND")).upper()
-    raw_score = safe_float(pbreak.get("raw_score", signal.get("score", 0)))
+    # Match the professional gate: eligibility uses the effective, quality-capped
+    # score. Keep the true engine raw score diagnostic-only.
+    effective_score = safe_float(pbreak.get("effective_score", signal.get("score", 0)))
     quality_score = safe_int(pbreak.get("quality_score", signal.get("professional_quality_score", 0)))
     min_score = professional_min_score_for_mode(mode, side)
-    if raw_score + RR_EPSILON < min_score:
+    if effective_score + RR_EPSILON < min_score:
         return _final_gate_reject(
-            signal, f"raw score {raw_score:.1f} < required {min_score} for {mode}/{side}"
+            signal, f"effective score {effective_score:.1f} < required {min_score} for {mode}/{side}"
         )
     if quality_score <= 0:
         return _final_gate_reject(signal, "professional quality score is missing or non-positive")
@@ -5895,23 +5910,17 @@ def send_signal_to_telegram(
     if not validate_signal_quality(
         signal
     ):
-
-        log(
-            f"{signal.get('symbol')} "
-            "failed signal quality"
-        )
-
+        signal["delivery_diagnostic_status"] = "BLOCKED_SIGNAL_QUALITY"
+        signal["delivery_diagnostic_reason"] = "validate_signal_quality returned false"
+        log(f"{signal.get('symbol')} delivery blocked: signal-quality validation failed")
         return False
 
     if not validate_risk_levels(
         signal
     ):
-
-        log(
-            f"{signal.get('symbol')} "
-            "failed risk validation"
-        )
-
+        signal["delivery_diagnostic_status"] = "BLOCKED_RISK_VALIDATION"
+        signal["delivery_diagnostic_reason"] = "validate_risk_levels returned false"
+        log(f"{signal.get('symbol')} delivery blocked: risk-level validation failed")
         return False
 
     message = build_signal_message(
@@ -5919,7 +5928,22 @@ def send_signal_to_telegram(
     )
 
     if not message:
+        signal["delivery_diagnostic_status"] = "BLOCKED_MESSAGE_BUILD"
+        signal["delivery_diagnostic_reason"] = "build_signal_message returned an empty message"
+        log(f"{signal.get('symbol')} delivery blocked: message construction returned empty")
+        return False
 
+    # Dry-run now validates the full delivery path without making a Telegram
+    # request. This distinguishes a qualified signal from a delivery failure.
+    if DRY_RUN:
+        signal["delivery_diagnostic_status"] = "READY_BUT_SUPPRESSED_DRY_RUN"
+        signal["delivery_diagnostic_reason"] = "all quality and risk gates passed; Telegram request intentionally suppressed"
+        log(
+            f"DRY_RUN VALIDATED: {signal.get('symbol')} "
+            f"{signal.get('signal')} Mode={signal.get('signal_mode', 'TREND')} "
+            f"Score={signal.get('score')} | quality=PASS risk=PASS | "
+            "Telegram request suppressed by DRY_RUN"
+        )
         return False
 
     success = send_telegram_message(
@@ -6564,20 +6588,20 @@ def process_signal(
     )
 
     if not sent:
-
         signal_mode = str(signal.get("signal_mode", "TREND")).upper()
         signal_tf = str(signal.get("signal_timeframe", TIMEFRAME_MAIN)).lower()
         tf_label = "4H" if signal_mode == "4H_SIGNAL" or signal_tf == "4h" else ("DAILY" if signal_mode == "DAILY_SIGNAL" or signal_tf == "1d" else "1H")
+        diagnostic_status = str(signal.get("delivery_diagnostic_status", "DELIVERY_FAILED_OR_UNCLASSIFIED"))
+        diagnostic_reason = str(signal.get("delivery_diagnostic_reason", "no specific delivery diagnostic was recorded"))
         log(
-            f"Signal not sent: {signal.get('symbol')} "
-            f"TF={tf_label} Mode={signal_mode} "
-            f"Reason=TELEGRAM_OR_QUALITY_VALIDATION"
+            f"Signal not sent: {signal.get('symbol')} TF={tf_label} "
+            f"Mode={signal_mode} Status={diagnostic_status} Reason={diagnostic_reason}"
         )
-
         return {
             "sent": False,
             "duplicate": False,
-            "reason": "TELEGRAM_OR_QUALITY_VALIDATION"
+            "reason": diagnostic_status,
+            "detail": diagnostic_reason
         }
 
     # -----------------------------------------------------
@@ -8366,13 +8390,17 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     confirm = {}
     confirmations = 0
 
+    # Keep the gate's existing behavior: the effective score (including Bottom
+    # Hunter quality caps) decides eligibility. The engine's pre-cap raw score
+    # is captured separately for diagnostics and must never replace this gate score.
     raw_score = safe_float(signal.get("score"))
+    engine_raw_score = safe_float(signal.get("raw_score", raw_score))
     min_score = professional_min_score_for_mode(mode, side)
     if raw_score < min_score:
         # Diagnostic-only root fix: record the score failure but continue evaluating
         # all independent gates. The signal still fails closed because `reject`
         # remains non-empty; this does not lower or bypass the score threshold.
-        reject.append(f"score {raw_score:.0f} < {min_score}")
+        reject.append(f"effective score {raw_score:.0f} < {min_score}")
 
     close = safe_float(r1.get("close"))
     ema9 = safe_float(r1.get("ema9")); ema21 = safe_float(r1.get("ema21")); ema50 = safe_float(r1.get("ema50")); ema200 = safe_float(r1.get("ema200"))
@@ -8416,11 +8444,10 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         reversal_energy = (plus_di > minus_di) if side == "BUY" else (minus_di > plus_di)
         momentum_components = int(rsi_improving) + int(macd_hist_improving) + int(reversal_energy)
         momentum_improving = momentum_components >= PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS
-        # v63.11 ROOT FIX: reversal momentum uses 2-of-3 independent evidence
-        # rather than the contradictory old AND rule for RSI+MACD. ADX remains
-        # hard, so this does not turn weak bounces into signals.
-        if adx < PRO_BOTTOM_MIN_ADX:
-            reject.append(f"reversal ADX too weak ({adx:.1f} < {PRO_BOTTOM_MIN_ADX:.1f})")
+        # v63.14.17: sub-23 ADX is allowed only with exceptional score, volume and momentum.
+        adx_ok = bottom_hunter_adx_gate_pass(adx, volume, raw_score, momentum_components)
+        if not adx_ok:
+            reject.append(f"reversal ADX too weak ({adx:.1f}; standard>={PRO_BOTTOM_MIN_ADX:.1f}, early exception requires ADX>={PRO_BOTTOM_EARLY_ADX_FLOOR:.1f}, volume>={PRO_BOTTOM_EARLY_ADX_MIN_VOLUME:.2f}x, raw_score>={PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE}, momentum>={PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS}/3)")
         elif not momentum_improving:
             reject.append(f"reversal momentum insufficient ({momentum_components}/3 < {PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS}/3)")
         else:
@@ -8612,7 +8639,7 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         macd_hist_improving_ok = (safe_float(r1.get("macd_hist")) >= safe_float(r1.get("macd_hist_prev"))) if side == "BUY" else (safe_float(r1.get("macd_hist")) <= safe_float(r1.get("macd_hist_prev")))
         momentum_count = int(reversal_energy_ok) + int(rsi_improving_ok) + int(macd_hist_improving_ok)
         reversal_ok = momentum_count >= PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS
-        adx_ok = adx >= PRO_BOTTOM_MIN_ADX and reversal_ok
+        adx_ok = bottom_hunter_adx_gate_pass(adx, volume, raw_score, momentum_count) and reversal_ok
         ledger["reversal_momentum"] = _diag_item(2 if reversal_ok else 0, 2, "PASS" if reversal_ok else "FAIL", momentum_count, f">={PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS}/3")
         ledger["ADX_DI"] = _diag_item(2 if adx_ok else 0, 2, "PASS" if adx_ok else "FAIL", round(adx,2), f">={PRO_BOTTOM_MIN_ADX:.1f} + 2/3 momentum")
     else:
@@ -8669,9 +8696,11 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
 
     # v63.5 diagnostic breakdown: evidence only; does NOT weaken the gate.
     signal["professional_quality_breakdown"] = {
-        "mode": mode, "side": side, "raw_score": round(raw_score, 1),
+        "mode": mode, "side": side,
+        "raw_score": round(engine_raw_score, 1),
+        "effective_score": round(raw_score, 1),
         "quality_points": int(quality), "quality_score": int(quality_score),
-        "grade": quality_grade, "grade_basis": "raw_score_and_quality_points",
+        "grade": quality_grade, "grade_basis": "effective_score_and_quality_points",
         "quality_score_basis": "capped_index_55_plus_3x_quality_points",
         "min_quality_points": int(min_quality_points),
         "required_grade": "A+", "adx": round(adx, 2),
@@ -8889,7 +8918,7 @@ def analyze_one_symbol(symbol, btc_regime):
                     bottom_diagnostic["professional_rejected"] = safe_int(bottom_diagnostic.get("professional_rejected", 0)) + 1
                     pbreak = bottom_signal.get("professional_quality_breakdown", {})
                     if isinstance(pbreak, dict):
-                        raw_score_diag = safe_float(pbreak.get("raw_score", 0)); pscore = safe_int(pbreak.get("quality_score", 0)); pquality = safe_int(pbreak.get("quality_points", 0))
+                        raw_score_diag = safe_float(pbreak.get("raw_score", 0)); effective_score_diag = safe_float(pbreak.get("effective_score", bottom_signal.get("score", 0))); pscore = safe_int(pbreak.get("quality_score", 0)); pquality = safe_int(pbreak.get("quality_points", 0))
                         pbucket = (pscore // 5) * 5; qbucket = (pquality // 2) * 2
                         skey = f"professional_score_{pbucket}_{pbucket+4}"
                         qkey = f"professional_quality_points_{qbucket}_{qbucket+1}"
@@ -8897,8 +8926,8 @@ def analyze_one_symbol(symbol, btc_regime):
                         bottom_diagnostic[qkey] = safe_int(bottom_diagnostic.get(qkey, 0)) + 1
                         pname = str(bottom_signal.get("symbol") or symbol or "UNKNOWN")
                         log(
-                            f"  Professional detail {pname}: raw_score={raw_score_diag:.1f}, quality_index={pscore}/100 (capped), quality_points={pquality}, "
-                            f"grade={pbreak.get('grade', '')} [grade_basis=raw_score+quality_points], ADX={pbreak.get('adx', 0)}, "
+                            f"  Professional detail {pname}: raw_score={raw_score_diag:.1f}, effective_score={effective_score_diag:.1f}, quality_index={pscore}/100 (capped), quality_points={pquality}, "
+                            f"grade={pbreak.get('grade', '')} [grade_basis=effective_score+quality_points], ADX={pbreak.get('adx', 0)}, "
                             f"volume={pbreak.get('volume_ratio', 0)}x, "
                             f"{format_confirmation_diagnostic(pbreak)}, "
                             f"HTF={pbreak.get('htf_alignment', 0)}/{pbreak.get('required_htf_alignment', 0)}, "
@@ -8919,7 +8948,7 @@ def analyze_one_symbol(symbol, btc_regime):
                             if parts:
                                 log("    Components: " + " | ".join(parts))
                         detail_line = (
-                            f"{pname} raw_score={raw_score_diag:.1f} quality_score={pscore} qp={pquality} grade={pbreak.get('grade','')} "
+                            f"{pname} raw_score={raw_score_diag:.1f} effective_score={effective_score_diag:.1f} quality_score={pscore} qp={pquality} grade={pbreak.get('grade','')} "
                             f"ADX={pbreak.get('adx',0)} Vol={pbreak.get('volume_ratio',0)}x "
                             f"{format_confirmation_diagnostic(pbreak)} "
                             f"HTF={pbreak.get('htf_alignment',0)}/{pbreak.get('required_htf_alignment',0)} "
@@ -9127,7 +9156,7 @@ def run_v63_14_3_outcome_boundary_self_test():
         },
     }
     assert _has_complete_outcome_horizons(complete_v57)
-    assert DEPLOYMENT_ID == "v63.14.16-bottom-hunter-rejection-diagnostics-20261011"
+    assert DEPLOYMENT_ID == "v63.14.18-bottom-score-calibration-20261011"
 
     # Low score must not suppress other rejection reasons in diagnostics.
     row = {
@@ -9151,11 +9180,11 @@ def run_v63_14_3_outcome_boundary_self_test():
         test_signal, {"1h": frame1, "30m": frame30, "4h": frame4h, "1d": framed},
         {"combined": "UNKNOWN"})
     assert passed is False
-    assert any(reason.startswith("score 75 < 90") for reason in reject_reasons)
+    assert any(reason.startswith("effective score 75 < 85") for reason in reject_reasons)
     assert any("reversal ADX too weak" in reason for reason in reject_reasons)
     assert any("reversal volume below professional minimum" in reason for reason in reject_reasons)
     assert any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
-    assert DEPLOYMENT_ID == "v63.14.16-bottom-hunter-rejection-diagnostics-20261011"
+    assert DEPLOYMENT_ID == "v63.14.18-bottom-score-calibration-20261011"
     return True
 
 
@@ -9179,7 +9208,7 @@ def run_v63_14_8_confirmation_diagnostic_self_test():
     assert format_confirmation_diagnostic({
         "confirmations_30m": 3, "required_30m": 6,
     }) == "30M=3 (required >= 6)"
-    assert DEPLOYMENT_ID == "v63.14.16-bottom-hunter-rejection-diagnostics-20261011"
+    assert DEPLOYMENT_ID == "v63.14.18-bottom-score-calibration-20261011"
     return True
 
 
@@ -9252,7 +9281,7 @@ def run_v63_14_7_final_gate_consistency_self_test():
     assert PRO_MIN_1H_ADX == 23.0
     assert PRO_MIN_VOLUME_RATIO == 1.35
     assert PRO_BOTTOM_MIN_30M_CONFIRMATIONS == 6
-    assert DEPLOYMENT_ID == "v63.14.16-bottom-hunter-rejection-diagnostics-20261011"
+    assert DEPLOYMENT_ID == "v63.14.18-bottom-score-calibration-20261011"
     return True
 
 
@@ -9267,7 +9296,7 @@ def run_v63_14_2_bottom_rsi_self_test():
     assert BOTTOM_RSI_MIN <= 23 <= BOTTOM_RSI_MAX
     assert not (BOTTOM_RSI_MIN <= 19 <= BOTTOM_RSI_MAX)
     assert not (BOTTOM_RSI_MIN <= 45 <= BOTTOM_RSI_MAX)
-    assert DEPLOYMENT_ID == "v63.14.16-bottom-hunter-rejection-diagnostics-20261011"
+    assert DEPLOYMENT_ID == "v63.14.18-bottom-score-calibration-20261011"
     return True
 
 
@@ -9309,6 +9338,51 @@ def run_v63_14_diagnostic_trace_self_test():
     return True
 
 
+def bottom_hunter_adx_gate_pass(adx, volume_ratio, raw_score, momentum_components):
+    """Standard ADX gate plus a narrow, evidence-heavy early-reversal exception."""
+    adx = safe_float(adx, 0.0)
+    volume_ratio = safe_float(volume_ratio, 0.0)
+    raw_score = safe_float(raw_score, 0.0)
+    momentum_components = safe_int(momentum_components, 0)
+    if adx >= PRO_BOTTOM_MIN_ADX:
+        return True
+    return (adx >= PRO_BOTTOM_EARLY_ADX_FLOOR
+            and volume_ratio >= PRO_BOTTOM_EARLY_ADX_MIN_VOLUME
+            and raw_score >= PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE
+            and momentum_components >= PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS)
+
+
+def run_v63_14_19_raw_effective_score_self_test():
+    sample = {"score": 75, "raw_score": 92}
+    effective = safe_float(sample.get("score"))
+    engine_raw = safe_float(sample.get("raw_score", effective))
+    assert effective == 75 and engine_raw == 92
+    # Eligibility must follow the effective score; raw score cannot bypass caps.
+    assert effective < 85 and engine_raw >= 85
+    assert PRO_BOTTOM_MIN_SCORE == 85
+    assert PRO_MIN_SCORE == 90 and PRO_SELL_MIN_SCORE == 92
+    return True
+
+
+def run_v63_14_18_bottom_score_calibration_self_test():
+    assert PRO_BOTTOM_MIN_SCORE == 85
+    assert professional_min_score_for_mode("BOTTOM_HUNTER", "BUY") == 85
+    assert professional_min_score_for_mode("BOTTOM_HUNTER", "SELL") == 85
+    assert PRO_MIN_SCORE == 90 and PRO_SELL_MIN_SCORE == 92
+    return True
+
+
+def run_v63_14_17_early_reversal_gate_self_test():
+    assert bottom_hunter_adx_gate_pass(23.0, 1.0, 90, 0)
+    assert bottom_hunter_adx_gate_pass(20.0, 1.50, 95, 2)
+    assert not bottom_hunter_adx_gate_pass(17.9, 2.0, 100, 3)
+    assert not bottom_hunter_adx_gate_pass(20.0, 1.49, 100, 3)
+    assert not bottom_hunter_adx_gate_pass(20.0, 1.50, 94.9, 3)
+    assert not bottom_hunter_adx_gate_pass(20.0, 1.50, 95, 1)
+    assert PRO_BOTTOM_MIN_ADX == 23.0
+    return True
+
+
 def run_v63_14_16_bottom_rejection_diagnostic_self_test():
     outside_rsi_only = {"rsi_outside": 1, "score_fail": 1}
     summary = bottom_hunter_rejection_summary(outside_rsi_only)
@@ -9324,10 +9398,11 @@ def run_v63_14_16_bottom_rejection_diagnostic_self_test():
 
     btc_blocked = {"rejection_reasons": ["BTC_REGIME_BLOCKED"]}
     assert bottom_hunter_rejection_summary(btc_blocked)["primary"] == "BTC_REGIME_BLOCKED"
-    assert PRO_BOTTOM_MIN_SCORE == 90
+    assert PRO_BOTTOM_MIN_SCORE == 85
     assert PRO_BOTTOM_MIN_ADX == 23.0
     assert PRO_BOTTOM_MIN_VOLUME_RATIO == 1.35
-    assert DEPLOYMENT_ID == "v63.14.16-bottom-hunter-rejection-diagnostics-20261011"
+    assert DEPLOYMENT_ID == "v63.14.18-bottom-score-calibration-20261011"
+    assert run_v63_14_17_early_reversal_gate_self_test() is True
     return True
 
 
@@ -10840,6 +10915,7 @@ def run_system_test():
 
 def start_bot():
     print(f"DEPLOYMENT_ID: {DEPLOYMENT_ID}", flush=True)
+    print(f"DRY_RUN: {DRY_RUN} (Telegram delivery disabled when true)", flush=True)
 
     print_startup_info()
 
@@ -10961,6 +11037,7 @@ if __name__ == "__main__":
     assert run_v63_12_root_fix3_self_test() is True
     assert run_v63_14_diagnostic_trace_self_test() is True
     assert run_v63_14_16_bottom_rejection_diagnostic_self_test() is True
+    assert run_v63_14_19_raw_effective_score_self_test() is True
     assert run_v63_14_1_root_fix_self_test() is True
     assert run_v63_14_2_bottom_rsi_self_test() is True
     assert run_v63_14_3_outcome_boundary_self_test() is True
