@@ -5820,6 +5820,8 @@ def _final_gate_reject(signal, reason):
     if isinstance(signal, dict):
         signal["final_telegram_gate_rejections"] = [str(reason)]
         signal["final_telegram_quality_gate"] = False
+        signal["delivery_diagnostic_status"] = "BLOCKED_FINAL_QUALITY_GATE"
+        signal["delivery_diagnostic_reason"] = str(reason)
     return False
 
 
@@ -5902,23 +5904,17 @@ def send_signal_to_telegram(
     if not validate_signal_quality(
         signal
     ):
-
-        log(
-            f"{signal.get('symbol')} "
-            "failed signal quality"
-        )
-
+        signal["delivery_diagnostic_status"] = "BLOCKED_SIGNAL_QUALITY"
+        signal["delivery_diagnostic_reason"] = "validate_signal_quality returned false"
+        log(f"{signal.get('symbol')} delivery blocked: signal-quality validation failed")
         return False
 
     if not validate_risk_levels(
         signal
     ):
-
-        log(
-            f"{signal.get('symbol')} "
-            "failed risk validation"
-        )
-
+        signal["delivery_diagnostic_status"] = "BLOCKED_RISK_VALIDATION"
+        signal["delivery_diagnostic_reason"] = "validate_risk_levels returned false"
+        log(f"{signal.get('symbol')} delivery blocked: risk-level validation failed")
         return False
 
     message = build_signal_message(
@@ -5926,7 +5922,22 @@ def send_signal_to_telegram(
     )
 
     if not message:
+        signal["delivery_diagnostic_status"] = "BLOCKED_MESSAGE_BUILD"
+        signal["delivery_diagnostic_reason"] = "build_signal_message returned an empty message"
+        log(f"{signal.get('symbol')} delivery blocked: message construction returned empty")
+        return False
 
+    # Dry-run now validates the full delivery path without making a Telegram
+    # request. This distinguishes a qualified signal from a delivery failure.
+    if DRY_RUN:
+        signal["delivery_diagnostic_status"] = "READY_BUT_SUPPRESSED_DRY_RUN"
+        signal["delivery_diagnostic_reason"] = "all quality and risk gates passed; Telegram request intentionally suppressed"
+        log(
+            f"DRY_RUN VALIDATED: {signal.get('symbol')} "
+            f"{signal.get('signal')} Mode={signal.get('signal_mode', 'TREND')} "
+            f"Score={signal.get('score')} | quality=PASS risk=PASS | "
+            "Telegram request suppressed by DRY_RUN"
+        )
         return False
 
     success = send_telegram_message(
@@ -6571,20 +6582,20 @@ def process_signal(
     )
 
     if not sent:
-
         signal_mode = str(signal.get("signal_mode", "TREND")).upper()
         signal_tf = str(signal.get("signal_timeframe", TIMEFRAME_MAIN)).lower()
         tf_label = "4H" if signal_mode == "4H_SIGNAL" or signal_tf == "4h" else ("DAILY" if signal_mode == "DAILY_SIGNAL" or signal_tf == "1d" else "1H")
+        diagnostic_status = str(signal.get("delivery_diagnostic_status", "DELIVERY_FAILED_OR_UNCLASSIFIED"))
+        diagnostic_reason = str(signal.get("delivery_diagnostic_reason", "no specific delivery diagnostic was recorded"))
         log(
-            f"Signal not sent: {signal.get('symbol')} "
-            f"TF={tf_label} Mode={signal_mode} "
-            f"Reason=TELEGRAM_OR_QUALITY_VALIDATION"
+            f"Signal not sent: {signal.get('symbol')} TF={tf_label} "
+            f"Mode={signal_mode} Status={diagnostic_status} Reason={diagnostic_reason}"
         )
-
         return {
             "sent": False,
             "duplicate": False,
-            "reason": "TELEGRAM_OR_QUALITY_VALIDATION"
+            "reason": diagnostic_status,
+            "detail": diagnostic_reason
         }
 
     # -----------------------------------------------------
