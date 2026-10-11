@@ -5854,12 +5854,14 @@ def final_telegram_quality_gate(signal):
 
     side = str(signal.get("signal", "")).upper()
     mode = str(signal.get("signal_mode", "TREND")).upper()
-    raw_score = safe_float(pbreak.get("raw_score", signal.get("score", 0)))
+    # Match the professional gate: eligibility uses the effective, quality-capped
+    # score. Keep the true engine raw score diagnostic-only.
+    effective_score = safe_float(pbreak.get("effective_score", signal.get("score", 0)))
     quality_score = safe_int(pbreak.get("quality_score", signal.get("professional_quality_score", 0)))
     min_score = professional_min_score_for_mode(mode, side)
-    if raw_score + RR_EPSILON < min_score:
+    if effective_score + RR_EPSILON < min_score:
         return _final_gate_reject(
-            signal, f"raw score {raw_score:.1f} < required {min_score} for {mode}/{side}"
+            signal, f"effective score {effective_score:.1f} < required {min_score} for {mode}/{side}"
         )
     if quality_score <= 0:
         return _final_gate_reject(signal, "professional quality score is missing or non-positive")
@@ -8388,13 +8390,17 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     confirm = {}
     confirmations = 0
 
+    # Keep the gate's existing behavior: the effective score (including Bottom
+    # Hunter quality caps) decides eligibility. The engine's pre-cap raw score
+    # is captured separately for diagnostics and must never replace this gate score.
     raw_score = safe_float(signal.get("score"))
+    engine_raw_score = safe_float(signal.get("raw_score", raw_score))
     min_score = professional_min_score_for_mode(mode, side)
     if raw_score < min_score:
         # Diagnostic-only root fix: record the score failure but continue evaluating
         # all independent gates. The signal still fails closed because `reject`
         # remains non-empty; this does not lower or bypass the score threshold.
-        reject.append(f"score {raw_score:.0f} < {min_score}")
+        reject.append(f"effective score {raw_score:.0f} < {min_score}")
 
     close = safe_float(r1.get("close"))
     ema9 = safe_float(r1.get("ema9")); ema21 = safe_float(r1.get("ema21")); ema50 = safe_float(r1.get("ema50")); ema200 = safe_float(r1.get("ema200"))
@@ -8690,9 +8696,11 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
 
     # v63.5 diagnostic breakdown: evidence only; does NOT weaken the gate.
     signal["professional_quality_breakdown"] = {
-        "mode": mode, "side": side, "raw_score": round(raw_score, 1),
+        "mode": mode, "side": side,
+        "raw_score": round(engine_raw_score, 1),
+        "effective_score": round(raw_score, 1),
         "quality_points": int(quality), "quality_score": int(quality_score),
-        "grade": quality_grade, "grade_basis": "raw_score_and_quality_points",
+        "grade": quality_grade, "grade_basis": "effective_score_and_quality_points",
         "quality_score_basis": "capped_index_55_plus_3x_quality_points",
         "min_quality_points": int(min_quality_points),
         "required_grade": "A+", "adx": round(adx, 2),
@@ -9342,6 +9350,18 @@ def bottom_hunter_adx_gate_pass(adx, volume_ratio, raw_score, momentum_component
             and volume_ratio >= PRO_BOTTOM_EARLY_ADX_MIN_VOLUME
             and raw_score >= PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE
             and momentum_components >= PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS)
+
+
+def run_v63_14_19_raw_effective_score_self_test():
+    sample = {"score": 75, "raw_score": 92}
+    effective = safe_float(sample.get("score"))
+    engine_raw = safe_float(sample.get("raw_score", effective))
+    assert effective == 75 and engine_raw == 92
+    # Eligibility must follow the effective score; raw score cannot bypass caps.
+    assert effective < 85 and engine_raw >= 85
+    assert PRO_BOTTOM_MIN_SCORE == 85
+    assert PRO_MIN_SCORE == 90 and PRO_SELL_MIN_SCORE == 92
+    return True
 
 
 def run_v63_14_18_bottom_score_calibration_self_test():
@@ -11017,6 +11037,7 @@ if __name__ == "__main__":
     assert run_v63_12_root_fix3_self_test() is True
     assert run_v63_14_diagnostic_trace_self_test() is True
     assert run_v63_14_16_bottom_rejection_diagnostic_self_test() is True
+    assert run_v63_14_19_raw_effective_score_self_test() is True
     assert run_v63_14_1_root_fix_self_test() is True
     assert run_v63_14_2_bottom_rsi_self_test() is True
     assert run_v63_14_3_outcome_boundary_self_test() is True
