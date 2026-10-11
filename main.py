@@ -29,6 +29,10 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 RUN_ONCE = os.getenv("RUN_ONCE", "0") == "1"
 TELEGRAM_TEST_ON_START = False
 
+# Temporary safety lock: suppress all Telegram delivery unless explicitly disabled.
+# Keep enabled by default while diagnostics/backtesting are being reviewed.
+DRY_RUN = os.getenv("DRY_RUN", "1").strip().lower() in ("1", "true", "yes", "on")
+
 # Deployment identity: workflow must verify this exact build before execution.
 DEPLOYMENT_ID = "v63.14.15-extended-history-outcome-repair-20261010"
 
@@ -5343,6 +5347,10 @@ def send_telegram_message(
     """
     ارسال پیام به Telegram
     """
+
+    if DRY_RUN:
+        log("DRY_RUN active: Telegram delivery suppressed.")
+        return False
 
     if not TELEGRAM_TOKEN:
 
