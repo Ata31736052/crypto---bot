@@ -8918,7 +8918,7 @@ def analyze_one_symbol(symbol, btc_regime):
                     bottom_diagnostic["professional_rejected"] = safe_int(bottom_diagnostic.get("professional_rejected", 0)) + 1
                     pbreak = bottom_signal.get("professional_quality_breakdown", {})
                     if isinstance(pbreak, dict):
-                        raw_score_diag = safe_float(pbreak.get("raw_score", 0)); pscore = safe_int(pbreak.get("quality_score", 0)); pquality = safe_int(pbreak.get("quality_points", 0))
+                        raw_score_diag = safe_float(pbreak.get("raw_score", 0)); effective_score_diag = safe_float(pbreak.get("effective_score", bottom_signal.get("score", 0))); pscore = safe_int(pbreak.get("quality_score", 0)); pquality = safe_int(pbreak.get("quality_points", 0))
                         pbucket = (pscore // 5) * 5; qbucket = (pquality // 2) * 2
                         skey = f"professional_score_{pbucket}_{pbucket+4}"
                         qkey = f"professional_quality_points_{qbucket}_{qbucket+1}"
@@ -8926,7 +8926,7 @@ def analyze_one_symbol(symbol, btc_regime):
                         bottom_diagnostic[qkey] = safe_int(bottom_diagnostic.get(qkey, 0)) + 1
                         pname = str(bottom_signal.get("symbol") or symbol or "UNKNOWN")
                         log(
-                            f"  Professional detail {pname}: raw_score={raw_score_diag:.1f}, quality_index={pscore}/100 (capped), quality_points={pquality}, "
+                            f"  Professional detail {pname}: raw_score={raw_score_diag:.1f}, effective_score={effective_score_diag:.1f}, quality_index={pscore}/100 (capped), quality_points={pquality}, "
                             f"grade={pbreak.get('grade', '')} [grade_basis=raw_score+quality_points], ADX={pbreak.get('adx', 0)}, "
                             f"volume={pbreak.get('volume_ratio', 0)}x, "
                             f"{format_confirmation_diagnostic(pbreak)}, "
@@ -8948,7 +8948,7 @@ def analyze_one_symbol(symbol, btc_regime):
                             if parts:
                                 log("    Components: " + " | ".join(parts))
                         detail_line = (
-                            f"{pname} raw_score={raw_score_diag:.1f} quality_score={pscore} qp={pquality} grade={pbreak.get('grade','')} "
+                            f"{pname} raw_score={raw_score_diag:.1f} effective_score={effective_score_diag:.1f} quality_score={pscore} qp={pquality} grade={pbreak.get('grade','')} "
                             f"ADX={pbreak.get('adx',0)} Vol={pbreak.get('volume_ratio',0)}x "
                             f"{format_confirmation_diagnostic(pbreak)} "
                             f"HTF={pbreak.get('htf_alignment',0)}/{pbreak.get('required_htf_alignment',0)} "
