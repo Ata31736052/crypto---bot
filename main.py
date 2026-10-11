@@ -9172,7 +9172,7 @@ def run_v63_14_3_outcome_boundary_self_test():
         test_signal, {"1h": frame1, "30m": frame30, "4h": frame4h, "1d": framed},
         {"combined": "UNKNOWN"})
     assert passed is False
-    assert any(reason.startswith("score 75 < 90") for reason in reject_reasons)
+    assert any(reason.startswith("score 75 < 85") for reason in reject_reasons)
     assert any("reversal ADX too weak" in reason for reason in reject_reasons)
     assert any("reversal volume below professional minimum" in reason for reason in reject_reasons)
     assert any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
