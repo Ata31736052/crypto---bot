@@ -1,0 +1,102 @@
+name: Bottom Hunter Binance Dry Run (No Telegram)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bottom-hunter-dry-run
+  cancel-in-progress: false
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RUN_ONCE: '1'
+      DRY_RUN: '1'
+      TELEGRAM_TEST_ON_START: '0'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - name: Checkout selected branch
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            python -m pip install -r requirements.txt
+          else
+            python -m pip install requests pandas numpy
+          fi
+
+      - name: Verify safe mode and compile
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile main.py
+          python - <<'PY'
+          from pathlib import Path
+          source = Path("main.py").read_text(encoding="utf-8")
+          checks = {
+              "DRY_RUN environment flag exists": 'DRY_RUN = os.getenv("DRY_RUN"' in source,
+              "Telegram send boundary blocks dry-run": 'if DRY_RUN:\n        log("DRY_RUN active: Telegram delivery suppressed.")\n        return False' in source,
+              "Bottom Hunter rejection diagnostic self-test exists": "def run_v63_14_16_bottom_rejection_diagnostic_self_test():" in source,
+              "production thresholds unchanged": "PRO_BOTTOM_MIN_SCORE = 90" in source and "PRO_BOTTOM_MIN_ADX = 23.0" in source and "PRO_BOTTOM_MIN_VOLUME_RATIO = 1.35" in source,
+          }
+          for label, ok in checks.items():
+              print(f"{'PASS' if ok else 'FAIL'}: {label}")
+          if not all(checks.values()):
+              raise SystemExit("Dry-run safety/source check failed")
+          PY
+          echo "Python compile: PASS"
+
+      - name: Run regression self-tests (no scan, no Telegram)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import main
+          tests = [
+              ("v63.9 diagnostic integrity", main.run_v63_9_diagnostic_integrity_self_test),
+              ("v63.12 root fix", main.run_v63_12_root_fix3_self_test),
+              ("v63.14 diagnostic trace", main.run_v63_14_diagnostic_trace_self_test),
+              ("v63.14.16 Bottom Hunter rejection diagnostics", main.run_v63_14_16_bottom_rejection_diagnostic_self_test),
+              ("v63.14.1 root fix", main.run_v63_14_1_root_fix_self_test),
+              ("v63.14.2 Bottom RSI regression", main.run_v63_14_2_bottom_rsi_self_test),
+              ("v63.14.3 outcome boundary", main.run_v63_14_3_outcome_boundary_self_test),
+              ("v63.14.7 final-gate consistency", main.run_v63_14_7_final_gate_consistency_self_test),
+              ("v63.14.8 confirmation diagnostic truth", main.run_v63_14_8_confirmation_diagnostic_self_test),
+              ("v63.14.9 engine rejection trace", main.run_v63_14_9_engine_rejection_trace_self_test),
+              ("v63.14.10 score-grade diagnostic", main.run_v63_14_10_score_grade_diagnostic_self_test),
+              ("v63.14.11 analytics scope", main.run_v63_14_11_analytics_scope_self_test),
+              ("v63.14.14 outcome coverage", main.run_v63_14_14_finalization_metrics_self_test),
+          ]
+          for label, test in tests:
+              assert test() is True, f"{label} failed"
+              print(f"PASS: {label}")
+          print("ALL REGRESSION SELF-TESTS: PASS")
+          PY
+
+      - name: Scan live Binance data with Telegram delivery disabled
+        run: python main.py
+
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bottom-hunter-dry-run-${{ github.run_number }}
+          path: |
+            professional_diagnostics.txt
+            symbol_diagnostics.txt
+          if-no-files-found: warn
+          retention-days: 7
