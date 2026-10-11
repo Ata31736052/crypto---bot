@@ -50,6 +50,9 @@ jobs:
           checks = {
               "DRY_RUN environment flag exists": 'DRY_RUN = os.getenv("DRY_RUN"' in source,
               "Telegram send boundary blocks dry-run": 'if DRY_RUN:\n        log("DRY_RUN active: Telegram delivery suppressed.")\n        return False' in source,
+              "Dry-run distinguishes validated signals from blocked signals": "DRY_RUN VALIDATED:" in source and "READY_BUT_SUPPRESSED_DRY_RUN" in source,
+              "Final delivery rejection reasons are specific": "BLOCKED_FINAL_QUALITY_GATE" in source and "BLOCKED_SIGNAL_QUALITY" in source and "BLOCKED_RISK_VALIDATION" in source,
+              "Generic Telegram-or-quality rejection removed": "Reason=TELEGRAM_OR_QUALITY_VALIDATION" not in source,
               "Bottom Hunter rejection diagnostic self-test exists": "def run_v63_14_16_bottom_rejection_diagnostic_self_test():" in source,
               "production thresholds unchanged": "PRO_BOTTOM_MIN_SCORE = 90" in source and "PRO_BOTTOM_MIN_ADX = 23.0" in source and "PRO_BOTTOM_MIN_VOLUME_RATIO = 1.35" in source,
           }
