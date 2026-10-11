@@ -5,7 +5,7 @@
 # Confirmation TF: 30M
 # Higher TF Context: 4H + Daily
 # Binance Spot only | No auto-trading
-# Version: 2026-10-11 v63.14.17 | CONTROLLED EARLY-REVERSAL ADX EXCEPTION | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
+# Version: 2026-10-11 v63.14.18 | BOTTOM SCORE CALIBRATION + CONTROLLED EARLY-REVERSAL GATE | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
 # =========================================================
 
 import os
@@ -33,7 +33,7 @@ TELEGRAM_TEST_ON_START = False
 DRY_RUN = os.getenv("DRY_RUN", "0").strip().lower() in ("1", "true", "yes", "on")
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.17-early-reversal-adx-exception-20261011"
+DEPLOYMENT_ID = "v63.14.18-bottom-score-calibration-20261011"
 
 
 
@@ -82,7 +82,7 @@ PRO_SELL_MIN_1H_ADX = 26.0
 PRO_SELL_MIN_VOLUME_RATIO = 1.50
 PRO_SELL_MIN_30M_CONFIRMATIONS = 6
 PRO_BREAKOUT_MIN_SCORE = 90
-PRO_BOTTOM_MIN_SCORE = 90
+PRO_BOTTOM_MIN_SCORE = 85
 PRO_HIGHER_TF_MIN_SCORE = 90
 PRO_MIN_QUALITY_POINTS = 15
 PRO_BOTTOM_MIN_QUALITY_POINTS = 15
@@ -9148,7 +9148,7 @@ def run_v63_14_3_outcome_boundary_self_test():
         },
     }
     assert _has_complete_outcome_horizons(complete_v57)
-    assert DEPLOYMENT_ID == "v63.14.17-early-reversal-adx-exception-20261011"
+    assert DEPLOYMENT_ID == "v63.14.18-bottom-score-calibration-20261011"
 
     # Low score must not suppress other rejection reasons in diagnostics.
     row = {
@@ -9176,7 +9176,7 @@ def run_v63_14_3_outcome_boundary_self_test():
     assert any("reversal ADX too weak" in reason for reason in reject_reasons)
     assert any("reversal volume below professional minimum" in reason for reason in reject_reasons)
     assert any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
-    assert DEPLOYMENT_ID == "v63.14.17-early-reversal-adx-exception-20261011"
+    assert DEPLOYMENT_ID == "v63.14.18-bottom-score-calibration-20261011"
     return True
 
 
@@ -9200,7 +9200,7 @@ def run_v63_14_8_confirmation_diagnostic_self_test():
     assert format_confirmation_diagnostic({
         "confirmations_30m": 3, "required_30m": 6,
     }) == "30M=3 (required >= 6)"
-    assert DEPLOYMENT_ID == "v63.14.17-early-reversal-adx-exception-20261011"
+    assert DEPLOYMENT_ID == "v63.14.18-bottom-score-calibration-20261011"
     return True
 
 
@@ -9273,7 +9273,7 @@ def run_v63_14_7_final_gate_consistency_self_test():
     assert PRO_MIN_1H_ADX == 23.0
     assert PRO_MIN_VOLUME_RATIO == 1.35
     assert PRO_BOTTOM_MIN_30M_CONFIRMATIONS == 6
-    assert DEPLOYMENT_ID == "v63.14.17-early-reversal-adx-exception-20261011"
+    assert DEPLOYMENT_ID == "v63.14.18-bottom-score-calibration-20261011"
     return True
 
 
@@ -9288,7 +9288,7 @@ def run_v63_14_2_bottom_rsi_self_test():
     assert BOTTOM_RSI_MIN <= 23 <= BOTTOM_RSI_MAX
     assert not (BOTTOM_RSI_MIN <= 19 <= BOTTOM_RSI_MAX)
     assert not (BOTTOM_RSI_MIN <= 45 <= BOTTOM_RSI_MAX)
-    assert DEPLOYMENT_ID == "v63.14.17-early-reversal-adx-exception-20261011"
+    assert DEPLOYMENT_ID == "v63.14.18-bottom-score-calibration-20261011"
     return True
 
 
@@ -9344,6 +9344,14 @@ def bottom_hunter_adx_gate_pass(adx, volume_ratio, raw_score, momentum_component
             and momentum_components >= PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS)
 
 
+def run_v63_14_18_bottom_score_calibration_self_test():
+    assert PRO_BOTTOM_MIN_SCORE == 85
+    assert professional_min_score_for_mode("BOTTOM_HUNTER", "BUY") == 85
+    assert professional_min_score_for_mode("BOTTOM_HUNTER", "SELL") == 85
+    assert PRO_MIN_SCORE == 90 and PRO_SELL_MIN_SCORE == 92
+    return True
+
+
 def run_v63_14_17_early_reversal_gate_self_test():
     assert bottom_hunter_adx_gate_pass(23.0, 1.0, 90, 0)
     assert bottom_hunter_adx_gate_pass(20.0, 1.50, 95, 2)
@@ -9370,10 +9378,10 @@ def run_v63_14_16_bottom_rejection_diagnostic_self_test():
 
     btc_blocked = {"rejection_reasons": ["BTC_REGIME_BLOCKED"]}
     assert bottom_hunter_rejection_summary(btc_blocked)["primary"] == "BTC_REGIME_BLOCKED"
-    assert PRO_BOTTOM_MIN_SCORE == 90
+    assert PRO_BOTTOM_MIN_SCORE == 85
     assert PRO_BOTTOM_MIN_ADX == 23.0
     assert PRO_BOTTOM_MIN_VOLUME_RATIO == 1.35
-    assert DEPLOYMENT_ID == "v63.14.17-early-reversal-adx-exception-20261011"
+    assert DEPLOYMENT_ID == "v63.14.18-bottom-score-calibration-20261011"
     assert run_v63_14_17_early_reversal_gate_self_test() is True
     return True
 
