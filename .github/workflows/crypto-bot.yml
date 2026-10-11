@@ -17,10 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      # Temporary safety lock: disable Telegram delivery for this scheduled workflow.
-      TELEGRAM_TOKEN: ""
-      TELEGRAM_CHAT_ID: ""
-      DRY_RUN: "1"
+      # Send qualified signals through the configured Telegram bot.
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      DRY_RUN: "0"
       RUN_ONCE: '1'
       TELEGRAM_TEST_ON_START: '0'
       PYTHONUNBUFFERED: '1'
@@ -135,6 +135,24 @@ jobs:
           print('Core gates:', main.PRO_MIN_SCORE, main.PRO_MIN_1H_ADX,
                 main.PRO_MIN_VOLUME_RATIO, main.PRO_MIN_30M_CONFIRMATIONS)
           PY
+
+      - name: Verify Telegram delivery configuration
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TELEGRAM_TOKEN}" ]; then
+            echo "ERROR: GitHub Actions secret TELEGRAM_TOKEN is missing."
+            exit 1
+          fi
+          if [ -z "${TELEGRAM_CHAT_ID}" ]; then
+            echo "ERROR: GitHub Actions secret TELEGRAM_CHAT_ID is missing."
+            exit 1
+          fi
+          echo "Telegram configuration: present (values hidden)"
 
       - name: Run one closed-candle scan
         if: github.event_name != 'pull_request'
