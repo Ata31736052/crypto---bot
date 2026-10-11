@@ -29,6 +29,9 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 RUN_ONCE = os.getenv("RUN_ONCE", "0") == "1"
 TELEGRAM_TEST_ON_START = False
 
+# Safe diagnostics mode: scan Binance data, but never deliver Telegram messages.
+DRY_RUN = os.getenv("DRY_RUN", "0").strip().lower() in ("1", "true", "yes", "on")
+
 # Deployment identity: workflow must verify this exact build before execution.
 DEPLOYMENT_ID = "v63.14.16-bottom-hunter-rejection-diagnostics-20261011"
 
@@ -5343,6 +5346,10 @@ def send_telegram_message(
     """
     ارسال پیام به Telegram
     """
+
+    if DRY_RUN:
+        log("DRY_RUN active: Telegram delivery suppressed.")
+        return False
 
     if not TELEGRAM_TOKEN:
 
@@ -10840,6 +10847,7 @@ def run_system_test():
 
 def start_bot():
     print(f"DEPLOYMENT_ID: {DEPLOYMENT_ID}", flush=True)
+    print(f"DRY_RUN: {DRY_RUN} (Telegram delivery disabled when true)", flush=True)
 
     print_startup_info()
 
