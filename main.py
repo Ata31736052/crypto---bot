@@ -5,7 +5,7 @@
 # Confirmation TF: 30M
 # Higher TF Context: 4H + Daily
 # Binance Spot only | No auto-trading
-# Version: 2026-10-10 v63.14.13 | OUTCOME CANDLE-COVERAGE GATE | SCORE-GRADE SEMANTICS | NO THRESHOLD RELAXATION | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
+# Version: 2026-10-11 v63.14.16 | BOTTOM-HUNTER REJECTION DIAGNOSTICS | VERSION IDENTITY ALIGNED | NO THRESHOLD RELAXATION | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
 # =========================================================
 
 import os
@@ -30,7 +30,7 @@ RUN_ONCE = os.getenv("RUN_ONCE", "0") == "1"
 TELEGRAM_TEST_ON_START = False
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.15-extended-history-outcome-repair-20261010"
+DEPLOYMENT_ID = "v63.14.16-bottom-hunter-rejection-diagnostics-20261011"
 
 
 
@@ -7703,8 +7703,15 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
         if isinstance(diagnostic, dict):
             diagnostic[name] = safe_int(diagnostic.get(name, 0)) + 1
 
+    def dreject(reason):
+        if isinstance(diagnostic, dict):
+            reasons = diagnostic.setdefault("rejection_reasons", [])
+            if reason not in reasons:
+                reasons.append(reason)
+
     if df_1h is None or df_30m is None or len(df_1h) < 80 or len(df_30m) < 30:
         dmark("insufficient_data")
+        dreject("INSUFFICIENT_DATA")
         return None
     dmark("data_ready")
 
@@ -7715,6 +7722,7 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
     prev_rsi = safe_float(prev.get("rsi"))
     if close <= 0:
         dmark("invalid_price")
+        dreject("INVALID_PRICE")
         return None
 
     ema21 = safe_float(row.get("ema21"))
@@ -7730,6 +7738,7 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
     high_n = safe_float(df_1h["high"].iloc[-BOTTOM_LOOKBACK:].max())
     if low_n <= 0 or high_n <= 0:
         dmark("invalid_range")
+        dreject("INVALID_RECENT_RANGE")
         return None
 
     dist_low = (close / low_n - 1) * 100
@@ -7874,6 +7883,7 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
     if "BEARISH" in btc and ("STRONG" in btc or "SEVERE" in btc or btc == "BEARISH"):
         dmark("btc_blocked")
         dmark("final_rejected")
+        dreject("BTC_REGIME_BLOCKED")
         return None
     dmark("btc_allowed")
     if btc and "BEARISH" not in btc:
@@ -7933,6 +7943,15 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
     else:
         dmark("score_fail")
 
+    # Record every failed final condition explicitly. RSI-zone status remains
+    # contextual information; it is not automatically treated as the rejection cause.
+    if dist_low > 7:
+        dreject("NOT_NEAR_RECENT_LOW")
+    if not reversal:
+        dreject("NO_REVERSAL_EVIDENCE")
+    if score < BOTTOM_MIN_SCORE:
+        dreject("SCORE_BELOW_MINIMUM")
+
     if not (dist_low <= 7 and reversal and score >= BOTTOM_MIN_SCORE):
         dmark("final_rejected")
         return None
@@ -7968,6 +7987,34 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
         "bottom_warning": "Early reversal setup; exact bottom is not confirmed."
     }
 
+
+
+def bottom_hunter_rejection_summary(diagnostic):
+    """Return the recorded Bottom Hunter rejection cause(s), not an RSI guess."""
+    if not isinstance(diagnostic, dict):
+        return {"primary": "NO_DIAGNOSTIC", "all": []}
+    reasons = diagnostic.get("rejection_reasons", [])
+    if not isinstance(reasons, list):
+        reasons = []
+    reasons = [str(reason) for reason in reasons if str(reason)]
+    if reasons:
+        return {"primary": reasons[0], "all": reasons}
+    if safe_int(diagnostic.get("final_passed", 0)) > 0:
+        return {"primary": "REVERSAL_CANDIDATE", "all": []}
+    # Legacy/partial diagnostics may not include the explicit list.
+    if safe_int(diagnostic.get("insufficient_data", 0)) > 0:
+        primary = "INSUFFICIENT_DATA"
+    elif safe_int(diagnostic.get("btc_blocked", 0)) > 0:
+        primary = "BTC_REGIME_BLOCKED"
+    elif safe_int(diagnostic.get("failed_near_low", 0)) > 0:
+        primary = "NOT_NEAR_RECENT_LOW"
+    elif safe_int(diagnostic.get("failed_reversal", 0)) > 0:
+        primary = "NO_REVERSAL_EVIDENCE"
+    elif safe_int(diagnostic.get("score_fail", 0)) > 0:
+        primary = "SCORE_BELOW_MINIMUM"
+    else:
+        primary = "NO_REVERSAL_CANDIDATE"
+    return {"primary": primary, "all": [primary]}
 
 
 # =========================================================
@@ -8806,10 +8853,16 @@ def analyze_one_symbol(symbol, btc_regime):
                     trend_signal = None
 
         bottom_signal = score_bottom_hunter(df_1h, df_30m, btc_regime, diagnostic=bottom_diagnostic, mtf_context=mtf_context)
+        reversal_rejection = bottom_hunter_rejection_summary(bottom_diagnostic)
         trace["reversal"] = {
             "candidate": bool(bottom_signal),
             "diagnostic": dict(bottom_diagnostic),
-            "reason": "REVERSAL_CANDIDATE" if bottom_signal else ("RSI_OUTSIDE" if bottom_diagnostic and safe_int(bottom_diagnostic.get("rsi_zone", 0)) == 0 else "NO_REVERSAL_CANDIDATE")
+            "reason": "REVERSAL_CANDIDATE" if bottom_signal else reversal_rejection["primary"],
+            "rejection_reasons": [] if bottom_signal else reversal_rejection["all"],
+            "rsi_zone_status": (
+                "IN_ZONE" if safe_int(bottom_diagnostic.get("rsi_zone", 0)) > 0
+                else "OUTSIDE_OR_NOT_REACHED"
+            ),
         }
         if not bottom_signal and trace["first_rejection"] is None:
             trace["first_rejection"] = "REVERSAL:" + str(trace["reversal"].get("reason"))
@@ -9074,7 +9127,7 @@ def run_v63_14_3_outcome_boundary_self_test():
         },
     }
     assert _has_complete_outcome_horizons(complete_v57)
-    assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
+    assert DEPLOYMENT_ID == "v63.14.16-bottom-hunter-rejection-diagnostics-20261011"
 
     # Low score must not suppress other rejection reasons in diagnostics.
     row = {
@@ -9102,7 +9155,7 @@ def run_v63_14_3_outcome_boundary_self_test():
     assert any("reversal ADX too weak" in reason for reason in reject_reasons)
     assert any("reversal volume below professional minimum" in reason for reason in reject_reasons)
     assert any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
-    assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
+    assert DEPLOYMENT_ID == "v63.14.16-bottom-hunter-rejection-diagnostics-20261011"
     return True
 
 
@@ -9126,7 +9179,7 @@ def run_v63_14_8_confirmation_diagnostic_self_test():
     assert format_confirmation_diagnostic({
         "confirmations_30m": 3, "required_30m": 6,
     }) == "30M=3 (required >= 6)"
-    assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
+    assert DEPLOYMENT_ID == "v63.14.16-bottom-hunter-rejection-diagnostics-20261011"
     return True
 
 
@@ -9199,7 +9252,7 @@ def run_v63_14_7_final_gate_consistency_self_test():
     assert PRO_MIN_1H_ADX == 23.0
     assert PRO_MIN_VOLUME_RATIO == 1.35
     assert PRO_BOTTOM_MIN_30M_CONFIRMATIONS == 6
-    assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
+    assert DEPLOYMENT_ID == "v63.14.16-bottom-hunter-rejection-diagnostics-20261011"
     return True
 
 
@@ -9214,7 +9267,7 @@ def run_v63_14_2_bottom_rsi_self_test():
     assert BOTTOM_RSI_MIN <= 23 <= BOTTOM_RSI_MAX
     assert not (BOTTOM_RSI_MIN <= 19 <= BOTTOM_RSI_MAX)
     assert not (BOTTOM_RSI_MIN <= 45 <= BOTTOM_RSI_MAX)
-    assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
+    assert DEPLOYMENT_ID == "v63.14.16-bottom-hunter-rejection-diagnostics-20261011"
     return True
 
 
@@ -9244,15 +9297,37 @@ def run_v63_14_diagnostic_trace_self_test():
         "first_rejection": "TREND:NO_1H_TREND_CANDIDATE",
         "final_rejection": ["score 82 < 90"],
         "trend": {"candidate": False},
-        "reversal": {"candidate": False, "reason": "RSI_OUTSIDE"},
+        "reversal": {"candidate": False, "reason": "SCORE_BELOW_MINIMUM"},
         "breakout": {"candidate": False, "reason": "NO_BREAKOUT_CANDIDATE"},
     }
     assert trace["first_rejection"] != trace["final_rejection"][0]
-    assert trace["reversal"]["reason"] == "RSI_OUTSIDE"
+    assert trace["reversal"]["reason"] == "SCORE_BELOW_MINIMUM"
     assert trace["breakout"]["reason"] == "NO_BREAKOUT_CANDIDATE"
     assert PRO_MIN_SCORE == 90
     assert PRO_MIN_1H_ADX >= 23.0
     assert PRO_MIN_VOLUME_RATIO >= 1.35
+    return True
+
+
+def run_v63_14_16_bottom_rejection_diagnostic_self_test():
+    outside_rsi_only = {"rsi_outside": 1, "score_fail": 1}
+    summary = bottom_hunter_rejection_summary(outside_rsi_only)
+    assert summary["primary"] == "SCORE_BELOW_MINIMUM"
+    assert summary["primary"] != "RSI_OUTSIDE"
+
+    multiple_failures = {
+        "rejection_reasons": ["NOT_NEAR_RECENT_LOW", "SCORE_BELOW_MINIMUM"]
+    }
+    summary = bottom_hunter_rejection_summary(multiple_failures)
+    assert summary["primary"] == "NOT_NEAR_RECENT_LOW"
+    assert summary["all"] == ["NOT_NEAR_RECENT_LOW", "SCORE_BELOW_MINIMUM"]
+
+    btc_blocked = {"rejection_reasons": ["BTC_REGIME_BLOCKED"]}
+    assert bottom_hunter_rejection_summary(btc_blocked)["primary"] == "BTC_REGIME_BLOCKED"
+    assert PRO_BOTTOM_MIN_SCORE == 90
+    assert PRO_BOTTOM_MIN_ADX == 23.0
+    assert PRO_BOTTOM_MIN_VOLUME_RATIO == 1.35
+    assert DEPLOYMENT_ID == "v63.14.16-bottom-hunter-rejection-diagnostics-20261011"
     return True
 
 
@@ -9794,7 +9869,7 @@ def scan_market():
     try:
         diag_path = "professional_diagnostics.txt"
         with open(diag_path, "w", encoding="utf-8") as fh:
-            fh.write("Crypto Signal Bot v63.5 Professional Diagnostics\n")
+            fh.write("Crypto Signal Bot v63.14.16 Professional Diagnostics\n")
             fh.write(f"DEPLOYMENT_ID: {DEPLOYMENT_ID}\n")
             fh.write(f"Professional pass: {safe_int(bd.get('professional_passed'))}\n")
             fh.write(f"Professional reject: {safe_int(bd.get('professional_rejected'))}\n")
@@ -10885,6 +10960,7 @@ if __name__ == "__main__":
     assert run_v63_9_diagnostic_integrity_self_test() is True
     assert run_v63_12_root_fix3_self_test() is True
     assert run_v63_14_diagnostic_trace_self_test() is True
+    assert run_v63_14_16_bottom_rejection_diagnostic_self_test() is True
     assert run_v63_14_1_root_fix_self_test() is True
     assert run_v63_14_2_bottom_rsi_self_test() is True
     assert run_v63_14_3_outcome_boundary_self_test() is True
