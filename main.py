@@ -8927,7 +8927,7 @@ def analyze_one_symbol(symbol, btc_regime):
                         pname = str(bottom_signal.get("symbol") or symbol or "UNKNOWN")
                         log(
                             f"  Professional detail {pname}: raw_score={raw_score_diag:.1f}, effective_score={effective_score_diag:.1f}, quality_index={pscore}/100 (capped), quality_points={pquality}, "
-                            f"grade={pbreak.get('grade', '')} [grade_basis=raw_score+quality_points], ADX={pbreak.get('adx', 0)}, "
+                            f"grade={pbreak.get('grade', '')} [grade_basis=effective_score+quality_points], ADX={pbreak.get('adx', 0)}, "
                             f"volume={pbreak.get('volume_ratio', 0)}x, "
                             f"{format_confirmation_diagnostic(pbreak)}, "
                             f"HTF={pbreak.get('htf_alignment', 0)}/{pbreak.get('required_htf_alignment', 0)}, "
