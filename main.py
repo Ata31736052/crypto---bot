@@ -5,7 +5,7 @@
 # Confirmation TF: 30M
 # Higher TF Context: 4H + Daily
 # Binance Spot only | No auto-trading
-# Version: 2026-10-11 v63.14.16 | BOTTOM-HUNTER REJECTION DIAGNOSTICS | VERSION IDENTITY ALIGNED | NO THRESHOLD RELAXATION | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
+# Version: 2026-10-11 v63.14.17 | CONTROLLED EARLY-REVERSAL ADX EXCEPTION | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
 # =========================================================
 
 import os
@@ -33,7 +33,7 @@ TELEGRAM_TEST_ON_START = False
 DRY_RUN = os.getenv("DRY_RUN", "0").strip().lower() in ("1", "true", "yes", "on")
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.16-bottom-hunter-rejection-diagnostics-20261011"
+DEPLOYMENT_ID = "v63.14.17-early-reversal-adx-exception-20261011"
 
 
 
@@ -115,6 +115,10 @@ PRO_BOTTOM_REQUIRE_HTF_ALIGNMENT = 1
 # This removes the contradictory old logic that first allowed OR, then required
 # RSI AND MACD simultaneously, while keeping ADX and volume/30M/HTF hard gates.
 PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS = 2
+# v63.14.17: narrow early-reversal ADX exception; all other quality gates remain active.
+PRO_BOTTOM_EARLY_ADX_FLOOR = 18.0
+PRO_BOTTOM_EARLY_ADX_MIN_VOLUME = 1.50
+PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE = 95
 BREAKOUT_LOOKBACK = 20
 BREAKOUT_BUFFER_PERCENT = 0.15
 BREAKOUT_MIN_VOLUME_RATIO = 1.25
@@ -8434,11 +8438,10 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         reversal_energy = (plus_di > minus_di) if side == "BUY" else (minus_di > plus_di)
         momentum_components = int(rsi_improving) + int(macd_hist_improving) + int(reversal_energy)
         momentum_improving = momentum_components >= PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS
-        # v63.11 ROOT FIX: reversal momentum uses 2-of-3 independent evidence
-        # rather than the contradictory old AND rule for RSI+MACD. ADX remains
-        # hard, so this does not turn weak bounces into signals.
-        if adx < PRO_BOTTOM_MIN_ADX:
-            reject.append(f"reversal ADX too weak ({adx:.1f} < {PRO_BOTTOM_MIN_ADX:.1f})")
+        # v63.14.17: sub-23 ADX is allowed only with exceptional score, volume and momentum.
+        adx_ok = bottom_hunter_adx_gate_pass(adx, volume, raw_score, momentum_components)
+        if not adx_ok:
+            reject.append(f"reversal ADX too weak ({adx:.1f}; standard>={PRO_BOTTOM_MIN_ADX:.1f}, early exception requires ADX>={PRO_BOTTOM_EARLY_ADX_FLOOR:.1f}, volume>={PRO_BOTTOM_EARLY_ADX_MIN_VOLUME:.2f}x, raw_score>={PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE}, momentum>={PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS}/3)")
         elif not momentum_improving:
             reject.append(f"reversal momentum insufficient ({momentum_components}/3 < {PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS}/3)")
         else:
@@ -8630,7 +8633,7 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         macd_hist_improving_ok = (safe_float(r1.get("macd_hist")) >= safe_float(r1.get("macd_hist_prev"))) if side == "BUY" else (safe_float(r1.get("macd_hist")) <= safe_float(r1.get("macd_hist_prev")))
         momentum_count = int(reversal_energy_ok) + int(rsi_improving_ok) + int(macd_hist_improving_ok)
         reversal_ok = momentum_count >= PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS
-        adx_ok = adx >= PRO_BOTTOM_MIN_ADX and reversal_ok
+        adx_ok = bottom_hunter_adx_gate_pass(adx, volume, raw_score, momentum_count) and reversal_ok
         ledger["reversal_momentum"] = _diag_item(2 if reversal_ok else 0, 2, "PASS" if reversal_ok else "FAIL", momentum_count, f">={PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS}/3")
         ledger["ADX_DI"] = _diag_item(2 if adx_ok else 0, 2, "PASS" if adx_ok else "FAIL", round(adx,2), f">={PRO_BOTTOM_MIN_ADX:.1f} + 2/3 momentum")
     else:
@@ -9327,6 +9330,31 @@ def run_v63_14_diagnostic_trace_self_test():
     return True
 
 
+def bottom_hunter_adx_gate_pass(adx, volume_ratio, raw_score, momentum_components):
+    """Standard ADX gate plus a narrow, evidence-heavy early-reversal exception."""
+    adx = safe_float(adx, 0.0)
+    volume_ratio = safe_float(volume_ratio, 0.0)
+    raw_score = safe_float(raw_score, 0.0)
+    momentum_components = safe_int(momentum_components, 0)
+    if adx >= PRO_BOTTOM_MIN_ADX:
+        return True
+    return (adx >= PRO_BOTTOM_EARLY_ADX_FLOOR
+            and volume_ratio >= PRO_BOTTOM_EARLY_ADX_MIN_VOLUME
+            and raw_score >= PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE
+            and momentum_components >= PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS)
+
+
+def run_v63_14_17_early_reversal_gate_self_test():
+    assert bottom_hunter_adx_gate_pass(23.0, 1.0, 90, 0)
+    assert bottom_hunter_adx_gate_pass(20.0, 1.50, 95, 2)
+    assert not bottom_hunter_adx_gate_pass(17.9, 2.0, 100, 3)
+    assert not bottom_hunter_adx_gate_pass(20.0, 1.49, 100, 3)
+    assert not bottom_hunter_adx_gate_pass(20.0, 1.50, 94.9, 3)
+    assert not bottom_hunter_adx_gate_pass(20.0, 1.50, 95, 1)
+    assert PRO_BOTTOM_MIN_ADX == 23.0
+    return True
+
+
 def run_v63_14_16_bottom_rejection_diagnostic_self_test():
     outside_rsi_only = {"rsi_outside": 1, "score_fail": 1}
     summary = bottom_hunter_rejection_summary(outside_rsi_only)
@@ -9345,7 +9373,8 @@ def run_v63_14_16_bottom_rejection_diagnostic_self_test():
     assert PRO_BOTTOM_MIN_SCORE == 90
     assert PRO_BOTTOM_MIN_ADX == 23.0
     assert PRO_BOTTOM_MIN_VOLUME_RATIO == 1.35
-    assert DEPLOYMENT_ID == "v63.14.16-bottom-hunter-rejection-diagnostics-20261011"
+    assert DEPLOYMENT_ID == "v63.14.17-early-reversal-adx-exception-20261011"
+    assert run_v63_14_17_early_reversal_gate_self_test() is True
     return True
 
 
