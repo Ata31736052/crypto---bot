@@ -59,6 +59,7 @@ jobs:
               "Bottom Hunter rejection diagnostic self-test exists": "def run_v63_14_16_bottom_rejection_diagnostic_self_test():" in source,
               "controlled early-reversal exception exists": "def bottom_hunter_adx_gate_pass(" in source and "PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE = 95" in source,
               "Bottom Hunter score calibration is explicit": "PRO_BOTTOM_MIN_SCORE = 85" in source and "PRO_BOTTOM_MIN_ADX = 23.0" in source and "PRO_BOTTOM_MIN_VOLUME_RATIO = 1.35" in source,
+              "Raw and effective score diagnostics are separate": '"effective_score": round(raw_score, 1)' in source and 'engine_raw_score = safe_float(signal.get("raw_score", raw_score))' in source,
               "Trend and SELL score thresholds unchanged": "PRO_MIN_SCORE = 90" in source and "PRO_SELL_MIN_SCORE = 92" in source,
           }
           for label, ok in checks.items():
@@ -81,6 +82,7 @@ jobs:
               ("v63.14.16 Bottom Hunter rejection diagnostics", main.run_v63_14_16_bottom_rejection_diagnostic_self_test),
               ("v63.14.17 controlled early-reversal ADX exception", main.run_v63_14_17_early_reversal_gate_self_test),
               ("v63.14.18 Bottom Hunter score calibration", main.run_v63_14_18_bottom_score_calibration_self_test),
+              ("v63.14.19 raw/effective score regression", main.run_v63_14_19_raw_effective_score_self_test),
               ("v63.14.1 root fix", main.run_v63_14_1_root_fix_self_test),
               ("v63.14.2 Bottom RSI regression", main.run_v63_14_2_bottom_rsi_self_test),
               ("v63.14.3 outcome boundary", main.run_v63_14_3_outcome_boundary_self_test),
