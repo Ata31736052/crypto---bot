@@ -33,7 +33,7 @@ TELEGRAM_TEST_ON_START = False
 DRY_RUN = os.getenv("DRY_RUN", "0").strip().lower() in ("1", "true", "yes", "on")
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.26-early-path-blocker-diagnostics-20261012"
+DEPLOYMENT_ID = "v63.14.27-raw-score-wiring-fix-20261012"
 
 
 
@@ -8817,7 +8817,7 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     if mode == "BOTTOM_HUNTER":
         bottom_confirmation_ok, bottom_confirmation_required, bottom_confirmation_path = bottom_hunter_confirmation_gate_pass(
             side, signal_tf, confirmations, bool(confirm.get("confirmed")),
-            adx, volume, raw_score, momentum_components
+            adx, volume, engine_raw_score, momentum_components
         )
     if mode in ("4H_SIGNAL", "DAILY_SIGNAL") or (mode == "BOTTOM_HUNTER" and signal_tf == "1d"):
         # Higher-timeframe setup uses its own confirmation path; it never
@@ -8835,7 +8835,7 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
             path_label = bottom_confirmation_path
             if signal_tf == "1h" and side == "BUY" and PRO_BOTTOM_EARLY_MIN_30M_CONFIRMATIONS <= confirmations < PRO_BOTTOM_MIN_30M_CONFIRMATIONS:
                 blockers = bottom_hunter_early_confirmation_blockers(
-                    side, signal_tf, confirmations, adx, volume, raw_score, momentum_components
+                    side, signal_tf, confirmations, adx, volume, engine_raw_score, momentum_components
                 )
                 if blockers:
                     path_label = "EARLY_BLOCKED[" + "; ".join(blockers) + "]"
@@ -9864,6 +9864,32 @@ def bottom_hunter_early_confirmation_blockers(side, signal_timeframe, confirmati
     if momentum_components < PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS:
         blockers.append(f"momentum<{PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS}/3")
     return blockers
+
+
+def run_v63_14_27_raw_score_wiring_self_test():
+    """Regression: early-path eligibility/diagnostics use pre-cap engine score,
+    while the final quality gate still uses the effective score.
+    """
+    import inspect
+    source = inspect.getsource(professional_signal_quality_gate)
+    assert 'raw_score = safe_float(signal.get("score"))' in source
+    assert 'engine_raw_score = safe_float(signal.get("raw_score", raw_score))' in source
+    assert 'adx, volume, engine_raw_score, momentum_components' in source
+    assert 'side, signal_tf, confirmations, adx, volume, engine_raw_score, momentum_components' in source
+    # Reproduce the Run #49 mismatch: a score cap must not be misreported as
+    # an engine raw-score failure by the early-path blocker diagnostic.
+    effective_score = 82
+    engine_raw_score = 100
+    blockers = bottom_hunter_early_confirmation_blockers(
+        "BUY", "1h", 3, 21.23, 0.66, engine_raw_score, 2
+    )
+    assert effective_score < PRO_BOTTOM_MIN_SCORE
+    assert engine_raw_score >= PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE
+    assert "raw_score<95" not in blockers
+    assert "volume<1.50x" in blockers
+    # Correcting diagnostics must not bypass the effective-score eligibility gate.
+    assert effective_score < professional_min_score_for_mode("BOTTOM_HUNTER", "BUY")
+    return True
 
 
 def run_v63_14_26_early_path_blocker_self_test():
@@ -11582,6 +11608,7 @@ if __name__ == "__main__":
     assert run_v63_14_10_score_grade_diagnostic_self_test() is True
     assert run_v63_14_11_analytics_scope_self_test() is True
     assert run_v63_14_14_finalization_metrics_self_test() is True
+    assert run_v63_14_27_raw_score_wiring_self_test() is True
 
     try:
 
