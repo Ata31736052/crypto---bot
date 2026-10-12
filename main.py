@@ -5,7 +5,7 @@
 # Confirmation TF: 30M
 # Higher TF Context: 4H + Daily
 # Binance Spot only | No auto-trading
-# Version: 2026-10-12 v63.14.22 | BOTTOM SCORE CALIBRATION + CONTROLLED EARLY-REVERSAL GATE | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
+# Version: 2026-10-12 v63.14.23 | BOTTOM SCORE CALIBRATION + CONTROLLED EARLY-REVERSAL GATE | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
 # =========================================================
 
 import os
@@ -33,7 +33,7 @@ TELEGRAM_TEST_ON_START = False
 DRY_RUN = os.getenv("DRY_RUN", "0").strip().lower() in ("1", "true", "yes", "on")
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.22-dry-run-outcome-tracking-20261012"
+DEPLOYMENT_ID = "v63.14.23-legacy-outcome-backfill-20261012"
 
 
 
@@ -7593,6 +7593,44 @@ def _has_complete_outcome_horizons(record):
     return _outcome_horizon_payloads_complete(record)
 
 
+def _outcome_record_needs_historical_repair(record):
+    """Return True for older records that lack a complete, final v57 outcome.
+
+    Older legacy records may have no outcome_status at all. Treating the
+    missing status as OPEN and scanning only the newest 120 records silently
+    excluded those records from historical repair forever.
+    """
+    if not isinstance(record, dict):
+        return False
+    if str(record.get("signal", "")).upper() not in ("BUY", "SELL"):
+        return False
+    version = safe_int(record.get("outcome_engine_version", 0))
+    complete = _has_complete_outcome_horizons(record)
+    final = str(record.get("outcome_status", "OPEN")).upper() == "FINAL"
+    return version < 57 or not complete or not final
+
+
+def run_v63_14_23_legacy_outcome_backfill_self_test():
+    legacy = {
+        "signal": "BUY", "candle_time": "2026-10-01T16:00:00Z",
+        "entry": 100.0, "outcome_status": None,
+    }
+    assert _outcome_record_needs_historical_repair(legacy)
+    complete_final = {
+        "signal": "BUY", "outcome_engine_version": 57, "outcome_status": "FINAL",
+        "horizons": {
+            f"{h}h": {"change_percent": 0.0, "mfe_percent": 0.0,
+                      "mae_percent": 0.0, "tp1_reached": False,
+                      "tp2_reached": False, "sl_reached": False}
+            for h in OUTCOME_HORIZONS_HOURS
+        },
+    }
+    assert not _outcome_record_needs_historical_repair(complete_final)
+    complete_open = dict(complete_final, outcome_status="OPEN")
+    assert _outcome_record_needs_historical_repair(complete_open)
+    return True
+
+
 def update_signal_outcomes(history):
     """Refresh/migrate signal outcomes using closed Binance 1H candles.
 
@@ -7624,10 +7662,7 @@ def update_signal_outcomes(history):
                 continue
             if str(old_record.get("signal", "")).upper() not in ("BUY", "SELL"):
                 continue
-            old_version = safe_int(old_record.get("outcome_engine_version", 0))
-            old_complete = _has_complete_outcome_horizons(old_record)
-            old_final = str(old_record.get("outcome_status", "OPEN")).upper() == "FINAL"
-            if old_final and (old_version < 57 or not old_complete):
+            if _outcome_record_needs_historical_repair(old_record):
                 scan_records.append(old_record)
 
     for record in scan_records:
@@ -9413,7 +9448,7 @@ def run_v63_14_3_outcome_boundary_self_test():
         },
     }
     assert _has_complete_outcome_horizons(complete_v57)
-    assert DEPLOYMENT_ID == "v63.14.22-dry-run-outcome-tracking-20261012"
+    assert DEPLOYMENT_ID == "v63.14.23-legacy-outcome-backfill-20261012"
 
     # v63.14.21: reject stretched BUY entries, but do not reject early/neutral
     # starts or apply the BUY timing rule to SELL signals.
@@ -9450,7 +9485,7 @@ def run_v63_14_3_outcome_boundary_self_test():
     assert any("reversal ADX too weak" in reason for reason in reject_reasons)
     assert any("reversal volume below professional minimum" in reason for reason in reject_reasons)
     assert any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
-    assert DEPLOYMENT_ID == "v63.14.22-dry-run-outcome-tracking-20261012"
+    assert DEPLOYMENT_ID == "v63.14.23-legacy-outcome-backfill-20261012"
     return True
 
 
@@ -9474,7 +9509,7 @@ def run_v63_14_8_confirmation_diagnostic_self_test():
     assert format_confirmation_diagnostic({
         "confirmations_30m": 3, "required_30m": 6,
     }) == "30M=3 (required >= 6)"
-    assert DEPLOYMENT_ID == "v63.14.22-dry-run-outcome-tracking-20261012"
+    assert DEPLOYMENT_ID == "v63.14.23-legacy-outcome-backfill-20261012"
     return True
 
 
@@ -9547,7 +9582,7 @@ def run_v63_14_7_final_gate_consistency_self_test():
     assert PRO_MIN_1H_ADX == 23.0
     assert PRO_MIN_VOLUME_RATIO == 1.35
     assert PRO_BOTTOM_MIN_30M_CONFIRMATIONS == 6
-    assert DEPLOYMENT_ID == "v63.14.22-dry-run-outcome-tracking-20261012"
+    assert DEPLOYMENT_ID == "v63.14.23-legacy-outcome-backfill-20261012"
     return True
 
 
@@ -9562,7 +9597,7 @@ def run_v63_14_2_bottom_rsi_self_test():
     assert BOTTOM_RSI_MIN <= 23 <= BOTTOM_RSI_MAX
     assert not (BOTTOM_RSI_MIN <= 19 <= BOTTOM_RSI_MAX)
     assert not (BOTTOM_RSI_MIN <= 45 <= BOTTOM_RSI_MAX)
-    assert DEPLOYMENT_ID == "v63.14.22-dry-run-outcome-tracking-20261012"
+    assert DEPLOYMENT_ID == "v63.14.23-legacy-outcome-backfill-20261012"
     return True
 
 
@@ -9754,7 +9789,7 @@ def run_v63_14_16_bottom_rejection_diagnostic_self_test():
     assert PRO_BOTTOM_MIN_SCORE == 85
     assert PRO_BOTTOM_MIN_ADX == 23.0
     assert PRO_BOTTOM_MIN_VOLUME_RATIO == 1.35
-    assert DEPLOYMENT_ID == "v63.14.22-dry-run-outcome-tracking-20261012"
+    assert DEPLOYMENT_ID == "v63.14.23-legacy-outcome-backfill-20261012"
     assert run_v63_14_17_early_reversal_gate_self_test() is True
     return True
 
