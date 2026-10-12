@@ -10,6 +10,7 @@ import argparse
 import csv
 import json
 import math
+import statistics
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -208,7 +209,7 @@ def build_summary(results):
                     "horizon_hours": horizon,
                     "n": len(values),
                     "avg_close_return_pct": sum(values) / len(values),
-                    "median_close_return_pct": ordered[len(ordered) // 2],
+                    "median_close_return_pct": statistics.median(ordered),
                     "positive_close_return_pct": 100 * sum(v > 0 for v in values) / len(values),
                     "avg_mfe_pct": sum(mfes) / len(mfes),
                     "avg_mae_pct": sum(maes) / len(maes),
@@ -314,13 +315,19 @@ def replay(history_path, out_path, min_room_atr=1.5, summary_out_path=""):
                 ("REJECTED", rejected_rows),
                 ("ACCEPTED", [r for r in rows if r.get("location_gate_accepted") is True]),
             ):
-                returns = [float(r["close_return_8h_pct"]) for r in gate_rows if r.get("close_return_8h_pct") not in ("", None)]
-                maes = [float(r["mae_8h_pct"]) for r in gate_rows if r.get("mae_8h_pct") not in ("", None)]
-                if returns and maes:
-                    print(f"  {gate_name}: n={len(gate_rows)}, 8h coverage={len(returns)}, "
-                          f"avg close return={sum(returns)/len(returns):.3f}%, "
-                          f"positive={100*sum(v > 0 for v in returns)/len(returns):.1f}%, "
-                          f"avg MAE={sum(maes)/len(maes):.3f}%")
+                if not gate_rows:
+                    continue
+                for horizon in (8, 24, 48):
+                    returns = [float(r[f"close_return_{horizon}h_pct"]) for r in gate_rows
+                               if r.get(f"close_return_{horizon}h_pct") not in ("", None)]
+                    maes = [float(r[f"mae_{horizon}h_pct"]) for r in gate_rows
+                            if r.get(f"mae_{horizon}h_pct") not in ("", None)]
+                    if returns and maes:
+                        print(f"  {gate_name} {horizon}h: n={len(gate_rows)}, coverage={len(returns)}, "
+                              f"avg close return={sum(returns)/len(returns):.3f}%, "
+                              f"median={statistics.median(returns):.3f}%, "
+                              f"positive={100*sum(v > 0 for v in returns)/len(returns):.1f}%, "
+                              f"avg MAE={sum(maes)/len(maes):.3f}%")
     summary = build_summary(results)
     if summary_out_path:
         fields = ["row_type", "setup", "gate_result", "horizon_hours", "n",
