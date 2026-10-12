@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from research.replay_historical_entry_locations import analyze_signal, classify_setup, atr_from_closed_candles
+from research.replay_historical_entry_locations import analyze_signal, classify_setup, atr_from_closed_candles, policy_accepts
 
 
 def sample_candles(count=80):
@@ -49,6 +49,40 @@ class HistoricalLocationReplayTests(unittest.TestCase):
             "entry": 100, "reasons": [],
         }, candles)
         self.assertEqual(result["status"], "INSUFFICIENT_CLOSED_HISTORY")
+
+
+    def test_tp1_candidate_can_ignore_tp2_only_if_tp1_is_clear(self):
+        row = {
+            "status": "ASSESSED",
+            "location_gate_accepted": False,
+            "room_to_obstacle_atr": 1.2,
+            "structural_stop_pct": 2.0,
+            "rejection_reasons": "TP2_BLOCKED_BY_RESISTANCE",
+        }
+        self.assertFalse(policy_accepts(row, "STRICT_1P5_ATR_BOTH_TARGETS"))
+        self.assertTrue(policy_accepts(row, "TP1_ONLY_1P0_ATR"))
+        self.assertTrue(policy_accepts(row, "TP1_ONLY_0P5_ATR"))
+
+    def test_tp1_candidate_still_rejects_obstructed_first_target(self):
+        row = {
+            "status": "ASSESSED",
+            "location_gate_accepted": False,
+            "room_to_obstacle_atr": 2.0,
+            "rejection_reasons": "TP1_BLOCKED_BY_RESISTANCE;TP2_BLOCKED_BY_RESISTANCE",
+        }
+        self.assertFalse(policy_accepts(row, "TP1_ONLY_1P0_ATR"))
+
+    def test_tp1_candidate_respects_obstacle_room_and_stop_width(self):
+        row = {
+            "status": "ASSESSED",
+            "location_gate_accepted": False,
+            "room_to_obstacle_atr": 0.7,
+            "rejection_reasons": "",
+        }
+        self.assertFalse(policy_accepts(row, "TP1_ONLY_1P0_ATR"))
+        self.assertTrue(policy_accepts(row, "TP1_ONLY_0P5_ATR"))
+        row["rejection_reasons"] = "STRUCTURAL_STOP_TOO_WIDE"
+        self.assertFalse(policy_accepts(row, "TP1_ONLY_0P5_ATR"))
 
     def test_invalid_entry_fails_closed(self):
         result = analyze_signal({
