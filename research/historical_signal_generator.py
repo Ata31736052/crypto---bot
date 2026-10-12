@@ -179,6 +179,23 @@ def signal_rows_for_result(result: dict, symbol: str, decision_time, regime: dic
             candle_frame["close_time"].iloc[-1].isoformat()
             if candle_frame is not None else pd.Timestamp(decision_time).isoformat()
         )
+        # Point-in-time context for diagnosing late entries and nearby resistance.
+        # These features use only candles closed by decision_time.
+        h1 = closed_asof_slice(raw_frames.get("1h"), decision_time)
+        close_now = _num(h1["close"].iloc[-1], 0.0) if h1 is not None and not h1.empty else 0.0
+        def prior_return(bars):
+            if h1 is None or len(h1) <= bars or close_now <= 0:
+                return None
+            old_close = _num(h1["close"].iloc[-1 - bars], 0.0)
+            return round((close_now / old_close - 1.0) * 100.0, 4) if old_close > 0 else None
+        def distance_from_high(bars):
+            if h1 is None or h1.empty or close_now <= 0:
+                return None
+            window = h1.tail(bars)
+            if window.empty:
+                return None
+            high = _num(window["high"].max(), 0.0)
+            return round((high / close_now - 1.0) * 100.0, 4) if high > 0 else None
         rows.append({
             "decision_time": pd.Timestamp(decision_time).isoformat(),
             "signal_candle_close_time": signal_candle_close,
@@ -193,6 +210,10 @@ def signal_rows_for_result(result: dict, symbol: str, decision_time, regime: dic
             "stop_loss": sig.get("stop_loss"),
             "tp1": sig.get("tp1"),
             "tp2": sig.get("tp2"),
+            "prior_24h_return_pct": prior_return(24),
+            "prior_72h_return_pct": prior_return(72),
+            "distance_7d_high_pct": distance_from_high(24 * 7),
+            "distance_30d_high_pct": distance_from_high(24 * 30),
             "reasons": " | ".join(str(x) for x in (sig.get("reasons") or [])[:12]),
         })
     return rows
