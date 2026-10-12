@@ -18,9 +18,10 @@ def sample_candles(count=80):
             "low": close - 1,
             "close": close,
         })
-    # Make a confirmed overhead swing high well before the signal.
-    for idx, high in ((35, 105.0), (36, 108.0), (37, 120.0), (38, 107.0), (39, 105.0)):
-        rows[idx]["high"] = high
+    # Make a confirmed overhead swing high when the fixture is long enough.
+    if count > 40:
+        for idx, high in ((35, 105.0), (36, 108.0), (37, 120.0), (38, 107.0), (39, 105.0)):
+            rows[idx]["high"] = high
     return rows
 
 
