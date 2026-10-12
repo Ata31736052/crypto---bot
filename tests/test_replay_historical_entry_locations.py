@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from research.replay_historical_entry_locations import analyze_signal, classify_setup, atr_from_closed_candles, policy_accepts
+from research.replay_historical_entry_locations import analyze_signal, classify_setup, atr_from_closed_candles, policy_accepts, prior_move_metrics
 
 
 def sample_candles(count=80):
@@ -40,6 +40,27 @@ class HistoricalLocationReplayTests(unittest.TestCase):
         }, candles)
         self.assertEqual(result["status"], "ASSESSED")
         self.assertNotEqual(result["historical_resistance"], 200.0)
+
+    def test_move_stage_metrics_use_only_prior_candles(self):
+        candles = sample_candles(100)
+        # Flat-ish rising history gives an interpretable range-position check.
+        prior = [c for c in candles if c["close_time"] <= candles[80]["open_time"]]
+        prior[-1]["close"] = 105.0
+        metrics = prior_move_metrics(prior, 110.0, "BUY", 2.0)
+        self.assertEqual(metrics["progress_bucket_72h"], "LATE_THIRD")
+        self.assertGreater(metrics["directional_progress_72h_pct"], 66.6)
+        self.assertEqual(metrics["prior_return_12h_pct"], (
+            prior[-1]["close"] / prior[-13]["close"] - 1
+        ) * 100)
+        # SELL progress is directional: closer to the recent low means later progress.
+        sell_metrics = prior_move_metrics(prior, 91.0, "SELL", 2.0)
+        self.assertGreater(sell_metrics["directional_progress_72h_pct"], 66.6)
+
+    def test_move_stage_metrics_mark_short_windows_unavailable(self):
+        metrics = prior_move_metrics(sample_candles(20), 100.0, "BUY", 1.0)
+        self.assertEqual(metrics["progress_bucket_72h"], "UNAVAILABLE")
+        self.assertEqual(metrics["directional_progress_72h_pct"], "")
+        self.assertEqual(metrics["prior_return_48h_pct"], "")
 
     def test_insufficient_closed_history_fails_closed(self):
         candles = sample_candles(10)
