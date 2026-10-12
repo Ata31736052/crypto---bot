@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - test/bottom-hunter-dry-run-v63-14-16
+      - test/daily-bottom-hunter-v63-14-17
 
 permissions:
   contents: read
@@ -61,6 +62,7 @@ jobs:
               "Bottom Hunter score calibration is explicit": "PRO_BOTTOM_MIN_SCORE = 85" in source and "PRO_BOTTOM_MIN_ADX = 23.0" in source and "PRO_BOTTOM_MIN_VOLUME_RATIO = 1.35" in source,
               "Raw and effective score diagnostics are separate": '"effective_score": round(raw_score, 1)' in source and 'engine_raw_score = safe_float(signal.get("raw_score", raw_score))' in source,
               "Trend and SELL score thresholds unchanged": "PRO_MIN_SCORE = 90" in source and "PRO_SELL_MIN_SCORE = 92" in source,
+              "Daily Bottom Hunter uses 1D setup and 4H confirmation": "ENABLE_DAILY_BOTTOM_HUNTER = True" in source and 'data.get("1d"), data.get("4h")' in source and 'signal_timeframe="1d"' in source,
           }
           for label, ok in checks.items():
               print(f"{'PASS' if ok else 'FAIL'}: {label}")
@@ -76,6 +78,7 @@ jobs:
           python - <<'PY'
           import main
           tests = [
+              ("v63.14.20 Daily Bottom Hunter routing", main.run_v63_14_20_daily_bottom_hunter_self_test),
               ("v63.9 diagnostic integrity", main.run_v63_9_diagnostic_integrity_self_test),
               ("v63.12 root fix", main.run_v63_12_root_fix3_self_test),
               ("v63.14 diagnostic trace", main.run_v63_14_diagnostic_trace_self_test),
