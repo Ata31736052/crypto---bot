@@ -33,7 +33,7 @@ TELEGRAM_TEST_ON_START = False
 DRY_RUN = os.getenv("DRY_RUN", "0").strip().lower() in ("1", "true", "yes", "on")
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.20-daily-bottom-hunter-20261012"
+DEPLOYMENT_ID = "v63.14.21-early-entry-guard-20261012"
 
 
 
@@ -8421,6 +8421,41 @@ def build_breakout_signal(symbol, data, breakout, btc_regime=None):
         "candle_time": str(data["1h"].iloc[-1].get("open_time")),
     }
 
+def early_entry_rejection(side, mode, close, ema9, atr, rsi, recent_closes=None):
+    """Reject BUY entries that are already stretched from the start of the move.
+
+    Uses ATR-normalized extension so the rule adapts to volatility. This is a
+    location/timing guard, not a prediction that price must rise after entry.
+    """
+    side = str(side or "").upper()
+    if side != "BUY":
+        return None
+    close = safe_float(close, 0.0)
+    ema9 = safe_float(ema9, 0.0)
+    atr = safe_float(atr, 0.0)
+    rsi = safe_float(rsi, 0.0)
+    if close <= 0 or ema9 <= 0 or atr <= 0:
+        return None
+
+    extension_atr = (close - ema9) / atr
+    if extension_atr > 1.25:
+        return f"BUY late entry: close is {extension_atr:.2f} ATR above EMA9 (>1.25 ATR)"
+
+    if rsi >= 70.0 and extension_atr > 0.65:
+        return f"BUY momentum overheated: RSI {rsi:.1f} with {extension_atr:.2f} ATR EMA9 extension"
+
+    # A sharp 3-candle run with hot RSI is often a chase entry, not the start
+    # of a move. Do not use this alone: require both price extension and heat.
+    closes = recent_closes or []
+    if len(closes) >= 4:
+        base = safe_float(closes[-4], 0.0)
+        if base > 0:
+            run_atr = (close - base) / atr
+            if run_atr >= 2.5 and rsi >= 65.0:
+                return f"BUY late impulse: 3-candle run {run_atr:.2f} ATR with RSI {rsi:.1f}"
+    return None
+
+
 def professional_signal_quality_gate(signal, data, btc_regime=None):
     """Final trade-quality gate.
 
@@ -8499,6 +8534,15 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     ema9 = safe_float(r1.get("ema9")); ema21 = safe_float(r1.get("ema21")); ema50 = safe_float(r1.get("ema50")); ema200 = safe_float(r1.get("ema200"))
     adx = safe_float(r1.get("adx")); plus_di = safe_float(r1.get("plus_di")); minus_di = safe_float(r1.get("minus_di"))
     rsi = safe_float(r1.get("rsi")); volume = safe_float(r1.get("volume_ratio")); atrp = safe_float(r1.get("atr_percent"))
+
+    # v63.14.21 EARLY-ENTRY GUARD: high scores must not rescue a BUY that is
+    # already stretched far above its fast trend anchor or has become overheated.
+    early_reject = early_entry_rejection(
+        side, mode, close, ema9, safe_float(r1.get("atr")), rsi,
+        recent_closes=[safe_float(x) for x in df1["close"].tail(4).tolist()]
+    )
+    if early_reject:
+        reject.append(early_reject)
     dist21 = safe_float(r1.get("distance_ema21"))
     vwap = safe_float(r1.get("rolling_vwap")); obv_slope = safe_float(r1.get("obv_slope"))
     bb_width = safe_float(r1.get("bb_width_pct")); bb_pos = safe_float(r1.get("bb_position"))
@@ -9300,7 +9344,16 @@ def run_v63_14_3_outcome_boundary_self_test():
         },
     }
     assert _has_complete_outcome_horizons(complete_v57)
-    assert DEPLOYMENT_ID == "v63.14.20-daily-bottom-hunter-20261012"
+    assert DEPLOYMENT_ID == "v63.14.21-early-entry-guard-20261012"
+
+    # v63.14.21: reject stretched BUY entries, but do not reject early/neutral
+    # starts or apply the BUY timing rule to SELL signals.
+    assert early_entry_rejection("BUY", "TREND", 112.0, 100.0, 8.0, 60.0) is None
+    assert "late entry" in early_entry_rejection("BUY", "TREND", 111.0, 100.0, 8.0, 60.0)
+    assert "overheated" in early_entry_rejection("BUY", "TREND", 106.0, 100.0, 8.0, 72.0)
+    assert early_entry_rejection("SELL", "TREND", 120.0, 100.0, 8.0, 80.0) is None
+    assert "late impulse" in early_entry_rejection("BUY", "BREAKOUT", 125.0, 120.0, 10.0, 68.0, [100, 108, 118, 125])
+
 
     # Low score must not suppress other rejection reasons in diagnostics.
     row = {
@@ -9328,7 +9381,7 @@ def run_v63_14_3_outcome_boundary_self_test():
     assert any("reversal ADX too weak" in reason for reason in reject_reasons)
     assert any("reversal volume below professional minimum" in reason for reason in reject_reasons)
     assert any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
-    assert DEPLOYMENT_ID == "v63.14.20-daily-bottom-hunter-20261012"
+    assert DEPLOYMENT_ID == "v63.14.21-early-entry-guard-20261012"
     return True
 
 
@@ -9352,7 +9405,7 @@ def run_v63_14_8_confirmation_diagnostic_self_test():
     assert format_confirmation_diagnostic({
         "confirmations_30m": 3, "required_30m": 6,
     }) == "30M=3 (required >= 6)"
-    assert DEPLOYMENT_ID == "v63.14.20-daily-bottom-hunter-20261012"
+    assert DEPLOYMENT_ID == "v63.14.21-early-entry-guard-20261012"
     return True
 
 
@@ -9425,7 +9478,7 @@ def run_v63_14_7_final_gate_consistency_self_test():
     assert PRO_MIN_1H_ADX == 23.0
     assert PRO_MIN_VOLUME_RATIO == 1.35
     assert PRO_BOTTOM_MIN_30M_CONFIRMATIONS == 6
-    assert DEPLOYMENT_ID == "v63.14.20-daily-bottom-hunter-20261012"
+    assert DEPLOYMENT_ID == "v63.14.21-early-entry-guard-20261012"
     return True
 
 
@@ -9440,7 +9493,7 @@ def run_v63_14_2_bottom_rsi_self_test():
     assert BOTTOM_RSI_MIN <= 23 <= BOTTOM_RSI_MAX
     assert not (BOTTOM_RSI_MIN <= 19 <= BOTTOM_RSI_MAX)
     assert not (BOTTOM_RSI_MIN <= 45 <= BOTTOM_RSI_MAX)
-    assert DEPLOYMENT_ID == "v63.14.20-daily-bottom-hunter-20261012"
+    assert DEPLOYMENT_ID == "v63.14.21-early-entry-guard-20261012"
     return True
 
 
@@ -9632,7 +9685,7 @@ def run_v63_14_16_bottom_rejection_diagnostic_self_test():
     assert PRO_BOTTOM_MIN_SCORE == 85
     assert PRO_BOTTOM_MIN_ADX == 23.0
     assert PRO_BOTTOM_MIN_VOLUME_RATIO == 1.35
-    assert DEPLOYMENT_ID == "v63.14.20-daily-bottom-hunter-20261012"
+    assert DEPLOYMENT_ID == "v63.14.21-early-entry-guard-20261012"
     assert run_v63_14_17_early_reversal_gate_self_test() is True
     return True
 
