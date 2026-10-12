@@ -71,6 +71,8 @@ jobs:
               "Raw and effective score diagnostics are separate": '"effective_score": round(raw_score, 1)' in source and 'engine_raw_score = safe_float(signal.get("raw_score", raw_score))' in source,
               "Trend and SELL score thresholds unchanged": "PRO_MIN_SCORE = 90" in source and "PRO_SELL_MIN_SCORE = 92" in source,
               "Daily Bottom Hunter uses 1D setup and 4H confirmation": "ENABLE_DAILY_BOTTOM_HUNTER = True" in source and 'data.get("1d"), data.get("4h")' in source and 'signal_timeframe="1d"' in source,
+              "entry extension metrics are persisted": '"entry_extension_atr": (' in source and '"ema21_distance_percent": (' in source,
+              "configured late-entry RSI threshold is used": 'rsi >= MAX_LATE_ENTRY_RSI_BUY and extension_atr > 0.65' in source,
           }
           for label, ok in checks.items():
               print(f"{'PASS' if ok else 'FAIL'}: {label}")
@@ -113,6 +115,7 @@ jobs:
               assert main.early_entry_rejection("BUY", "TREND", 108.0, 100.0, 8.0, 60.0) is None
               assert "late entry" in main.early_entry_rejection("BUY", "TREND", 111.0, 100.0, 8.0, 60.0)
               assert "overheated" in main.early_entry_rejection("BUY", "TREND", 106.0, 100.0, 8.0, 72.0)
+              assert "overheated" in main.early_entry_rejection("BUY", "TREND", 106.0, 100.0, 8.0, 68.0)
               assert main.early_entry_rejection("SELL", "TREND", 120.0, 100.0, 8.0, 80.0) is None
               assert "late impulse" in main.early_entry_rejection("BUY", "BREAKOUT", 125.0, 120.0, 10.0, 68.0, [100, 108, 118, 125])
               print("PASS: v63.14.21 early-entry guard regression")
