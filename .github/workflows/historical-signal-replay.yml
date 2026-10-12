@@ -1,6 +1,9 @@
 name: Research Historical Signal Replay
 
 on:
+  push:
+    branches:
+      - research/closed-candle-architecture-audit-20261012
   pull_request:
     branches: [main]
     paths:
@@ -29,8 +32,9 @@ on:
 permissions:
   contents: read
 
+# Keep the PR smoke run separate from the long research replay.
 concurrency:
-  group: historical-signal-replay-research
+  group: historical-signal-replay-research-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
@@ -68,12 +72,12 @@ jobs:
             --evaluation-days 7 --warmup-days 260 \
             --out-dir artifacts/historical-replay-smoke
       - name: Run requested historical replay
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
         env:
-          EVALUATION_DAYS: ${{ inputs.evaluation_days }}
-          WARMUP_DAYS: ${{ inputs.warmup_days }}
-          SYMBOLS: ${{ inputs.symbols }}
-          COST_PCT: ${{ inputs.cost_pct }}
+          EVALUATION_DAYS: ${{ inputs.evaluation_days || '180' }}
+          WARMUP_DAYS: ${{ inputs.warmup_days || '260' }}
+          SYMBOLS: ${{ inputs.symbols || 'BTC,ETH,BNB,SOL,XRP,ADA,DOGE,LTC,LINK,AVAX' }}
+          COST_PCT: ${{ inputs.cost_pct || '0.4' }}
         run: |
           python research/historical_signal_generator.py \
             --symbols "$SYMBOLS" \
