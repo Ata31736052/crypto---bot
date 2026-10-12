@@ -103,6 +103,50 @@ def _signal_candle(entry):
     return {"open": entry, "high": entry, "low": entry, "close": entry}
 
 
+def prior_move_metrics(prior, entry, side):
+    """Describe how far price had already moved using only closed pre-signal candles."""
+    metrics = {}
+    side = str(side or "BUY").upper()
+    last_close = prior[-1]["close"] if prior else None
+    for hours in (12, 24, 48):
+        key = f"prior_return_{hours}h_pct"
+        if len(prior) > hours and prior[-hours - 1]["close"] > 0:
+            metrics[key] = (last_close / prior[-hours - 1]["close"] - 1) * 100
+        else:
+            metrics[key] = ""
+    for hours in (24, 48, 72):
+        window = prior[-hours:]
+        if len(window) < hours:
+            metrics[f"range_position_{hours}h_pct"] = ""
+            metrics[f"directional_progress_{hours}h_pct"] = ""
+            metrics[f"distance_to_directional_obstacle_{hours}h_atr"] = ""
+            continue
+        low = min(c["low"] for c in window)
+        high = max(c["high"] for c in window)
+        width = high - low
+        if width <= 0:
+            metrics[f"range_position_{hours}h_pct"] = ""
+            metrics[f"directional_progress_{hours}h_pct"] = ""
+            metrics[f"distance_to_directional_obstacle_{hours}h_atr"] = ""
+            continue
+        position = (entry - low) / width * 100
+        directional = position if side != "SELL" else 100 - position
+        obstacle = high - entry if side != "SELL" else entry - low
+        metrics[f"range_position_{hours}h_pct"] = position
+        metrics[f"directional_progress_{hours}h_pct"] = directional
+        metrics[f"distance_to_directional_obstacle_{hours}h_atr"] = obstacle
+    progress = metrics.get("directional_progress_72h_pct", "")
+    if progress == "":
+        metrics["progress_bucket_72h"] = "UNAVAILABLE"
+    elif progress < 33.333333:
+        metrics["progress_bucket_72h"] = "EARLY_THIRD"
+    elif progress < 66.666667:
+        metrics["progress_bucket_72h"] = "MIDDLE_THIRD"
+    else:
+        metrics["progress_bucket_72h"] = "LATE_THIRD"
+    return metrics
+
+
 def analyze_signal(signal, candles, min_room_atr=1.5):
     symbol = str(signal.get("symbol", "")).strip().upper()
     timestamp = parse_time(signal["timestamp"])
@@ -130,6 +174,7 @@ def analyze_signal(signal, candles, min_room_atr=1.5):
             "status": "ATR_UNAVAILABLE", "closed_candles_before_signal": len(prior),
         }
 
+    move_metrics = prior_move_metrics(prior, entry, str(signal.get("signal", "BUY")).upper())
     assessment = assess_trade_location(
         [*prior, _signal_candle(entry)],
         entry=entry,
@@ -156,6 +201,7 @@ def analyze_signal(signal, candles, min_room_atr=1.5):
         "structural_tp1": assessment["tp1"],
         "structural_tp2": assessment["tp2"],
         "structural_stop_pct": assessment["stop_distance_pct"],
+        **move_metrics,
     }
     for horizon in HORIZONS:
         target = timestamp + timedelta(hours=horizon)
@@ -231,6 +277,45 @@ def build_summary(results):
                             "avg_mfe_pct": sum(mfes) / len(mfes), "avg_mae_pct": sum(maes) / len(maes),
                             "reason": "", "count": "",
                         })
+    # Descriptive, pre-declared move-stage comparison; no threshold is selected from these results.
+    for split in ("ALL", "EARLY_SAMPLE", "HOLDOUT"):
+        split_rows = [
+            r for r in results if r.get("status") == "ASSESSED"
+            and (split == "ALL" or r.get("chronological_split") == split)
+        ]
+        for setup in ("TREND_HEURISTIC", "BOTTOM_HUNTER_HEURISTIC"):
+            setup_rows = [r for r in split_rows if r.get("setup") == setup]
+            for bucket in ("EARLY_THIRD", "MIDDLE_THIRD", "LATE_THIRD", "UNAVAILABLE"):
+                group = [r for r in setup_rows if r.get("progress_bucket_72h") == bucket]
+                if not group:
+                    continue
+                for horizon in (8, 24, 48):
+                    values = [float(r[f"close_return_{horizon}h_pct"]) for r in group
+                              if r.get(f"close_return_{horizon}h_pct") not in ("", None)]
+                    mfes = [float(r[f"mfe_{horizon}h_pct"]) for r in group
+                            if r.get(f"mfe_{horizon}h_pct") not in ("", None)]
+                    maes = [float(r[f"mae_{horizon}h_pct"]) for r in group
+                            if r.get(f"mae_{horizon}h_pct") not in ("", None)]
+                    if not values:
+                        continue
+                    prior24 = [float(r["prior_return_24h_pct"]) for r in group
+                               if r.get("prior_return_24h_pct") not in ("", None)]
+                    summary.append({
+                        "row_type": "MOVE_STAGE_OUTCOME", "split": split, "setup": setup,
+                        "policy": "DESCRIPTIVE_ONLY_NO_GATE", "gate_result": bucket,
+                        "horizon_hours": horizon, "n": len(values),
+                        "avg_close_return_pct": sum(values) / len(values),
+                        "median_close_return_pct": statistics.median(values),
+                        "positive_close_return_pct": 100 * sum(v > 0 for v in values) / len(values),
+                        "avg_mfe_pct": sum(mfes) / len(mfes) if mfes else "",
+                        "avg_mae_pct": sum(maes) / len(maes) if maes else "",
+                        "avg_prior_return_24h_pct": sum(prior24) / len(prior24) if prior24 else "",
+                        "avg_directional_progress_72h_pct": statistics.mean(
+                            float(r["directional_progress_72h_pct"]) for r in group
+                            if r.get("directional_progress_72h_pct") not in ("", None)
+                        ) if any(r.get("directional_progress_72h_pct") not in ("", None) for r in group) else "",
+                        "reason": "", "count": "",
+                    })
     reason_counts = defaultdict(int)
     for row in results:
         if row.get("status") != "ASSESSED":
@@ -353,9 +438,8 @@ def replay(history_path, out_path, min_room_atr=1.5, summary_out_path=""):
     summary = build_summary(results)
     if summary_out_path:
         fields = ["row_type", "split", "setup", "policy", "gate_result", "horizon_hours", "n",
-                  "avg_close_return_pct", "median_close_return_pct",
                   "positive_close_return_pct", "avg_mfe_pct", "avg_mae_pct",
-                  "reason", "count"]
+                  "avg_prior_return_24h_pct", "avg_directional_progress_72h_pct", "reason", "count"]
         with open(summary_out_path, "w", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(handle, fieldnames=fields)
             writer.writeheader()
