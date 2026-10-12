@@ -46,14 +46,14 @@ class HistoricalLocationReplayTests(unittest.TestCase):
         # Flat-ish rising history gives an interpretable range-position check.
         prior = [c for c in candles if c["close_time"] <= candles[80]["open_time"]]
         prior[-1]["close"] = 105.0
-        metrics = prior_move_metrics(prior, 110.0, "BUY", 2.0)
+        metrics = prior_move_metrics(prior, 117.5, "BUY", 2.0)
         self.assertEqual(metrics["progress_bucket_72h"], "LATE_THIRD")
         self.assertGreater(metrics["directional_progress_72h_pct"], 66.6)
         self.assertEqual(metrics["prior_return_12h_pct"], (
             prior[-1]["close"] / prior[-13]["close"] - 1
         ) * 100)
         # SELL progress is directional: closer to the recent low means later progress.
-        sell_metrics = prior_move_metrics(prior, 91.0, "SELL", 2.0)
+        sell_metrics = prior_move_metrics(prior, 101.0, "SELL", 2.0)
         self.assertGreater(sell_metrics["directional_progress_72h_pct"], 66.6)
 
     def test_move_stage_metrics_mark_short_windows_unavailable(self):
