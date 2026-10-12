@@ -126,6 +126,21 @@ jobs:
           print("ALL REGRESSION SELF-TESTS: PASS")
           PY
 
+      - name: Explicit v63.14.26 blocker regression (no scan, no Telegram)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import main
+          assert callable(main.bottom_hunter_early_confirmation_blockers)
+          assert main.run_v63_14_26_early_path_blocker_self_test() is True
+          blockers = main.bottom_hunter_early_confirmation_blockers("BUY", "1h", 3, 21.23, 0.66, 100, 2)
+          assert "volume<1.50x" in blockers
+          assert "raw_score<95" not in blockers
+          print("PASS: v63.14.26 explicit blocker regression")
+          print("BLOCKERS:", ", ".join(blockers))
+          PY
+
       - name: Scan live Binance data with Telegram delivery disabled
         run: python main.py
 
