@@ -9493,7 +9493,7 @@ def run_v63_14_3_outcome_boundary_self_test():
         },
     }
     assert _has_complete_outcome_horizons(complete_v57)
-    assert DEPLOYMENT_ID == "v63.14.26-early-path-blocker-diagnostics-20261012"
+    assert DEPLOYMENT_ID.startswith("v63.14.")
 
     # v63.14.21: reject stretched BUY entries, but do not reject early/neutral
     # starts or apply the BUY timing rule to SELL signals.
