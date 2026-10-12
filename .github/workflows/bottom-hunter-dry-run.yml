@@ -32,6 +32,14 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Restore signal outcome history
+        uses: actions/cache/restore@v4
+        with:
+          path: signals_history.json
+          key: signals-history-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            signals-history-${{ github.ref_name }}-
+
       - name: Install dependencies
         shell: bash
         run: |
@@ -99,13 +107,27 @@ jobs:
           for label, test in tests:
               assert test() is True, f"{label} failed"
               print(f"PASS: {label}")
+          if hasattr(main, "early_entry_rejection"):
+              assert main.early_entry_rejection("BUY", "TREND", 108.0, 100.0, 8.0, 60.0) is None
+              assert "late entry" in main.early_entry_rejection("BUY", "TREND", 111.0, 100.0, 8.0, 60.0)
+              assert "overheated" in main.early_entry_rejection("BUY", "TREND", 106.0, 100.0, 8.0, 72.0)
+              assert main.early_entry_rejection("SELL", "TREND", 120.0, 100.0, 8.0, 80.0) is None
+              assert "late impulse" in main.early_entry_rejection("BUY", "BREAKOUT", 125.0, 120.0, 10.0, 68.0, [100, 108, 118, 125])
+              print("PASS: v63.14.21 early-entry guard regression")
           print("ALL REGRESSION SELF-TESTS: PASS")
           PY
 
       - name: Scan live Binance data with Telegram delivery disabled
         run: python main.py
 
-      - name: Upload diagnostic logs
+      - name: Save signal outcome history
+        if: always() && hashFiles('signals_history.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: signals_history.json
+          key: signals-history-${{ github.ref_name }}-${{ github.run_id }}
+
+      - name: Upload diagnostic logs and outcome history
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -113,5 +135,6 @@ jobs:
           path: |
             professional_diagnostics.txt
             symbol_diagnostics.txt
+            signals_history.json
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 30
