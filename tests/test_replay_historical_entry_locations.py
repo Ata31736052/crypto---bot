@@ -32,12 +32,13 @@ class HistoricalLocationReplayTests(unittest.TestCase):
     def test_only_pre_signal_closed_candles_are_used(self):
         candles = sample_candles()
         signal_time = candles[60]["open_time"] + timedelta(minutes=30)
+        candles[60]["high"] = 200.0  # this candle has not closed at signal time
         result = analyze_signal({
             "symbol": "TEST", "signal": "BUY", "timestamp": signal_time.isoformat(),
             "entry": 119.5, "reasons": ["EMA9 > EMA21"],
         }, candles)
         self.assertEqual(result["status"], "ASSESSED")
-        self.assertNotEqual(result["historical_resistance"], 120.0 if candles[37]["close_time"] > signal_time else -1)
+        self.assertNotEqual(result["historical_resistance"], 200.0)
 
     def test_insufficient_closed_history_fails_closed(self):
         candles = sample_candles(10)
