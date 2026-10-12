@@ -33,7 +33,7 @@ TELEGRAM_TEST_ON_START = False
 DRY_RUN = os.getenv("DRY_RUN", "0").strip().lower() in ("1", "true", "yes", "on")
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.19-daily-bottom-hunter-20261012"
+DEPLOYMENT_ID = "v63.14.20-daily-bottom-hunter-20261012"
 
 
 
@@ -7881,9 +7881,9 @@ def score_bottom_hunter(df_primary, df_confirm, btc_regime=None, diagnostic=None
         score += min(confirm, 10)
         reversal = True
         reasons.append(f"{'4H' if str(signal_timeframe).lower() == '1d' else '30M'} reversal confirmation")
-        dmark("confirm_30m")
+        dmark("confirm_4h" if str(signal_timeframe).lower() == "1d" else "confirm_30m")
     else:
-        dmark("no_confirm_30m")
+        dmark("no_confirm_4h" if str(signal_timeframe).lower() == "1d" else "no_confirm_30m")
 
     if reversal:
         dmark("reversal_evidence")
@@ -9203,7 +9203,7 @@ def run_v63_14_3_outcome_boundary_self_test():
         },
     }
     assert _has_complete_outcome_horizons(complete_v57)
-    assert DEPLOYMENT_ID == "v63.14.19-daily-bottom-hunter-20261012"
+    assert DEPLOYMENT_ID == "v63.14.20-daily-bottom-hunter-20261012"
 
     # Low score must not suppress other rejection reasons in diagnostics.
     row = {
@@ -9231,7 +9231,7 @@ def run_v63_14_3_outcome_boundary_self_test():
     assert any("reversal ADX too weak" in reason for reason in reject_reasons)
     assert any("reversal volume below professional minimum" in reason for reason in reject_reasons)
     assert any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
-    assert DEPLOYMENT_ID == "v63.14.19-daily-bottom-hunter-20261012"
+    assert DEPLOYMENT_ID == "v63.14.20-daily-bottom-hunter-20261012"
     return True
 
 
@@ -9255,7 +9255,7 @@ def run_v63_14_8_confirmation_diagnostic_self_test():
     assert format_confirmation_diagnostic({
         "confirmations_30m": 3, "required_30m": 6,
     }) == "30M=3 (required >= 6)"
-    assert DEPLOYMENT_ID == "v63.14.19-daily-bottom-hunter-20261012"
+    assert DEPLOYMENT_ID == "v63.14.20-daily-bottom-hunter-20261012"
     return True
 
 
@@ -9328,7 +9328,7 @@ def run_v63_14_7_final_gate_consistency_self_test():
     assert PRO_MIN_1H_ADX == 23.0
     assert PRO_MIN_VOLUME_RATIO == 1.35
     assert PRO_BOTTOM_MIN_30M_CONFIRMATIONS == 6
-    assert DEPLOYMENT_ID == "v63.14.19-daily-bottom-hunter-20261012"
+    assert DEPLOYMENT_ID == "v63.14.20-daily-bottom-hunter-20261012"
     return True
 
 
@@ -9343,7 +9343,7 @@ def run_v63_14_2_bottom_rsi_self_test():
     assert BOTTOM_RSI_MIN <= 23 <= BOTTOM_RSI_MAX
     assert not (BOTTOM_RSI_MIN <= 19 <= BOTTOM_RSI_MAX)
     assert not (BOTTOM_RSI_MIN <= 45 <= BOTTOM_RSI_MAX)
-    assert DEPLOYMENT_ID == "v63.14.19-daily-bottom-hunter-20261012"
+    assert DEPLOYMENT_ID == "v63.14.20-daily-bottom-hunter-20261012"
     return True
 
 
@@ -9399,6 +9399,41 @@ def bottom_hunter_adx_gate_pass(adx, volume_ratio, raw_score, momentum_component
             and momentum_components >= PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS)
 
 
+def run_v63_14_20_daily_bottom_hunter_self_test():
+    assert ENABLE_DAILY_SIGNALS is True
+    assert ENABLE_DAILY_BOTTOM_HUNTER is True
+    assert "signal_timeframe" in score_bottom_hunter.__code__.co_varnames
+
+    # Verify that a Daily Bottom Hunter is evaluated on 1D data and uses 4H
+    # confirmation, rather than accidentally reusing the 1H/30M path.
+    row_1h = {
+        "close": 100.0, "open": 99.0, "high": 101.0, "low": 98.0,
+        "ema9": 101.0, "ema21": 102.0, "ema50": 103.0, "ema200": 110.0,
+        "rsi": 40.0, "rsi_prev": 41.0, "macd": -1.0, "macd_signal": 0.0,
+        "macd_hist": -1.0, "macd_hist_prev": -0.5, "atr": 1.0,
+        "atr_percent": 1.0, "volume_ratio": 0.5, "body_ratio": 0.2,
+        "adx": 10.0, "plus_di": 10.0, "minus_di": 20.0,
+        "rolling_vwap": 110.0, "obv_slope": -1.0, "bb_width_pct": 2.0,
+        "bb_position": 0.5, "volume_zscore": -1.0, "di_spread": -10.0,
+        "rsi_slope": -1.0, "distance_ema21": 2.0,
+    }
+    row_daily = dict(row_1h, adx=31.0, volume_ratio=1.6)
+    frame1 = pd.DataFrame([dict(row_1h) for _ in range(60)])
+    frame30 = pd.DataFrame([dict(row_1h) for _ in range(35)])
+    frame4h = pd.DataFrame([dict(row_1h) for _ in range(60)])
+    framed = pd.DataFrame([dict(row_daily) for _ in range(80)])
+    test_signal = {"symbol": "TEST", "signal": "BUY", "signal_mode": "BOTTOM_HUNTER",
+                   "signal_timeframe": "1d", "score": 75,
+                   "rr_tp1": TP1_RR, "rr_tp2": TP2_RR, "reasons": []}
+    professional_signal_quality_gate(
+        test_signal, {"1h": frame1, "30m": frame30, "4h": frame4h, "1d": framed},
+        {"combined": "UNKNOWN"})
+    breakdown = test_signal.get("professional_quality_breakdown", {})
+    assert breakdown.get("confirmation_timeframe") == "4H"
+    assert breakdown.get("adx") == 31.0
+    return True
+
+
 def run_v63_14_19_raw_effective_score_self_test():
     sample = {"score": 75, "raw_score": 92}
     effective = safe_float(sample.get("score"))
@@ -9448,7 +9483,7 @@ def run_v63_14_16_bottom_rejection_diagnostic_self_test():
     assert PRO_BOTTOM_MIN_SCORE == 85
     assert PRO_BOTTOM_MIN_ADX == 23.0
     assert PRO_BOTTOM_MIN_VOLUME_RATIO == 1.35
-    assert DEPLOYMENT_ID == "v63.14.19-daily-bottom-hunter-20261012"
+    assert DEPLOYMENT_ID == "v63.14.20-daily-bottom-hunter-20261012"
     assert run_v63_14_17_early_reversal_gate_self_test() is True
     return True
 
