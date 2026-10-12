@@ -9173,7 +9173,7 @@ def run_v63_14_3_outcome_boundary_self_test():
         },
     }
     assert _has_complete_outcome_horizons(complete_v57)
-    assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
+    assert DEPLOYMENT_ID == "v63.14.16-entry-location-guard-20261012"
 
     # Low score must not suppress other rejection reasons in diagnostics.
     row = {
@@ -9201,7 +9201,7 @@ def run_v63_14_3_outcome_boundary_self_test():
     assert any("reversal ADX too weak" in reason for reason in reject_reasons)
     assert any("reversal volume below professional minimum" in reason for reason in reject_reasons)
     assert any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
-    assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
+    assert DEPLOYMENT_ID == "v63.14.16-entry-location-guard-20261012"
     return True
 
 
@@ -9225,7 +9225,7 @@ def run_v63_14_8_confirmation_diagnostic_self_test():
     assert format_confirmation_diagnostic({
         "confirmations_30m": 3, "required_30m": 6,
     }) == "30M=3 (required >= 6)"
-    assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
+    assert DEPLOYMENT_ID == "v63.14.16-entry-location-guard-20261012"
     return True
 
 
@@ -9298,7 +9298,7 @@ def run_v63_14_7_final_gate_consistency_self_test():
     assert PRO_MIN_1H_ADX == 23.0
     assert PRO_MIN_VOLUME_RATIO == 1.35
     assert PRO_BOTTOM_MIN_30M_CONFIRMATIONS == 6
-    assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
+    assert DEPLOYMENT_ID == "v63.14.16-entry-location-guard-20261012"
     return True
 
 
@@ -9313,7 +9313,7 @@ def run_v63_14_2_bottom_rsi_self_test():
     assert BOTTOM_RSI_MIN <= 23 <= BOTTOM_RSI_MAX
     assert not (BOTTOM_RSI_MIN <= 19 <= BOTTOM_RSI_MAX)
     assert not (BOTTOM_RSI_MIN <= 45 <= BOTTOM_RSI_MAX)
-    assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
+    assert DEPLOYMENT_ID == "v63.14.16-entry-location-guard-20261012"
     return True
 
 
