@@ -56,3 +56,18 @@ The TP1-only candidates deliberately ignore a blocked TP2 for the *entry-locatio
 sensitivity comparison only*. Any later implementation would have to cap TP2 before
 the historical obstacle and recompute actual reward/risk; this replay does not model
 that revised exit plan. Do not treat these numbers as strategy P&L.
+
+
+## Stage 1: Was the signal already late in the prior move?
+
+A new research-only replay extension records the move's state at each historical signal, independently from the support/resistance gate. It adds:
+
+- Prior close-to-close returns over 12h, 24h, and 48h before the signal.
+- Entry position inside the trailing 24h, 48h, and 72h high-low ranges.
+- Directional progress through each range (for BUY, low-to-high; for SELL, high-to-low).
+- Distance from entry to the directionally relevant range obstacle in ATR units.
+- Descriptive early/middle/late thirds of the trailing 72h directional range, then gross 8h/24h/48h outcomes and MFE/MAE for each group.
+
+**No-lookahead rule:** every feature above uses only hourly candles whose close time is at or before the recorded signal timestamp. The signal candle is not used to calculate its prior range or returns. Setup names remain reason-text heuristics, not authoritative engine labels. These thirds are descriptive buckets, not proposed production thresholds.
+
+The updated pull-request workflow is running the compile, regression, and historical replay checks. Results should be interpreted only after that run completes; this extension is not wired into the production signal engine and does not change Telegram behavior.
