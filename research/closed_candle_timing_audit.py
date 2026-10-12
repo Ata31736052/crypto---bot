@@ -112,23 +112,22 @@ def evaluate(signals_path, candles_path, horizons=DEFAULT_HORIZONS_HOURS,
             contiguous.append(candle)
             expected += timedelta(hours=1)
 
-        # Time to recover is measured only after a close below entry. None means
-        # no adverse close occurred or no recovery was observed in available data.
-        first_below = next((j for j, c in enumerate(contiguous) if c["close"] < entry), None)
-        recovery_hours = None
-        if first_below is not None:
-            recovery_index = next(
-                (j for j in range(first_below + 1, len(contiguous))
-                 if contiguous[j]["close"] >= entry),
-                None,
-            )
-            if recovery_index is not None:
-                recovery_hours = recovery_index + 1
-
         for horizon in horizons:
             window = contiguous[:horizon]
             if len(window) < horizon:
                 continue
+            # Recovery is horizon-scoped: a recovery after the horizon must not
+            # leak into the shorter-horizon report.
+            first_below = next((j for j, c in enumerate(window) if c["close"] < entry), None)
+            recovery_hours = None
+            if first_below is not None:
+                recovery_index = next(
+                    (j for j in range(first_below + 1, len(window))
+                     if window[j]["close"] >= entry),
+                    None,
+                )
+                if recovery_index is not None:
+                    recovery_hours = recovery_index + 1
             exit_close = window[-1]["close"]
             gross_return = (exit_close / entry - 1.0) * 100.0
             results.append({
