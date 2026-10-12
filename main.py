@@ -3892,6 +3892,74 @@ def score_main_1h(df, side):
     return score_timeframe(df, side, "1H")
 
 
+
+def entry_location_guard(df, side, lookback=20, min_room_atr=PRO_MAX_RESISTANCE_ROOM_ATR):
+    """Reject entries with inadequate room before the nearest recent swing level.
+
+    Uses only closed candles and excludes the current candle from the level
+    window. Returns (allowed, diagnostic). This is a location filter, not a
+    prediction or profitability guarantee.
+    """
+    if df is None or len(df) < max(lookback + 2, 3):
+        return False, "ENTRY_LOCATION_INSUFFICIENT_HISTORY"
+
+    row = df.iloc[-1]
+    close = safe_float(row.get("close"), 0.0)
+    atr = safe_float(row.get("atr"), 0.0)
+    if close <= 0 or atr <= 0:
+        return False, "ENTRY_LOCATION_INVALID_PRICE_OR_ATR"
+
+    prior = df.iloc[-(lookback + 1):-1]
+    if prior.empty:
+        return False, "ENTRY_LOCATION_INSUFFICIENT_HISTORY"
+
+    side = str(side).upper()
+    if side == "BUY":
+        level = safe_float(prior["high"].max(), 0.0)
+        room_atr = (level - close) / atr
+        label = "RESISTANCE"
+    elif side == "SELL":
+        level = safe_float(prior["low"].min(), 0.0)
+        room_atr = (close - level) / atr
+        label = "SUPPORT"
+    else:
+        return False, "ENTRY_LOCATION_INVALID_SIDE"
+
+    if room_atr < 0:
+        return True, f"ENTRY_LOCATION_LEVEL_CLEARED_{label}"
+
+    if room_atr < float(min_room_atr):
+        return False, (
+            f"ENTRY_LOCATION_TOO_CLOSE_TO_{label}: "
+            f"room={room_atr:.2f} ATR; required>={float(min_room_atr):.2f} ATR"
+        )
+    return True, f"ENTRY_LOCATION_ROOM_OK: {room_atr:.2f} ATR"
+
+
+def run_entry_location_guard_self_test():
+    import pandas as pd
+    near = pd.DataFrame({
+        "high": [100.0] * 20 + [100.2],
+        "low": [98.0] * 21,
+        "close": [99.5] * 20 + [99.6],
+        "atr": [1.0] * 21,
+    })
+    allowed, reason = entry_location_guard(near, "BUY", lookback=20, min_room_atr=0.8)
+    assert not allowed and "TOO_CLOSE_TO_RESISTANCE" in reason, (allowed, reason)
+
+    room = near.copy()
+    room.loc[20, "close"] = 98.5
+    allowed, reason = entry_location_guard(room, "BUY", lookback=20, min_room_atr=0.8)
+    assert allowed and "ROOM_OK" in reason, (allowed, reason)
+
+    support_near = near.copy()
+    support_near["low"] = 99.0
+    support_near.loc[20, "close"] = 99.4
+    allowed, reason = entry_location_guard(support_near, "SELL", lookback=20, min_room_atr=0.8)
+    assert not allowed and "TOO_CLOSE_TO_SUPPORT" in reason, (allowed, reason)
+    return True
+
+
 def evaluate_final_signal(
     symbol,
     data,
@@ -4341,6 +4409,29 @@ def evaluate_final_signal(
     # =====================================================
 
     row = df_1h.iloc[-1]
+
+    # High score cannot override a nearby historical obstacle.
+    location_ok, location_reason = entry_location_guard(
+        df_1h, selected_side, lookback=20,
+        min_room_atr=PRO_MAX_RESISTANCE_ROOM_ATR
+    )
+    if not location_ok:
+        result.update({
+            "signal": "NO_SIGNAL",
+            "score": selected_score,
+            "buy_score": buy_score,
+            "sell_score": sell_score,
+            "strength": "NONE",
+            "warnings": [location_reason],
+            "entry_location_diagnostic": {
+                "allowed": False,
+                "side": selected_side,
+                "reason": location_reason,
+            },
+        })
+        if DEBUG_MODE:
+            log(f"⛔ {symbol} rejected by entry-location guard: {location_reason}")
+        return result
 
     result.update({
 
@@ -10902,6 +10993,7 @@ if __name__ == "__main__":
     assert run_v63_14_10_score_grade_diagnostic_self_test() is True
     assert run_v63_14_11_analytics_scope_self_test() is True
     assert run_v63_14_14_finalization_metrics_self_test() is True
+    assert run_entry_location_guard_self_test() is True
 
     try:
 
