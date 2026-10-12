@@ -105,6 +105,23 @@ class HistoricalLocationReplayTests(unittest.TestCase):
         row["rejection_reasons"] = "STRUCTURAL_STOP_TOO_WIDE"
         self.assertFalse(policy_accepts(row, "TP1_ONLY_0P5_ATR"))
 
+    def test_sell_forward_outcomes_are_direction_adjusted(self):
+        candles = sample_candles(80)
+        for idx in range(61, 80):
+            close = 110.0 + (idx - 61) * 0.1
+            candles[idx]["close"] = close
+            candles[idx]["high"] = close + 1
+            candles[idx]["low"] = close - 1
+        signal_time = candles[60]["open_time"] + timedelta(minutes=30)
+        result = analyze_signal({
+            "symbol": "TEST", "signal": "SELL", "timestamp": signal_time.isoformat(),
+            "entry": 100.0, "reasons": ["EMA9 < EMA21"],
+        }, candles)
+        self.assertEqual(result["status"], "ASSESSED")
+        self.assertLess(result["close_return_1h_pct"], 0)
+        self.assertLess(result["mfe_1h_pct"], 0)
+        self.assertLess(result["mae_1h_pct"], 0)
+
     def test_invalid_entry_fails_closed(self):
         result = analyze_signal({
             "symbol": "TEST", "signal": "BUY",
