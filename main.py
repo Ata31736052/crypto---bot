@@ -5,7 +5,7 @@
 # Confirmation TF: 30M
 # Higher TF Context: 4H + Daily
 # Binance Spot only | No auto-trading
-# Version: 2026-10-12 v63.14.23 | BOTTOM SCORE CALIBRATION + CONTROLLED EARLY-REVERSAL GATE | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
+# Version: 2026-10-12 v63.14.24 | BOTTOM SCORE CALIBRATION + CONTROLLED EARLY-REVERSAL GATE | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
 # =========================================================
 
 import os
@@ -33,7 +33,7 @@ TELEGRAM_TEST_ON_START = False
 DRY_RUN = os.getenv("DRY_RUN", "0").strip().lower() in ("1", "true", "yes", "on")
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.23-legacy-outcome-backfill-20261012"
+DEPLOYMENT_ID = "v63.14.24-entry-extension-metrics-20261012"
 
 
 
@@ -6499,6 +6499,26 @@ def add_signal_to_history(
             0
         ),
 
+        # Entry-location metrics are preserved so later outcome analysis can
+        # distinguish an early setup from a stretched/chase entry.
+        "ema9": signal.get("ema9", 0),
+        "ema21": signal.get("ema21", 0),
+        "atr": signal.get("atr", 0),
+        "entry_extension_atr": (
+            ((safe_float(signal.get("price", signal.get("entry", 0))) - safe_float(signal.get("ema9", 0)))
+             if str(signal.get("signal", "")).upper() == "BUY"
+             else (safe_float(signal.get("ema9", 0)) - safe_float(signal.get("price", signal.get("entry", 0)))))
+            / safe_float(signal.get("atr", 0))
+            if safe_float(signal.get("atr", 0)) > 0 and safe_float(signal.get("ema9", 0)) > 0
+            else None
+        ),
+        "ema21_distance_percent": (
+            abs(safe_float(signal.get("price", signal.get("entry", 0))) - safe_float(signal.get("ema21", 0)))
+            / safe_float(signal.get("ema21", 0)) * 100.0
+            if safe_float(signal.get("ema21", 0)) > 0
+            else None
+        ),
+
         "btc_regime": signal.get(
             "btc_regime",
             "UNKNOWN"
@@ -6581,7 +6601,8 @@ def run_v63_14_22_dry_run_outcome_recording_self_test():
     sample = {
         "symbol": "TESTUSDT", "signal": "BUY", "signal_mode": "TREND",
         "signal_timeframe": "1h", "candle_time": "2026-10-12T10:00:00+00:00",
-        "entry": 100.0, "price": 100.0, "score": 95,
+        "entry": 100.0, "price": 104.0, "ema9": 100.0, "ema21": 98.0, "atr": 4.0,
+        "score": 95,
         "delivery_diagnostic_status": "READY_BUT_SUPPRESSED_DRY_RUN",
     }
     history = []
@@ -6590,6 +6611,8 @@ def run_v63_14_22_dry_run_outcome_recording_self_test():
     assert history[0]["validation_mode"] == "DRY_RUN"
     assert history[0]["delivery_suppressed"] is True
     assert history[0]["outcome_status"] == "OPEN"
+    assert history[0]["entry_extension_atr"] == 1.0
+    assert history[0]["ema21_distance_percent"] is not None
     assert _record_dry_run_signal(sample, history) is False
     assert len(history) == 1
     rejected = dict(sample, symbol="REJECTED", delivery_diagnostic_status="BLOCKED_SIGNAL_QUALITY")
@@ -8545,8 +8568,8 @@ def early_entry_rejection(side, mode, close, ema9, atr, rsi, recent_closes=None)
     if extension_atr > 1.25:
         return f"BUY late entry: close is {extension_atr:.2f} ATR above EMA9 (>1.25 ATR)"
 
-    if rsi >= 70.0 and extension_atr > 0.65:
-        return f"BUY momentum overheated: RSI {rsi:.1f} with {extension_atr:.2f} ATR EMA9 extension"
+    if rsi >= MAX_LATE_ENTRY_RSI_BUY and extension_atr > 0.65:
+        return f"BUY momentum overheated: RSI {rsi:.1f} (limit {MAX_LATE_ENTRY_RSI_BUY:.1f}) with {extension_atr:.2f} ATR EMA9 extension"
 
     # A sharp 3-candle run with hot RSI is often a chase entry, not the start
     # of a move. Do not use this alone: require both price extension and heat.
@@ -9448,13 +9471,14 @@ def run_v63_14_3_outcome_boundary_self_test():
         },
     }
     assert _has_complete_outcome_horizons(complete_v57)
-    assert DEPLOYMENT_ID == "v63.14.23-legacy-outcome-backfill-20261012"
+    assert DEPLOYMENT_ID == "v63.14.24-entry-extension-metrics-20261012"
 
     # v63.14.21: reject stretched BUY entries, but do not reject early/neutral
     # starts or apply the BUY timing rule to SELL signals.
     assert early_entry_rejection("BUY", "TREND", 108.0, 100.0, 8.0, 60.0) is None
     assert "late entry" in early_entry_rejection("BUY", "TREND", 111.0, 100.0, 8.0, 60.0)
     assert "overheated" in early_entry_rejection("BUY", "TREND", 106.0, 100.0, 8.0, 72.0)
+    assert "overheated" in early_entry_rejection("BUY", "TREND", 106.0, 100.0, 8.0, 68.0)
     assert early_entry_rejection("SELL", "TREND", 120.0, 100.0, 8.0, 80.0) is None
     assert "late impulse" in early_entry_rejection("BUY", "BREAKOUT", 125.0, 120.0, 10.0, 68.0, [100, 108, 118, 125])
 
@@ -9485,7 +9509,7 @@ def run_v63_14_3_outcome_boundary_self_test():
     assert any("reversal ADX too weak" in reason for reason in reject_reasons)
     assert any("reversal volume below professional minimum" in reason for reason in reject_reasons)
     assert any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
-    assert DEPLOYMENT_ID == "v63.14.23-legacy-outcome-backfill-20261012"
+    assert DEPLOYMENT_ID == "v63.14.24-entry-extension-metrics-20261012"
     return True
 
 
@@ -9509,7 +9533,7 @@ def run_v63_14_8_confirmation_diagnostic_self_test():
     assert format_confirmation_diagnostic({
         "confirmations_30m": 3, "required_30m": 6,
     }) == "30M=3 (required >= 6)"
-    assert DEPLOYMENT_ID == "v63.14.23-legacy-outcome-backfill-20261012"
+    assert DEPLOYMENT_ID == "v63.14.24-entry-extension-metrics-20261012"
     return True
 
 
@@ -9582,7 +9606,7 @@ def run_v63_14_7_final_gate_consistency_self_test():
     assert PRO_MIN_1H_ADX == 23.0
     assert PRO_MIN_VOLUME_RATIO == 1.35
     assert PRO_BOTTOM_MIN_30M_CONFIRMATIONS == 6
-    assert DEPLOYMENT_ID == "v63.14.23-legacy-outcome-backfill-20261012"
+    assert DEPLOYMENT_ID == "v63.14.24-entry-extension-metrics-20261012"
     return True
 
 
@@ -9597,7 +9621,7 @@ def run_v63_14_2_bottom_rsi_self_test():
     assert BOTTOM_RSI_MIN <= 23 <= BOTTOM_RSI_MAX
     assert not (BOTTOM_RSI_MIN <= 19 <= BOTTOM_RSI_MAX)
     assert not (BOTTOM_RSI_MIN <= 45 <= BOTTOM_RSI_MAX)
-    assert DEPLOYMENT_ID == "v63.14.23-legacy-outcome-backfill-20261012"
+    assert DEPLOYMENT_ID == "v63.14.24-entry-extension-metrics-20261012"
     return True
 
 
@@ -9789,7 +9813,7 @@ def run_v63_14_16_bottom_rejection_diagnostic_self_test():
     assert PRO_BOTTOM_MIN_SCORE == 85
     assert PRO_BOTTOM_MIN_ADX == 23.0
     assert PRO_BOTTOM_MIN_VOLUME_RATIO == 1.35
-    assert DEPLOYMENT_ID == "v63.14.23-legacy-outcome-backfill-20261012"
+    assert DEPLOYMENT_ID == "v63.14.24-entry-extension-metrics-20261012"
     assert run_v63_14_17_early_reversal_gate_self_test() is True
     return True
 
