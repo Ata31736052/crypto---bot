@@ -233,7 +233,7 @@ def simulate_pullback_reentry(signal, candles, base_result, wait_hours=8, pullba
     entry = float(base_result["entry"])
     atr = float(base_result["atr"])
     side = str(signal.get("signal", "BUY")).upper()
-    future = sorted((c for c in candles if c["close_time"] > timestamp), key=lambda c: c["close_time"])
+    future = sorted((c for c in candles if c["open_time"] >= timestamp), key=lambda c: c["close_time"])
     deadline = timestamp + timedelta(hours=wait_hours)
     pullback_index = None
     for i, candle in enumerate(future):
