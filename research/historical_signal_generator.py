@@ -212,6 +212,16 @@ def evaluate_barriers(signal: dict, future: pd.DataFrame, horizon: int,
     target = _num(signal.get("tp1"))
     if side not in ("BUY", "SELL") or entry <= 0 or stop <= 0 or target <= 0:
         return {"event": "INVALID_LEVELS", "net_return_pct": None, "bars": 0}
+    # The signal is not a tradable entry if the next 1H open has already
+    # crossed its stop or TP1. Do not fabricate a zero-return trade in this case.
+    if side == "BUY" and entry <= stop:
+        return {"event": "ENTRY_INVALIDATED_BY_STOP", "net_return_pct": None, "bars": 0}
+    if side == "BUY" and entry >= target:
+        return {"event": "ENTRY_INVALIDATED_BY_TP1", "net_return_pct": None, "bars": 0}
+    if side == "SELL" and entry >= stop:
+        return {"event": "ENTRY_INVALIDATED_BY_STOP", "net_return_pct": None, "bars": 0}
+    if side == "SELL" and entry <= target:
+        return {"event": "ENTRY_INVALIDATED_BY_TP1", "net_return_pct": None, "bars": 0}
     window = future.head(horizon)
     if len(window) < horizon:
         return {"event": "INCOMPLETE_WINDOW", "net_return_pct": None, "bars": len(window)}
@@ -485,7 +495,15 @@ def generate(args) -> dict:
     for row in unique_signals:
         buckets[(row["engine"], row["side"], row["regime"])].append(row)
     for (engine_name, side, regime_name), group in sorted(buckets.items()):
-        item = {"engine": engine_name, "side": side, "regime": regime_name, "signals": len(group)}
+        gaps = [_num(x.get("planned_entry_gap_pct"), float("nan")) for x in group]
+        gaps = [abs(v) for v in gaps if pd.notna(v)]
+        item = {
+            "engine": engine_name, "side": side, "regime": regime_name, "signals": len(group),
+            "entry_invalidated_by_stop": sum(str(x.get("8h_event", "")).startswith("ENTRY_INVALIDATED_BY_STOP") for x in group),
+            "entry_invalidated_by_tp1": sum(str(x.get("8h_event", "")).startswith("ENTRY_INVALIDATED_BY_TP1") for x in group),
+            "entry_gap_abs_gt_1pct": sum(v > 1.0 for v in gaps),
+            "median_abs_planned_entry_gap_pct": round(float(pd.Series(gaps).median()), 4) if gaps else None,
+        }
         for horizon in (8, 24, 48):
             vals = [_num(x.get(f"{horizon}h_net_return_pct"), float("nan")) for x in group]
             vals = [v for v in vals if pd.notna(v)]
