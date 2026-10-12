@@ -33,7 +33,7 @@ class HistoricalSignalGeneratorTests(unittest.TestCase):
         ] * 8)
         out = evaluate_barriers(signal, future, 8, 0.4)
         self.assertEqual(out["event"], "TP1")
-        self.assertAlmostEqual(out["net_return_pct"], 4.6)
+        self.assertAlmostEqual(out["net_return_pct"], (100 / 95 - 1) * 100 - 0.4)
 
     def test_incomplete_horizon_fails_closed(self):
         signal = {"side": "BUY", "actual_entry": 100, "stop_loss": 95, "tp1": 105}
