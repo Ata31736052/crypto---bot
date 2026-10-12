@@ -3915,18 +3915,27 @@ def entry_location_guard(df, side, lookback=20, min_room_atr=PRO_MAX_RESISTANCE_
 
     side = str(side).upper()
     if side == "BUY":
-        level = safe_float(prior["high"].max(), 0.0)
-        room_atr = (level - close) / atr
+        # Nearest prior high still above price, not the highest high in the
+        # whole window. A distant old peak must not hide a nearby obstacle.
+        levels = pd.to_numeric(prior["high"], errors="coerce")
+        levels = levels[levels > close]
         label = "RESISTANCE"
+        if levels.empty:
+            return True, "ENTRY_LOCATION_LEVEL_CLEARED_RESISTANCE"
+        level = safe_float(levels.min(), 0.0)
+        room_atr = (level - close) / atr
     elif side == "SELL":
-        level = safe_float(prior["low"].min(), 0.0)
-        room_atr = (close - level) / atr
+        # Nearest prior low still below price, not the lowest low in the
+        # whole window. A distant old trough must not hide nearby support.
+        levels = pd.to_numeric(prior["low"], errors="coerce")
+        levels = levels[levels < close]
         label = "SUPPORT"
+        if levels.empty:
+            return True, "ENTRY_LOCATION_LEVEL_CLEARED_SUPPORT"
+        level = safe_float(levels.max(), 0.0)
+        room_atr = (close - level) / atr
     else:
         return False, "ENTRY_LOCATION_INVALID_SIDE"
-
-    if room_atr < 0:
-        return True, f"ENTRY_LOCATION_LEVEL_CLEARED_{label}"
 
     if room_atr < float(min_room_atr):
         return False, (
@@ -3938,11 +3947,11 @@ def entry_location_guard(df, side, lookback=20, min_room_atr=PRO_MAX_RESISTANCE_
 
 def run_entry_location_guard_self_test():
     import pandas as pd
-    # 20 completed lookback candles plus one preceding candle and the current
-    # signal candle: the guard intentionally requires lookback + 2 rows.
+    # Deliberately include a distant old extreme and a nearer obstacle.
+    # The nearest resistance/support must win, not the window's max/min.
     near = pd.DataFrame({
-        "high": [100.0] * 21 + [100.2],
-        "low": [98.0] * 22,
+        "high": [110.0, 100.2] + [105.0] * 19 + [100.4],
+        "low": [90.0, 99.2] + [95.0] * 19 + [99.0],
         "close": [99.5] * 21 + [99.6],
         "atr": [1.0] * 22,
     })
@@ -3950,15 +3959,19 @@ def run_entry_location_guard_self_test():
     assert not allowed and "TOO_CLOSE_TO_RESISTANCE" in reason, (allowed, reason)
 
     room = near.copy()
-    room.loc[21, "close"] = 98.5
+    room.loc[21, "close"] = 99.0
     allowed, reason = entry_location_guard(room, "BUY", lookback=20, min_room_atr=0.8)
     assert allowed and "ROOM_OK" in reason, (allowed, reason)
 
     support_near = near.copy()
-    support_near["low"] = 99.0
-    support_near.loc[21, "close"] = 99.4
+    support_near.loc[21, "close"] = 99.6
     allowed, reason = entry_location_guard(support_near, "SELL", lookback=20, min_room_atr=0.8)
     assert not allowed and "TOO_CLOSE_TO_SUPPORT" in reason, (allowed, reason)
+
+    cleared = near.copy()
+    cleared.loc[21, "close"] = 111.0
+    allowed, reason = entry_location_guard(cleared, "BUY", lookback=20, min_room_atr=0.8)
+    assert allowed and "LEVEL_CLEARED_RESISTANCE" in reason, (allowed, reason)
     return True
 
 
