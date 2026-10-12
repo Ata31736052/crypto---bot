@@ -27,6 +27,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Restore signal outcome history
+        uses: actions/cache/restore@v4
+        with:
+          path: signals_history.json
+          key: signals-history-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            signals-history-${{ github.ref_name }}-
+
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
@@ -152,7 +160,14 @@ jobs:
           set -euo pipefail
           python main.py
 
-      - name: Upload scan diagnostics
+      - name: Save signal outcome history
+        if: always() && hashFiles('signals_history.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: signals_history.json
+          key: signals-history-${{ github.ref_name }}-${{ github.run_id }}
+
+      - name: Upload scan diagnostics and outcome history
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -160,5 +175,6 @@ jobs:
           path: |
             professional_diagnostics.txt
             symbol_diagnostics.txt
+            signals_history.json
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 30
