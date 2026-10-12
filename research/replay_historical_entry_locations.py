@@ -213,9 +213,14 @@ def analyze_signal(signal, candles, min_room_atr=1.5):
             continue
         endpoint = eligible[0]["close_time"]
         window = [c for c in future if c["close_time"] <= endpoint]
-        result[f"close_return_{horizon}h_pct"] = (eligible[0]["close"] / entry - 1) * 100
-        result[f"mfe_{horizon}h_pct"] = (max(c["high"] for c in window) / entry - 1) * 100
-        result[f"mae_{horizon}h_pct"] = (min(c["low"] for c in window) / entry - 1) * 100
+        if str(signal.get("signal", "BUY")).upper() == "SELL":
+            result[f"close_return_{horizon}h_pct"] = (entry / eligible[0]["close"] - 1) * 100
+            result[f"mfe_{horizon}h_pct"] = (entry / min(c["low"] for c in window) - 1) * 100
+            result[f"mae_{horizon}h_pct"] = (entry / max(c["high"] for c in window) - 1) * 100
+        else:
+            result[f"close_return_{horizon}h_pct"] = (eligible[0]["close"] / entry - 1) * 100
+            result[f"mfe_{horizon}h_pct"] = (max(c["high"] for c in window) / entry - 1) * 100
+            result[f"mae_{horizon}h_pct"] = (min(c["low"] for c in window) / entry - 1) * 100
     return result
 
 
