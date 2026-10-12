@@ -62,7 +62,7 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           s=Path("historical_backtest.py").read_text()
-          assert "main.evaluate_final_signal(" in s
+          assert "main.analyze_one_symbol(" in s
           assert "next 1H candle open" in s
           print("Backtest source verification: PASS")
           PY
