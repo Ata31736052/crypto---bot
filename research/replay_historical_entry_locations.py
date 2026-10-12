@@ -436,6 +436,25 @@ def replay(history_path, out_path, min_room_atr=1.5, summary_out_path=""):
                               f"positive={100*sum(v > 0 for v in returns)/len(returns):.1f}%, "
                               f"avg MAE={sum(maes)/len(maes):.3f}%")
     summary = build_summary(results)
+    print("MOVE-STAGE HOLDOUT (descriptive only; not a trading gate):")
+    for row in summary:
+        if row.get("row_type") == "MOVE_STAGE_OUTCOME" and row.get("split") == "HOLDOUT" and row.get("horizon_hours") == 24:
+            prior24 = row.get("avg_prior_return_24h_pct", "")
+            progress = row.get("avg_directional_progress_72h_pct", "")
+            print(
+                f"  {row['setup']} {row['gate_result']} n={row['n']} "
+                f"prior24h_avg={float(prior24):.3f}% " if prior24 != "" else
+                f"  {row['setup']} {row['gate_result']} n={row['n']} prior24h_avg=n/a ",
+                end=""
+            )
+            print(
+                f"72h_progress_avg={float(progress):.1f}% " if progress != "" else "72h_progress_avg=n/a ",
+                end=""
+            )
+            print(
+                f"post24h_avg={float(row['avg_close_return_pct']):.3f}% "
+                f"positive={float(row['positive_close_return_pct']):.1f}%"
+            )
     if summary_out_path:
         fields = ["row_type", "split", "setup", "policy", "gate_result", "horizon_hours", "n",
                   "avg_close_return_pct", "median_close_return_pct",
