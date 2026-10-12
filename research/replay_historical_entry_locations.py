@@ -111,7 +111,8 @@ def prior_move_metrics(prior, entry, side, atr):
     for hours in (12, 24, 48):
         key = f"prior_return_{hours}h_pct"
         if len(prior) > hours and prior[-hours - 1]["close"] > 0:
-            metrics[key] = (last_close / prior[-hours - 1]["close"] - 1) * 100
+            raw_return = (last_close / prior[-hours - 1]["close"] - 1) * 100
+            metrics[key] = raw_return if side != "SELL" else -raw_return
         else:
             metrics[key] = ""
     for hours in (24, 48, 72):
