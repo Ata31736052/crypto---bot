@@ -225,6 +225,81 @@ def analyze_signal(signal, candles, min_room_atr=1.5):
     return result
 
 
+def evaluate_recorded_barriers(signal, candles, horizons=(8, 24, 48), round_trip_cost_pct=0.4):
+    """Research-only conservative first-barrier audit using levels stored with each signal.
+
+    If SL and TP1 are both touched in one hourly candle, classify SL first because
+    OHLC data cannot establish the intrabar order. This is deliberately conservative.
+    """
+    timestamp = parse_time(signal["timestamp"])
+    side = str(signal.get("signal", "BUY")).upper()
+    try:
+        entry = float(signal.get("entry", signal.get("price")))
+        stop = float(signal["stop_loss"])
+        tp1 = float(signal["tp1"])
+    except (TypeError, ValueError, KeyError):
+        return {f"barrier_{h}h_status": "LEVELS_UNAVAILABLE" for h in horizons}
+    if not all(math.isfinite(x) and x > 0 for x in (entry, stop, tp1)):
+        return {f"barrier_{h}h_status": "INVALID_LEVELS" for h in horizons}
+    if side == "SELL":
+        levels_valid = stop > entry > tp1
+    else:
+        levels_valid = stop < entry < tp1
+    if not levels_valid:
+        return {f"barrier_{h}h_status": "INVALID_LEVEL_ORDER" for h in horizons}
+
+    future = sorted((c for c in candles if c["open_time"] >= timestamp), key=lambda c: c["close_time"])
+    out = {}
+    for horizon in horizons:
+        end = timestamp + timedelta(hours=horizon)
+        window = [c for c in future if c["open_time"] < end]
+        endpoint = [c for c in window if c["close_time"] >= end]
+        # If exact boundary candle isn't available, use the last closed candle in
+        # the horizon only when it closes within the requested interval.
+        if not endpoint and (not window or window[-1]["close_time"] < end - timedelta(hours=1)):
+            out[f"barrier_{horizon}h_status"] = "INSUFFICIENT_FOLLOWUP"
+            continue
+        hit = None
+        for candle in window:
+            if side == "SELL":
+                stop_hit = candle["high"] >= stop
+                tp_hit = candle["low"] <= tp1
+            else:
+                stop_hit = candle["low"] <= stop
+                tp_hit = candle["high"] >= tp1
+            if stop_hit and tp_hit:
+                hit = ("STOP_FIRST_AMBIGUOUS_CANDLE", stop)
+                break
+            if stop_hit:
+                hit = ("STOP_LOSS", stop)
+                break
+            if tp_hit:
+                hit = ("TP1", tp1)
+                break
+        if hit:
+            status, fill = hit
+            gross = ((entry - fill) / entry * 100 if side == "SELL"
+                     else (fill / entry - 1) * 100)
+            out[f"barrier_{horizon}h_status"] = status
+            out[f"barrier_{horizon}h_return_pct"] = gross
+            out[f"barrier_{horizon}h_net_0p2_pct"] = gross - 0.2
+            out[f"barrier_{horizon}h_net_0p4_pct"] = gross - round_trip_cost_pct
+            out[f"barrier_{horizon}h_ambiguous"] = status == "STOP_FIRST_AMBIGUOUS_CANDLE"
+        else:
+            if not endpoint:
+                out[f"barrier_{horizon}h_status"] = "INSUFFICIENT_FOLLOWUP"
+                continue
+            close = endpoint[0]["close"]
+            gross = ((entry - close) / entry * 100 if side == "SELL"
+                     else (close / entry - 1) * 100)
+            out[f"barrier_{horizon}h_status"] = "NO_BARRIER_CLOSE_AT_HORIZON"
+            out[f"barrier_{horizon}h_return_pct"] = gross
+            out[f"barrier_{horizon}h_net_0p2_pct"] = gross - 0.2
+            out[f"barrier_{horizon}h_net_0p4_pct"] = gross - round_trip_cost_pct
+            out[f"barrier_{horizon}h_ambiguous"] = False
+    return out
+
+
 def simulate_pullback_reentry(signal, candles, base_result, wait_hours=8, pullback_atr=0.5):
     """Research-only long/short pullback-and-reclaim simulation; never emits a signal."""
     if base_result.get("status") != "ASSESSED":
@@ -443,6 +518,7 @@ def replay(history_path, out_path, min_room_atr=1.5, summary_out_path=""):
         try:
             analyzed = analyze_signal(signal, cache[symbol], min_room_atr)
             analyzed.update(simulate_pullback_reentry(signal, cache[symbol], analyzed))
+            analyzed.update(evaluate_recorded_barriers(signal, cache[symbol]))
             results.append(analyzed)
         except (ValueError, KeyError, TypeError) as exc:
             results.append({
@@ -497,6 +573,25 @@ def replay(history_path, out_path, min_room_atr=1.5, summary_out_path=""):
                               f"median={statistics.median(returns):.3f}%, "
                               f"positive={100*sum(v > 0 for v in returns)/len(returns):.1f}%, "
                               f"avg MAE={sum(maes)/len(maes):.3f}%")
+    print("RECORDED SL/TP1 FIRST-BARRIER AUDIT (same-candle ambiguity counted as stop first):")
+    for setup in ("TREND_HEURISTIC", "BOTTOM_HUNTER_HEURISTIC"):
+        group = [r for r in results if r.get("status") == "ASSESSED"
+                 and r.get("chronological_split") == "HOLDOUT" and r.get("setup") == setup]
+        for horizon in (8, 24, 48):
+            valid = [r for r in group if r.get(f"barrier_{horizon}h_status") in
+                     ("STOP_LOSS", "STOP_FIRST_AMBIGUOUS_CANDLE", "TP1", "NO_BARRIER_CLOSE_AT_HORIZON")]
+            if not valid:
+                continue
+            counts = defaultdict(int)
+            for row in valid:
+                counts[row[f"barrier_{horizon}h_status"]] += 1
+            returns = [float(r[f"barrier_{horizon}h_net_0p4_pct"]) for r in valid]
+            ambiguous = counts["STOP_FIRST_AMBIGUOUS_CANDLE"]
+            print(f"  {setup} {horizon}h n={len(valid)} "
+                  f"SL={counts['STOP_LOSS']} same-candle-conservative-SL={ambiguous} "
+                  f"TP1={counts['TP1']} no-barrier={counts['NO_BARRIER_CLOSE_AT_HORIZON']} "
+                  f"mean_net0.4={statistics.mean(returns):.3f}% "
+                  f"positive_net0.4={100*sum(v>0 for v in returns)/len(returns):.1f}%")
     # Pre-declared research comparison: baseline vs Trend-only late-move exclusion and a
     # wait-for-pullback/reclaim entry. Outcomes are gross; report net sensitivities separately.
     holdout_rows = [r for r in results if r.get("status") == "ASSESSED" and r.get("chronological_split") == "HOLDOUT"]
