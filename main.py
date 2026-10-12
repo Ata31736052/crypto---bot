@@ -3526,6 +3526,18 @@ def format_confirmation_diagnostic(breakdown):
     return f"{timeframe}={format_confirmation_status(actual, required)}"
 
 
+def format_confirmation_checks(checks, failed_only=False):
+    """Format per-component confirmation evidence for diagnostics only."""
+    if not isinstance(checks, dict) or not checks:
+        return "unavailable"
+    items = []
+    for name, passed in checks.items():
+        if failed_only and bool(passed):
+            continue
+        items.append(f"{name}:{'PASS' if passed else 'FAIL'}")
+    return " | ".join(items) if items else "all PASS"
+
+
 def score_30m_confirmation(
     df,
     side,
@@ -3692,6 +3704,21 @@ def score_30m_confirmation(
             confirmations += 1
             reasons.append(f"{timeframe_label} RSI momentum supportive")
 
+    # Diagnostic-only component ledger. These checks mirror the conditions
+    # above; they do not add points, relax a threshold, or alter confirmation.
+    confirmation_checks = {
+        "EMA_price": (row["close"] > row["ema21"]) if side == "BUY" else (row["close"] < row["ema21"]),
+        "EMA9_EMA21": (row["ema9"] > row["ema21"]) if side == "BUY" else (row["ema9"] < row["ema21"]),
+        "MACD_direction": (row["macd"] > row["macd_signal"] and row["macd_hist"] > 0) if side == "BUY" else (row["macd"] < row["macd_signal"] and row["macd_hist"] < 0),
+        "RSI_zone": (row["rsi"] >= 50 and row["rsi"] < 72) if side == "BUY" else (row["rsi"] <= 50 and row["rsi"] > 28),
+        "ADX_DI": adx >= PRO_MIN_30M_ADX and ((side == "BUY" and plus_di > minus_di) or (side == "SELL" and minus_di > plus_di)),
+        "Volume": volume_ratio >= PRO_MIN_VOLUME_RATIO,
+        "VWAP": vwap > 0 and ((side == "BUY" and close > vwap) or (side == "SELL" and close < vwap)),
+        "OBV": (obv_slope > 0) if side == "BUY" else (obv_slope < 0),
+        "MACD_hist_improving": (macd_hist > macd_hist_prev) if side == "BUY" else (macd_hist < macd_hist_prev),
+        "RSI_momentum": (50 <= rsi < 70 and rsi >= safe_float(row.get("rsi_prev"))) if side == "BUY" else (30 < rsi <= 50 and rsi <= safe_float(row.get("rsi_prev"))),
+    }
+
     # Require independent evidence rather than two easy EMA checks.
     confirmed = confirmations >= PRO_MIN_30M_CONFIRMATIONS
 
@@ -3703,7 +3730,9 @@ def score_30m_confirmation(
         ),
         "confirmations": confirmations,
         "confirmed": confirmed,
-        "reasons": reasons
+        "reasons": reasons,
+        "checks": confirmation_checks,
+        "failed_checks": [name for name, passed in confirmation_checks.items() if not passed],
     }
 
 
@@ -8994,6 +9023,8 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         "confirmations_lower_tf": int(confirmations),
         "required_lower_tf": int(conf_required),
         "confirmation_path": bottom_confirmation_path if mode == "BOTTOM_HUNTER" else "STANDARD",
+        "confirmation_checks": dict(confirm.get("checks", {}) or {}),
+        "confirmation_failed_checks": list(confirm.get("failed_checks", []) or []),
         # Legacy aliases retained for compatibility; new logs use the fields above.
         "confirmations_30m": int(confirmations),
         "required_30m": int(required_confirmations), "htf_alignment": int(htf_align),
@@ -9225,6 +9256,12 @@ def analyze_one_symbol(symbol, btc_regime):
                         preasons = pbreak.get("reject_reasons", []) or []
                         if preasons:
                             log(f"    Reject reasons: {' | '.join(str(x) for x in preasons[:12])}")
+                        confirmation_checks = pbreak.get("confirmation_checks", {}) or {}
+                        if confirmation_checks:
+                            log("    Confirmation components: " + format_confirmation_checks(confirmation_checks))
+                            failed_confirmation_checks = pbreak.get("confirmation_failed_checks", []) or []
+                            if failed_confirmation_checks:
+                                log("    Missing confirmation evidence: " + ", ".join(str(x) for x in failed_confirmation_checks))
                         ledger_out = pbreak.get("component_ledger", {}) or {}
                         if isinstance(ledger_out, dict):
                             parts = []
@@ -9555,6 +9592,9 @@ def run_v63_14_8_confirmation_diagnostic_self_test():
     assert format_confirmation_diagnostic({
         "confirmations_30m": 3, "required_30m": 6,
     }) == "30M=3 (required >= 6)"
+    assert format_confirmation_checks({"EMA_price": True, "MACD_direction": False}) == "EMA_price:PASS | MACD_direction:FAIL"
+    assert format_confirmation_checks({"EMA_price": True, "MACD_direction": False}, failed_only=True) == "MACD_direction:FAIL"
+    assert format_confirmation_checks({"EMA_price": True}, failed_only=True) == "all PASS"
     assert DEPLOYMENT_ID.startswith("v63.14.")
     return True
 
