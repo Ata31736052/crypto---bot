@@ -39,6 +39,37 @@ def prepare(d):
     x=main.add_indicators(d.copy())
     return x.sort_values("open_time").reset_index(drop=True) if x is not None and not x.empty else pd.DataFrame()
 
+def signal_diagnostics(df, side):
+    """Capture signal-time location/momentum fields to diagnose late entries."""
+    if df is None or len(df) < 22:
+        return {}
+    row=df.iloc[-1]
+    close=float(row.get("close",0) or 0); atr=float(row.get("atr",0) or 0)
+    if close <= 0 or atr <= 0:
+        return {}
+    prior=df.iloc[-21:-1]
+    highs=pd.to_numeric(prior["high"],errors="coerce")
+    lows=pd.to_numeric(prior["low"],errors="coerce")
+    resistance=highs[highs>close].min() if (highs>close).any() else float("nan")
+    support=lows[lows<close].max() if (lows<close).any() else float("nan")
+    room=(float(resistance)-close)/atr if side=="BUY" and pd.notna(resistance) else ((close-float(support))/atr if side=="SELL" and pd.notna(support) else float("nan"))
+    out={"signal_close":close,"signal_atr":atr,"atr_pct":float(row.get("atr_percent",0) or 0),
+         "rsi":float(row.get("rsi",0) or 0),"adx":float(row.get("adx",0) or 0),
+         "volume_ratio":float(row.get("volume_ratio",0) or 0),
+         "ema21_extension_atr":((close-float(row.get("ema21",close) or close))/atr)*(1 if side=="BUY" else -1),
+         "room_to_obstacle_atr":room}
+    for n in (6,12,24):
+        past=float(df.iloc[-1-n]["close"]) if len(df)>n else 0
+        out[f"directional_move_{n}h_pct"]=((close/past-1)*100*(1 if side=="BUY" else -1)) if past>0 else float("nan")
+    hi=float(highs.max()) if highs.notna().any() else close
+    lo=float(lows.min()) if lows.notna().any() else close
+    out["range_position_20"]=((close-lo)/(hi-lo)) if hi>lo else 0.5
+    allowed,reason=main.entry_location_guard(df,side)
+    out["entry_guard_allowed"]=bool(allowed)
+    out["entry_guard_reason"]=reason
+    return out
+
+
 def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength):
     row=h1.iloc[entry_i]; entry=float(row.open)
     if entry<=0 or atr<=0:return None,entry_i
@@ -128,11 +159,12 @@ def run():
                 diagnostics["signals_before_execution"] += 1
                 trade,exit_i=simulate(sym,side,c.open_time,i+1,h1,float(c.get("atr",0) or 0),result.get("score",0),result.get("strength",""))
                 if trade:
+                    trade.update(signal_diagnostics(data["1h"],side))
                     trade["btc_regime"]=result.get("btc_regime","UNKNOWN"); trades.append(trade); last_exit=exit_i
                     print(f"TRADE {sym} {side} {trade['signal_time']} net={trade['net_pct']}% {trade['exit_reason']}",flush=True)
         except Exception as exc:
             errors.append({"symbol":sym,"error":str(exc)}); print("ERROR",sym,exc,flush=True)
-    columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime"]
+    columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason"]
     pd.DataFrame(trades,columns=columns).to_csv(OUT/"trades.csv",index=False)
     vals=[float(t["net_pct"]) for t in trades]
     summary={"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"trade_count":len(trades),"win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"gross_return_sum_pct":round(sum(t["gross_pct"] for t in trades),4),"net_return_sum_pct":round(sum(vals),4),"average_net_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"assumptions":{"entry":"next 1H candle open after signal candle closes","stop":"engine SL_ATR_MULTIPLIER; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL-first conservative","costs":"fee and slippage on both entry and exit","overlap":"one position per symbol at a time","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","returns":"sum of trade percentages, not a compounded portfolio equity curve"},"diagnostics":diagnostics,"errors":errors}
