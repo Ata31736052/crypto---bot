@@ -35,7 +35,8 @@ permissions:
 # Keep the PR smoke run separate from the long research replay.
 concurrency:
   group: historical-signal-replay-research-${{ github.event_name }}
-  cancel-in-progress: true
+  # A newer research commit must not cancel an active full historical replay.
+  cancel-in-progress: false
 
 jobs:
   replay:
