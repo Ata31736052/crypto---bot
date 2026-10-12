@@ -438,6 +438,7 @@ def replay(history_path, out_path, min_room_atr=1.5, summary_out_path=""):
     summary = build_summary(results)
     if summary_out_path:
         fields = ["row_type", "split", "setup", "policy", "gate_result", "horizon_hours", "n",
+                  "avg_close_return_pct", "median_close_return_pct",
                   "positive_close_return_pct", "avg_mfe_pct", "avg_mae_pct",
                   "avg_prior_return_24h_pct", "avg_directional_progress_72h_pct", "reason", "count"]
         with open(summary_out_path, "w", newline="", encoding="utf-8") as handle:
