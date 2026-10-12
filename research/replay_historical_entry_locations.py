@@ -173,57 +173,70 @@ def analyze_signal(signal, candles, min_room_atr=1.5):
     return result
 
 
+def policy_accepts(row, policy):
+    if row.get("status") != "ASSESSED":
+        return None
+    if policy == "STRICT_1P5_ATR_BOTH_TARGETS":
+        return bool(row.get("location_gate_accepted"))
+    reasons = set(filter(None, str(row.get("rejection_reasons", "")).split(";")))
+    if "STRUCTURAL_STOP_TOO_WIDE" in reasons:
+        return False
+    if "TP1_BLOCKED_BY_RESISTANCE" in reasons or "TP1_BLOCKED_BY_SUPPORT" in reasons:
+        return False
+    room = row.get("room_to_obstacle_atr", "")
+    room = float(room) if room not in ("", None) else None
+    threshold = 1.0 if policy == "TP1_ONLY_1P0_ATR" else 0.5
+    if room is not None and room < threshold:
+        return False
+    # TP2 may be obstructed under these research-only candidates; it must be
+    # capped before the obstacle in any future implementation.
+    return True
+
+
 def build_summary(results):
     summary = []
-    for setup in ("TREND_HEURISTIC", "BOTTOM_HUNTER_HEURISTIC"):
-        for gate in ("REJECTED", "ACCEPTED", "UNASSESSED"):
-            group = [
-                r for r in results
-                if r.get("setup") == setup and (
-                    ("location_gate_accepted" not in r and gate == "UNASSESSED")
-                    or (r.get("location_gate_accepted") is False and gate == "REJECTED")
-                    or (r.get("location_gate_accepted") is True and gate == "ACCEPTED")
-                )
-            ]
-            if not group:
-                continue
-            for horizon in (8, 24, 48):
-                values = []
-                mfes = []
-                maes = []
-                for row in group:
-                    ret = row.get(f"close_return_{horizon}h_pct", "")
-                    mfe = row.get(f"mfe_{horizon}h_pct", "")
-                    mae = row.get(f"mae_{horizon}h_pct", "")
-                    if ret not in ("", None) and mfe not in ("", None) and mae not in ("", None):
-                        values.append(float(ret))
-                        mfes.append(float(mfe))
-                        maes.append(float(mae))
-                if not values:
-                    continue
-                ordered = sorted(values)
-                summary.append({
-                    "row_type": "OUTCOME",
-                    "setup": setup,
-                    "gate_result": gate,
-                    "horizon_hours": horizon,
-                    "n": len(values),
-                    "avg_close_return_pct": sum(values) / len(values),
-                    "median_close_return_pct": statistics.median(ordered),
-                    "positive_close_return_pct": 100 * sum(v > 0 for v in values) / len(values),
-                    "avg_mfe_pct": sum(mfes) / len(mfes),
-                    "avg_mae_pct": sum(maes) / len(maes),
-                    "reason": "",
-                    "count": "",
-                })
+    policies = ("STRICT_1P5_ATR_BOTH_TARGETS", "TP1_ONLY_1P0_ATR", "TP1_ONLY_0P5_ATR")
+    for split in ("ALL", "EARLY_SAMPLE", "HOLDOUT"):
+        split_rows = [
+            r for r in results if r.get("status") == "ASSESSED"
+            and (split == "ALL" or r.get("chronological_split") == split)
+        ]
+        for setup in ("TREND_HEURISTIC", "BOTTOM_HUNTER_HEURISTIC"):
+            setup_rows = [r for r in split_rows if r.get("setup") == setup]
+            for policy in policies:
+                for gate in ("REJECTED", "ACCEPTED"):
+                    group = [r for r in setup_rows if policy_accepts(r, policy) is (gate == "ACCEPTED")]
+                    if not group:
+                        continue
+                    for horizon in (8, 24, 48):
+                        values, mfes, maes = [], [], []
+                        for row in group:
+                            ret, mfe, mae = (row.get(f"{key}_{horizon}h_pct", "") for key in ("close_return", "mfe", "mae"))
+                            if ret not in ("", None) and mfe not in ("", None) and mae not in ("", None):
+                                values.append(float(ret))
+                                mfes.append(float(mfe))
+                                maes.append(float(mae))
+                        if not values:
+                            continue
+                        summary.append({
+                            "row_type": "OUTCOME", "split": split, "setup": setup,
+                            "policy": policy, "gate_result": gate, "horizon_hours": horizon,
+                            "n": len(values), "avg_close_return_pct": sum(values) / len(values),
+                            "median_close_return_pct": statistics.median(values),
+                            "positive_close_return_pct": 100 * sum(v > 0 for v in values) / len(values),
+                            "avg_mfe_pct": sum(mfes) / len(mfes), "avg_mae_pct": sum(maes) / len(maes),
+                            "reason": "", "count": "",
+                        })
     reason_counts = defaultdict(int)
     for row in results:
-        for reason in str(row.get("rejection_reasons", "")).split(";"):
-            if reason:
-                reason_counts[(row.get("setup", "UNKNOWN"), reason)] += 1
+        if row.get("status") != "ASSESSED":
+            continue
+        for reason in filter(None, str(row.get("rejection_reasons", "")).split(";")):
+            reason_counts[(row.get("setup", "UNKNOWN"), reason)] += 1
     for (setup, reason), count in sorted(reason_counts.items(), key=lambda item: (-item[1], item[0])):
         summary.append({
-            "row_type": "REJECTION_REASON", "setup": setup, "gate_result": "REJECTED",
+            "row_type": "STRICT_GATE_REASON", "split": "ALL", "setup": setup,
+            "policy": "STRICT_1P5_ATR_BOTH_TARGETS", "gate_result": "REJECTED",
             "horizon_hours": "", "n": "", "avg_close_return_pct": "",
             "median_close_return_pct": "", "positive_close_return_pct": "",
             "avg_mfe_pct": "", "avg_mae_pct": "", "reason": reason, "count": count,
@@ -288,6 +301,14 @@ def replay(history_path, out_path, min_room_atr=1.5, summary_out_path=""):
                 "status": f"ASSESSMENT_ERROR:{type(exc).__name__}",
             })
 
+    unique_times = sorted({parse_time(r["timestamp"]) for r in valid})
+    cutoff_index = min(len(unique_times) - 1, max(0, int(len(unique_times) * 0.70)))
+    holdout_cutoff = unique_times[cutoff_index]
+    for row in results:
+        if row.get("timestamp"):
+            ts = parse_time(row["timestamp"])
+            row["chronological_split"] = "HOLDOUT" if ts >= holdout_cutoff else "EARLY_SAMPLE"
+
     fields = sorted({key for row in results for key in row})
     with open(out_path, "w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields)
@@ -304,33 +325,30 @@ def replay(history_path, out_path, min_room_atr=1.5, summary_out_path=""):
     for status, count in sorted(counts.items()):
         print(f"{status}: {count}")
     assessed = [r for r in results if r.get("status") == "ASSESSED"]
+    print(f"Chronological holdout begins at: {holdout_cutoff.isoformat()}")
     if assessed:
         for setup in ("TREND_HEURISTIC", "BOTTOM_HUNTER_HEURISTIC"):
-            rows = [r for r in assessed if r.get("setup") == setup]
+            rows = [r for r in assessed if r.get("setup") == setup and r.get("chronological_split") == "HOLDOUT"]
             if not rows:
                 continue
-            rejected_rows = [r for r in rows if r.get("location_gate_accepted") is False]
-            print(f"{setup}: n={len(rows)}, location-rejected={len(rejected_rows)} ({100*len(rejected_rows)/len(rows):.1f}%)")
-            for gate_name, gate_rows in (
-                ("REJECTED", rejected_rows),
-                ("ACCEPTED", [r for r in rows if r.get("location_gate_accepted") is True]),
-            ):
-                if not gate_rows:
-                    continue
+            print(f"{setup} HOLDOUT n={len(rows)}")
+            for policy in ("STRICT_1P5_ATR_BOTH_TARGETS", "TP1_ONLY_1P0_ATR", "TP1_ONLY_0P5_ATR"):
+                accepted = [r for r in rows if policy_accepts(r, policy) is True]
+                print(f"  {policy}: accepted={len(accepted)}/{len(rows)} ({100*len(accepted)/len(rows):.1f}%)")
                 for horizon in (8, 24, 48):
-                    returns = [float(r[f"close_return_{horizon}h_pct"]) for r in gate_rows
+                    returns = [float(r[f"close_return_{horizon}h_pct"]) for r in accepted
                                if r.get(f"close_return_{horizon}h_pct") not in ("", None)]
-                    maes = [float(r[f"mae_{horizon}h_pct"]) for r in gate_rows
+                    maes = [float(r[f"mae_{horizon}h_pct"]) for r in accepted
                             if r.get(f"mae_{horizon}h_pct") not in ("", None)]
                     if returns and maes:
-                        print(f"  {gate_name} {horizon}h: n={len(gate_rows)}, coverage={len(returns)}, "
-                              f"avg close return={sum(returns)/len(returns):.3f}%, "
+                        print(f"    accepted {horizon}h: coverage={len(returns)}, "
+                              f"avg return={sum(returns)/len(returns):.3f}%, "
                               f"median={statistics.median(returns):.3f}%, "
                               f"positive={100*sum(v > 0 for v in returns)/len(returns):.1f}%, "
                               f"avg MAE={sum(maes)/len(maes):.3f}%")
     summary = build_summary(results)
     if summary_out_path:
-        fields = ["row_type", "setup", "gate_result", "horizon_hours", "n",
+        fields = ["row_type", "split", "setup", "policy", "gate_result", "horizon_hours", "n",
                   "avg_close_return_pct", "median_close_return_pct",
                   "positive_close_return_pct", "avg_mfe_pct", "avg_mae_pct",
                   "reason", "count"]
