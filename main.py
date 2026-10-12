@@ -8798,9 +8798,9 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     elif bb_width > 0:
         quality += 1
 
-    # Trend/breakout require the standard 30M directional confirmation.
-    # Bottom Hunter already has a dedicated 30M reversal test in its own
-    # engine, so here it is a quality boost rather than a second hard gate.
+    # Trend/breakout require standard 30M confirmation. Bottom Hunter normally
+    # requires 6/6 here too, but a separate, evidence-heavy 1H early-reversal
+    # exception permits 3/6 only with strong score, volume, ADX and momentum.
     # v50: initialize these locals before the confirmation call so a malformed
     # confirmation result or future branch change can never raise an
     # UnboundLocalError such as the LINK failure seen in Run #75.
@@ -8986,6 +8986,7 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         "confirmation_timeframe": confirmation_tf_label,
         "confirmations_lower_tf": int(confirmations),
         "required_lower_tf": int(conf_required),
+        "confirmation_path": bottom_confirmation_path if mode == "BOTTOM_HUNTER" else "STANDARD",
         # Legacy aliases retained for compatibility; new logs use the fields above.
         "confirmations_30m": int(confirmations),
         "required_30m": int(required_confirmations), "htf_alignment": int(htf_align),
