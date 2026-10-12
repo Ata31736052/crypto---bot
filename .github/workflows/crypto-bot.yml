@@ -9,7 +9,7 @@ on:
       timezone: 'Asia/Tehran'
 
 concurrency:
-  group: crypto-signal-bot
+  group: crypto-signal-bot-research
   cancel-in-progress: false
 
 jobs:
