@@ -172,14 +172,84 @@ def analyze_signal(signal, candles, min_room_atr=1.5):
     return result
 
 
-def replay(history_path, out_path, min_room_atr=1.5):
+def build_summary(results):
+    summary = []
+    for setup in ("TREND_HEURISTIC", "BOTTOM_HUNTER_HEURISTIC"):
+        for gate in ("REJECTED", "ACCEPTED", "UNASSESSED"):
+            group = [
+                r for r in results
+                if r.get("setup") == setup and (
+                    ("location_gate_accepted" not in r and gate == "UNASSESSED")
+                    or (r.get("location_gate_accepted") is False and gate == "REJECTED")
+                    or (r.get("location_gate_accepted") is True and gate == "ACCEPTED")
+                )
+            ]
+            if not group:
+                continue
+            for horizon in (8, 24, 48):
+                values = []
+                mfes = []
+                maes = []
+                for row in group:
+                    ret = row.get(f"close_return_{horizon}h_pct", "")
+                    mfe = row.get(f"mfe_{horizon}h_pct", "")
+                    mae = row.get(f"mae_{horizon}h_pct", "")
+                    if ret not in ("", None) and mfe not in ("", None) and mae not in ("", None):
+                        values.append(float(ret))
+                        mfes.append(float(mfe))
+                        maes.append(float(mae))
+                if not values:
+                    continue
+                ordered = sorted(values)
+                summary.append({
+                    "row_type": "OUTCOME",
+                    "setup": setup,
+                    "gate_result": gate,
+                    "horizon_hours": horizon,
+                    "n": len(values),
+                    "avg_close_return_pct": sum(values) / len(values),
+                    "median_close_return_pct": ordered[len(ordered) // 2],
+                    "positive_close_return_pct": 100 * sum(v > 0 for v in values) / len(values),
+                    "avg_mfe_pct": sum(mfes) / len(mfes),
+                    "avg_mae_pct": sum(maes) / len(maes),
+                    "reason": "",
+                    "count": "",
+                })
+    reason_counts = defaultdict(int)
+    for row in results:
+        for reason in str(row.get("rejection_reasons", "")).split(";"):
+            if reason:
+                reason_counts[(row.get("setup", "UNKNOWN"), reason)] += 1
+    for (setup, reason), count in sorted(reason_counts.items(), key=lambda item: (-item[1], item[0])):
+        summary.append({
+            "row_type": "REJECTION_REASON", "setup": setup, "gate_result": "REJECTED",
+            "horizon_hours": "", "n": "", "avg_close_return_pct": "",
+            "median_close_return_pct": "", "positive_close_return_pct": "",
+            "avg_mfe_pct": "", "avg_mae_pct": "", "reason": reason, "count": count,
+        })
+    return summary
+
+
+def replay(history_path, out_path, min_room_atr=1.5, summary_out_path=""):
     with open(history_path, encoding="utf-8") as handle:
         history = json.load(handle)
     if not isinstance(history, list):
         raise ValueError("signals history must be a JSON list")
-    valid = [r for r in history if r.get("symbol") and r.get("timestamp")]
-    if not valid:
+    raw_valid = [r for r in history if r.get("symbol") and r.get("timestamp")]
+    if not raw_valid:
         raise ValueError("no usable signal records found")
+    # Repeated scans can log the same symbol/side/candle more than once. Keep
+    # the earliest recorded instance per candle to avoid overweighting duplicates.
+    valid = []
+    seen_events = set()
+    for row in sorted(raw_valid, key=lambda r: parse_time(r["timestamp"])):
+        candle_key = str(row.get("candle_time") or parse_time(row["timestamp"]).replace(minute=0, second=0, microsecond=0).isoformat())
+        key = (str(row["symbol"]).strip().upper(), str(row.get("signal", "BUY")).upper(), candle_key)
+        if key in seen_events:
+            continue
+        seen_events.add(key)
+        valid.append(row)
+    deduplicated_count = len(raw_valid) - len(valid)
 
     by_symbol = defaultdict(list)
     for row in valid:
@@ -227,7 +297,8 @@ def replay(history_path, out_path, min_room_atr=1.5):
     for row in results:
         counts[row.get("status", "UNKNOWN")] += 1
     print("Research-only historical location replay; no signals, trades, or Telegram.")
-    print(f"History records: {len(valid)}; symbols requested: {len(by_symbol)}; candle sets fetched: {len(cache)}")
+    print(f"History records: {len(raw_valid)}; deduplicated same-candle events: {deduplicated_count}; evaluated events: {len(valid)}")
+    print(f"Symbols requested: {len(by_symbol)}; candle sets fetched: {len(cache)}")
     print(f"Rows written: {len(results)} -> {out_path}")
     for status, count in sorted(counts.items()):
         print(f"{status}: {count}")
@@ -237,18 +308,30 @@ def replay(history_path, out_path, min_room_atr=1.5):
             rows = [r for r in assessed if r.get("setup") == setup]
             if not rows:
                 continue
-            rejected = sum(r.get("location_gate_accepted") is False for r in rows)
-            returns = [float(r["close_return_8h_pct"]) for r in rows if r.get("close_return_8h_pct") not in ("", None)]
-            maes = [float(r["mae_8h_pct"]) for r in rows if r.get("mae_8h_pct") not in ("", None)]
-            print(
-                f"{setup}: n={len(rows)}, location-rejected={rejected} "
-                f"({100*rejected/len(rows):.1f}%), "
-                f"8h coverage={len(returns)}, "
-                f"avg 8h close return={sum(returns)/len(returns):.3f}% "
-                f"avg 8h MAE={sum(maes)/len(maes):.3f}%"
-                if returns and maes else
-                f"{setup}: n={len(rows)}, location-rejected={rejected}; insufficient 8h coverage"
-            )
+            rejected_rows = [r for r in rows if r.get("location_gate_accepted") is False]
+            print(f"{setup}: n={len(rows)}, location-rejected={len(rejected_rows)} ({100*len(rejected_rows)/len(rows):.1f}%)")
+            for gate_name, gate_rows in (
+                ("REJECTED", rejected_rows),
+                ("ACCEPTED", [r for r in rows if r.get("location_gate_accepted") is True]),
+            ):
+                returns = [float(r["close_return_8h_pct"]) for r in gate_rows if r.get("close_return_8h_pct") not in ("", None)]
+                maes = [float(r["mae_8h_pct"]) for r in gate_rows if r.get("mae_8h_pct") not in ("", None)]
+                if returns and maes:
+                    print(f"  {gate_name}: n={len(gate_rows)}, 8h coverage={len(returns)}, "
+                          f"avg close return={sum(returns)/len(returns):.3f}%, "
+                          f"positive={100*sum(v > 0 for v in returns)/len(returns):.1f}%, "
+                          f"avg MAE={sum(maes)/len(maes):.3f}%")
+    summary = build_summary(results)
+    if summary_out_path:
+        fields = ["row_type", "setup", "gate_result", "horizon_hours", "n",
+                  "avg_close_return_pct", "median_close_return_pct",
+                  "positive_close_return_pct", "avg_mfe_pct", "avg_mae_pct",
+                  "reason", "count"]
+        with open(summary_out_path, "w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=fields)
+            writer.writeheader()
+            writer.writerows(summary)
+        print(f"Summary written: {summary_out_path}")
     if errors:
         print(f"Binance fetch failures: {len(errors)}")
         for item in errors:
@@ -262,9 +345,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--history", default="signals_history.json")
     parser.add_argument("--out", default="historical_entry_location_replay.csv")
+    parser.add_argument("--summary-out", default="historical_entry_location_summary.csv")
     parser.add_argument("--min-room-atr", type=float, default=1.5)
     args = parser.parse_args()
-    return replay(args.history, args.out, args.min_room_atr)
+    return replay(args.history, args.out, args.min_room_atr, args.summary_out)
 
 
 if __name__ == "__main__":
