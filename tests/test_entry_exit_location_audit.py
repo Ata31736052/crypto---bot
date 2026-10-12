@@ -8,11 +8,11 @@ def candles_with_resistance(high=110.0, count=12):
     for i in range(count):
         close = 100.0 + (i % 3) * 0.2
         rows.append({"open": close, "high": close + 0.8, "low": close - 0.8, "close": close})
-    rows[4] = {"open": 107, "high": 108, "low": 105, "close": 107}
-    rows[5] = {"open": 108, "high": 109, "low": 106, "close": 108}
-    rows[6] = {"open": 108, "high": high, "low": 107, "close": 109}
-    rows[7] = {"open": 106, "high": 108, "low": 104, "close": 106}
-    rows[8] = {"open": 104, "high": 106, "low": 102, "close": 104}
+    rows[4] = {"open": 100, "high": 101, "low": 98, "close": 100}
+    rows[5] = {"open": 101, "high": 102, "low": 99, "close": 101}
+    rows[6] = {"open": 102, "high": high, "low": 100, "close": min(102.5, high)}
+    rows[7] = {"open": 101, "high": 102, "low": 99, "close": 101}
+    rows[8] = {"open": 100, "high": 101, "low": 98, "close": 100}
     rows[-1] = {"open": 100, "high": 101, "low": 99, "close": 100}
     return rows
 
@@ -34,11 +34,11 @@ class EntryExitLocationAuditTests(unittest.TestCase):
         rows = candles_with_resistance(120)
         result = assess_trade_location(rows, entry=100, atr=1, side="BUY", max_stop_pct=13)
         self.assertTrue(result["accepted"], result["rejection_reasons"])
-        self.assertGreaterEqual(result["rr_tp1"], 1.8)
-        self.assertGreaterEqual(result["rr_tp2"], 2.4)
+        self.assertAlmostEqual(result["rr_tp1"], 1.8)
+        self.assertAlmostEqual(result["rr_tp2"], 2.4)
 
     def test_target_cannot_be_planned_through_resistance(self):
-        rows = candles_with_resistance(105)
+        rows = candles_with_resistance(102.5)
         result = assess_trade_location(rows, entry=100, atr=1, side="BUY")
         self.assertFalse(result["accepted"])
         self.assertIn("TP1_BLOCKED_BY_RESISTANCE", result["rejection_reasons"])
