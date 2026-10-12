@@ -32,7 +32,7 @@ permissions:
   contents: read
 concurrency:
   group: historical-backtest-180d
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   backtest:
     runs-on: ubuntu-latest
