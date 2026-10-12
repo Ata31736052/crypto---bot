@@ -5,7 +5,7 @@
 # Confirmation TF: 30M
 # Higher TF Context: 4H + Daily
 # Binance Spot only | No auto-trading
-# Version: 2026-10-12 v63.14.24 | BOTTOM SCORE CALIBRATION + CONTROLLED EARLY-REVERSAL GATE | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
+# Version: 2026-10-12 v63.14.25 | BOTTOM SCORE CALIBRATION + CONTROLLED EARLY-REVERSAL GATE | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
 # =========================================================
 
 import os
@@ -33,7 +33,7 @@ TELEGRAM_TEST_ON_START = False
 DRY_RUN = os.getenv("DRY_RUN", "0").strip().lower() in ("1", "true", "yes", "on")
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.24-entry-extension-metrics-20261012"
+DEPLOYMENT_ID = "v63.14.25-controlled-early-confirmation-20261012"
 
 
 
@@ -110,6 +110,9 @@ PRO_MIN_SIDE_SCORE_GAP = 5
 PRO_BOTTOM_MIN_ADX = 23.0
 PRO_BOTTOM_MIN_VOLUME_RATIO = 1.35
 PRO_BOTTOM_MIN_30M_CONFIRMATIONS = 6
+# Controlled 1H early-reversal path: allow 3/6 lower-TF confirmations only
+# when score, volume, ADX floor, and independent reversal momentum all agree.
+PRO_BOTTOM_EARLY_MIN_30M_CONFIRMATIONS = 3
 PRO_BOTTOM_REQUIRE_HTF_ALIGNMENT = 1
 # v63.11: reversal momentum is measured by independent evidence components.
 # Require at least 2 of RSI slope, MACD-histogram slope, and DI direction.
@@ -8808,18 +8811,28 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         confirm = {}
     confirmations = safe_int(confirm.get("confirmations", 0))
     required_confirmations = PRO_SELL_MIN_30M_CONFIRMATIONS if side == "SELL" and mode != "BOTTOM_HUNTER" else PRO_MIN_30M_CONFIRMATIONS
+    bottom_confirmation_ok = False
+    bottom_confirmation_required = PRO_BOTTOM_MIN_30M_CONFIRMATIONS
+    bottom_confirmation_path = "STANDARD"
+    if mode == "BOTTOM_HUNTER":
+        bottom_confirmation_ok, bottom_confirmation_required, bottom_confirmation_path = bottom_hunter_confirmation_gate_pass(
+            side, signal_tf, confirmations, bool(confirm.get("confirmed")),
+            adx, volume, raw_score, momentum_components
+        )
     if mode in ("4H_SIGNAL", "DAILY_SIGNAL") or (mode == "BOTTOM_HUNTER" and signal_tf == "1d"):
-        # HTF setup gets a directional lower-timeframe confirmation, but does
-        # not inherit the main 1H/30M gate as if it were a 1H signal.
+        # Higher-timeframe setup uses its own confirmation path; it never
+        # receives the 1H-only early-confirmation exception.
         if not confirm.get("confirmed"):
             reject.append(f"HTF confirmation insufficient ({confirmations})")
         else:
             quality += 3
-    elif (not confirm.get("confirmed") or
-          (mode == "BOTTOM_HUNTER" and confirmations < PRO_BOTTOM_MIN_30M_CONFIRMATIONS) or
-          (mode != "BOTTOM_HUNTER" and side == "SELL" and confirmations < required_confirmations)):
+    elif (
+        (mode == "BOTTOM_HUNTER" and not bottom_confirmation_ok)
+        or (mode != "BOTTOM_HUNTER" and not confirm.get("confirmed"))
+        or (mode != "BOTTOM_HUNTER" and side == "SELL" and confirmations < required_confirmations)
+    ):
         if mode == "BOTTOM_HUNTER":
-            reject.append(f"30M reversal confirmation insufficient (actual={confirmations}; required>={PRO_BOTTOM_MIN_30M_CONFIRMATIONS})")
+            reject.append(f"30M reversal confirmation insufficient (actual={confirmations}; required>={bottom_confirmation_required}; path={bottom_confirmation_path})")
         else:
             reject.append(f"30M confirmation insufficient (actual={confirmations}; required>={required_confirmations})")
     else:
@@ -8933,9 +8946,10 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         ledger["EMA200_distance"] = _diag_item(ema200_earned, 1, ema200_status, round(ema200_dist_diag,2), f"<={PRO_EMA200_EXTENDED_DISTANCE:.2f}%")
     bb_ok = (not ((side == "BUY" and bb_pos > 0.985) or (side == "SELL" and bb_pos < 0.015))) if mode != "BREAKOUT" else bb_width > 0
     ledger["Bollinger_location"] = _diag_item(1 if bb_ok else 0, 1, "PASS" if bb_ok else "FAIL")
-    conf_required = PRO_BOTTOM_MIN_30M_CONFIRMATIONS if mode == "BOTTOM_HUNTER" else required_confirmations
-    conf_ok = bool(confirm.get("confirmed")) and confirmations >= conf_required
+    conf_required = bottom_confirmation_required if mode == "BOTTOM_HUNTER" else required_confirmations
+    conf_ok = bottom_confirmation_ok if mode == "BOTTOM_HUNTER" and signal_tf != "1d" else (bool(confirm.get("confirmed")) and confirmations >= conf_required)
     if mode in ("4H_SIGNAL", "DAILY_SIGNAL") or (mode == "BOTTOM_HUNTER" and signal_tf == "1d"):
+        conf_required = PRO_BOTTOM_MIN_30M_CONFIRMATIONS if mode == "BOTTOM_HUNTER" else required_confirmations
         conf_ok = bool(confirm.get("confirmed")) and (mode != "BOTTOM_HUNTER" or confirmations >= PRO_BOTTOM_MIN_30M_CONFIRMATIONS)
     confirmation_ledger_key = f"{confirmation_tf_label}_confirmation"
     ledger[confirmation_ledger_key] = _diag_item(3 if conf_ok else 0, 3, "PASS" if conf_ok else "FAIL", confirmations, f">={conf_required}")
@@ -9471,7 +9485,7 @@ def run_v63_14_3_outcome_boundary_self_test():
         },
     }
     assert _has_complete_outcome_horizons(complete_v57)
-    assert DEPLOYMENT_ID == "v63.14.24-entry-extension-metrics-20261012"
+    assert DEPLOYMENT_ID == "v63.14.25-controlled-early-confirmation-20261012"
 
     # v63.14.21: reject stretched BUY entries, but do not reject early/neutral
     # starts or apply the BUY timing rule to SELL signals.
@@ -9509,7 +9523,7 @@ def run_v63_14_3_outcome_boundary_self_test():
     assert any("reversal ADX too weak" in reason for reason in reject_reasons)
     assert any("reversal volume below professional minimum" in reason for reason in reject_reasons)
     assert any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
-    assert DEPLOYMENT_ID == "v63.14.24-entry-extension-metrics-20261012"
+    assert DEPLOYMENT_ID == "v63.14.25-controlled-early-confirmation-20261012"
     return True
 
 
@@ -9533,7 +9547,7 @@ def run_v63_14_8_confirmation_diagnostic_self_test():
     assert format_confirmation_diagnostic({
         "confirmations_30m": 3, "required_30m": 6,
     }) == "30M=3 (required >= 6)"
-    assert DEPLOYMENT_ID == "v63.14.24-entry-extension-metrics-20261012"
+    assert DEPLOYMENT_ID == "v63.14.25-controlled-early-confirmation-20261012"
     return True
 
 
@@ -9606,7 +9620,7 @@ def run_v63_14_7_final_gate_consistency_self_test():
     assert PRO_MIN_1H_ADX == 23.0
     assert PRO_MIN_VOLUME_RATIO == 1.35
     assert PRO_BOTTOM_MIN_30M_CONFIRMATIONS == 6
-    assert DEPLOYMENT_ID == "v63.14.24-entry-extension-metrics-20261012"
+    assert DEPLOYMENT_ID == "v63.14.25-controlled-early-confirmation-20261012"
     return True
 
 
@@ -9621,7 +9635,7 @@ def run_v63_14_2_bottom_rsi_self_test():
     assert BOTTOM_RSI_MIN <= 23 <= BOTTOM_RSI_MAX
     assert not (BOTTOM_RSI_MIN <= 19 <= BOTTOM_RSI_MAX)
     assert not (BOTTOM_RSI_MIN <= 45 <= BOTTOM_RSI_MAX)
-    assert DEPLOYMENT_ID == "v63.14.24-entry-extension-metrics-20261012"
+    assert DEPLOYMENT_ID == "v63.14.25-controlled-early-confirmation-20261012"
     return True
 
 
@@ -9784,6 +9798,50 @@ def run_v63_14_18_bottom_score_calibration_self_test():
     return True
 
 
+def bottom_hunter_confirmation_gate_pass(side, signal_timeframe, confirmations,
+                                             base_confirmed, adx, volume_ratio,
+                                             raw_score, momentum_components):
+    """Standard 6/6 confirmation, or a tightly gated 1H early-reversal path."""
+    side = str(side or "").upper()
+    signal_timeframe = str(signal_timeframe or "").lower()
+    confirmations = safe_int(confirmations, 0)
+    adx = safe_float(adx, 0.0)
+    volume_ratio = safe_float(volume_ratio, 0.0)
+    raw_score = safe_float(raw_score, 0.0)
+    momentum_components = safe_int(momentum_components, 0)
+
+    if base_confirmed and confirmations >= PRO_BOTTOM_MIN_30M_CONFIRMATIONS:
+        return True, PRO_BOTTOM_MIN_30M_CONFIRMATIONS, "STANDARD"
+
+    early_ok = (
+        side == "BUY"
+        and signal_timeframe == "1h"
+        and confirmations >= PRO_BOTTOM_EARLY_MIN_30M_CONFIRMATIONS
+        and adx >= PRO_BOTTOM_EARLY_ADX_FLOOR
+        and volume_ratio >= PRO_BOTTOM_EARLY_ADX_MIN_VOLUME
+        and raw_score >= PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE
+        and momentum_components >= PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS
+    )
+    if early_ok:
+        return True, PRO_BOTTOM_EARLY_MIN_30M_CONFIRMATIONS, "EARLY_REVERSAL"
+
+    return False, PRO_BOTTOM_MIN_30M_CONFIRMATIONS, "STANDARD"
+
+
+def run_v63_14_25_early_confirmation_exception_self_test():
+    passed = bottom_hunter_confirmation_gate_pass("BUY", "1h", 3, False, 20.0, 1.50, 95, 2)
+    assert passed == (True, 3, "EARLY_REVERSAL")
+    assert not bottom_hunter_confirmation_gate_pass("BUY", "1h", 2, False, 20.0, 1.50, 95, 2)[0]
+    assert not bottom_hunter_confirmation_gate_pass("BUY", "1h", 3, False, 20.0, 1.49, 95, 2)[0]
+    assert not bottom_hunter_confirmation_gate_pass("BUY", "1h", 3, False, 20.0, 1.50, 94.9, 2)[0]
+    assert not bottom_hunter_confirmation_gate_pass("BUY", "1h", 3, False, 17.9, 1.50, 95, 2)[0]
+    assert not bottom_hunter_confirmation_gate_pass("BUY", "1d", 3, False, 20.0, 1.50, 95, 2)[0]
+    assert bottom_hunter_confirmation_gate_pass("BUY", "1h", 6, True, 23.0, 1.35, 85, 0) == (True, 6, "STANDARD")
+    assert PRO_BOTTOM_MIN_30M_CONFIRMATIONS == 6
+    assert PRO_BOTTOM_EARLY_MIN_30M_CONFIRMATIONS == 3
+    return True
+
+
 def run_v63_14_17_early_reversal_gate_self_test():
     assert bottom_hunter_adx_gate_pass(23.0, 1.0, 90, 0)
     assert bottom_hunter_adx_gate_pass(20.0, 1.50, 95, 2)
@@ -9813,7 +9871,7 @@ def run_v63_14_16_bottom_rejection_diagnostic_self_test():
     assert PRO_BOTTOM_MIN_SCORE == 85
     assert PRO_BOTTOM_MIN_ADX == 23.0
     assert PRO_BOTTOM_MIN_VOLUME_RATIO == 1.35
-    assert DEPLOYMENT_ID == "v63.14.24-entry-extension-metrics-20261012"
+    assert DEPLOYMENT_ID == "v63.14.25-controlled-early-confirmation-20261012"
     assert run_v63_14_17_early_reversal_gate_self_test() is True
     return True
 
