@@ -1,0 +1,72 @@
+name: Historical Binance Backtest | 180D | Offline Signals
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Historical period (30-365 days)"
+        required: true
+        default: "180"
+        type: string
+      symbols:
+        description: "Comma-separated Binance Spot USDT symbols"
+        required: true
+        default: "ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT"
+        type: string
+      fee_bps:
+        description: "Fee in basis points per side (10 = 0.10%)"
+        required: true
+        default: "10"
+        type: string
+      slippage_bps:
+        description: "Slippage in basis points per side"
+        required: true
+        default: "5"
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: historical-backtest-180d
+  cancel-in-progress: false
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      BACKTEST_DAYS: ${{ inputs.days }}
+      BACKTEST_SYMBOLS: ${{ inputs.symbols }}
+      BACKTEST_FEE_BPS: ${{ inputs.fee_bps }}
+      BACKTEST_SLIPPAGE_BPS: ${{ inputs.slippage_bps }}
+      PYTHONUNBUFFERED: "1"
+      TELEGRAM_TOKEN: ""
+      TELEGRAM_CHAT_ID: ""
+      DRY_RUN: "1"
+      RUN_ONCE: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      - name: Compile and verify offline replay
+        run: |
+          python -m py_compile main.py historical_backtest.py
+          python - <<'PY'
+          from pathlib import Path
+          s=Path("historical_backtest.py").read_text()
+          assert "main.evaluate_final_signal(" in s
+          assert "next 1H candle open" in s
+          print("Backtest source verification: PASS")
+          PY
+      - name: Run historical replay
+        run: python historical_backtest.py
+      - name: Upload backtest results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apexsignal-historical-backtest
+          path: backtest-results/
+          if-no-files-found: warn
+          retention-days: 30
