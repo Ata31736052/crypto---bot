@@ -38,10 +38,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      BACKTEST_DAYS: ${{ inputs.days }}
-      BACKTEST_SYMBOLS: ${{ inputs.symbols }}
-      BACKTEST_FEE_BPS: ${{ inputs.fee_bps }}
-      BACKTEST_SLIPPAGE_BPS: ${{ inputs.slippage_bps }}
+      BACKTEST_DAYS: ${{ github.event.inputs.days || '180' }}
+      BACKTEST_SYMBOLS: ${{ github.event.inputs.symbols || 'ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT' }}
+      BACKTEST_FEE_BPS: ${{ github.event.inputs.fee_bps || '10' }}
+      BACKTEST_SLIPPAGE_BPS: ${{ github.event.inputs.slippage_bps || '5' }}
       PYTHONUNBUFFERED: "1"
       TELEGRAM_TOKEN: ""
       TELEGRAM_CHAT_ID: ""
