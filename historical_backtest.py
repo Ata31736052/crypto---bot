@@ -59,10 +59,44 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength):
     costs=2*(FEE_BPS+SLIPPAGE_BPS)/100
     return {"symbol":symbol,"side":side,"signal_time":str(signal_time),"entry_time":str(row.open_time),"entry":entry,"stop_loss":sl,"tp1":tp1,"tp2":tp2,"exit_time":str(h1.iloc[xi].open_time),"exit":exitp,"exit_reason":reason,"gross_pct":round(gross,4),"cost_pct":round(costs,4),"net_pct":round(gross-costs,4),"bars_held":xi-entry_i,"score":score,"strength":strength},xi
 
+def historical_btc_regime(frames, decision_time):
+    """Rebuild the engine's combined BTC 1H + Daily regime using only closed candles."""
+    latest = {}
+    for tf in ("1h", "1d"):
+        df = frames.get(tf)
+        if df is None or df.empty:
+            return None
+        closed = df[df["close_time"] <= decision_time]
+        if closed.empty:
+            return None
+        latest[tf] = main._btc_regime_from_row(closed.iloc[-1])
+    h, d = latest["1h"], latest["1d"]
+    if h["bullish"] and d["bullish"]:
+        combined = "BULLISH"
+    elif h["bearish"] and d["bearish"]:
+        combined = "BEARISH"
+    elif h["bearish"] and d["bullish"]:
+        combined = "MIXED_BEARISH_1H"
+    elif h["bullish"] and d["bearish"]:
+        combined = "MIXED_BULLISH_1H"
+    else:
+        combined = "NEUTRAL"
+    return {"combined": combined, "combined_score": h["score"] + d["score"], "1h": h, "daily": d}
+
 def run():
     end=pd.Timestamp.now(tz="UTC").floor("h"); start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=30)
-    trades=[]; errors=[]
+    trades=[]; errors=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"first_no_signal_reasons":[]}
     print(f"PERIOD {start} -> {end}; symbols={SYMBOLS}; fee/side={FEE_BPS}bps; slippage/side={SLIPPAGE_BPS}bps",flush=True)
+    # Fetch BTC context once and rebuild it at each historical decision instant.
+    try:
+        btc_raw={tf:fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000)) for tf in ("1h","1d")}
+        btc_frames={tf:prepare(df) for tf,df in btc_raw.items()}
+        if btc_frames["1h"].empty or btc_frames["1d"].empty:
+            raise RuntimeError("BTC historical context unavailable")
+        print("BTC historical context loaded",flush=True)
+    except Exception as exc:
+        errors.append({"symbol":"BTCUSDT","error":f"BTC context: {exc}"})
+        btc_frames={"1h":pd.DataFrame(),"1d":pd.DataFrame()}
     for sym in SYMBOLS:
         try:
             print("FETCH",sym,flush=True)
@@ -77,11 +111,21 @@ def run():
                 for tf,df in frames.items():
                     data[tf]=df[df.close_time<=close_time].copy() if not df.empty else None
                 if len(data["1h"])<50 or len(data["30m"])<30: continue
-                try: result=main.evaluate_final_signal(sym,data,btc_regime=None)
+                btc_regime=historical_btc_regime(btc_frames,close_time)
+                if btc_regime is None:
+                    errors.append({"symbol":sym,"time":str(close_time),"error":"BTC historical regime unavailable"})
+                    continue
+                diagnostics["evaluated"] += 1
+                try: result=main.evaluate_final_signal(sym,data,btc_regime=btc_regime)
                 except Exception as exc:
                     errors.append({"symbol":sym,"time":str(close_time),"error":str(exc)}); continue
                 side=str(result.get("signal","NO_SIGNAL")).upper()
-                if side not in ("BUY","SELL"): continue
+                if side not in ("BUY","SELL"):
+                    diagnostics["no_signal"] += 1
+                    if len(diagnostics["first_no_signal_reasons"]) < 12:
+                        diagnostics["first_no_signal_reasons"].append({"symbol":sym,"time":str(close_time),"warnings":result.get("warnings",[]),"buy_score":result.get("buy_score"),"sell_score":result.get("sell_score")})
+                    continue
+                diagnostics["signals_before_execution"] += 1
                 trade,exit_i=simulate(sym,side,c.open_time,i+1,h1,float(c.get("atr",0) or 0),result.get("score",0),result.get("strength",""))
                 if trade:
                     trade["btc_regime"]=result.get("btc_regime","UNKNOWN"); trades.append(trade); last_exit=exit_i
@@ -91,7 +135,7 @@ def run():
     columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime"]
     pd.DataFrame(trades,columns=columns).to_csv(OUT/"trades.csv",index=False)
     vals=[float(t["net_pct"]) for t in trades]
-    summary={"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"trade_count":len(trades),"win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"gross_return_sum_pct":round(sum(t["gross_pct"] for t in trades),4),"net_return_sum_pct":round(sum(vals),4),"average_net_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"assumptions":{"entry":"next 1H candle open after signal candle closes","stop":"engine SL_ATR_MULTIPLIER; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL-first conservative","costs":"fee and slippage on both entry and exit","overlap":"one position per symbol at a time","btc_regime":"None passed to engine; inspect engine behavior before treating as final decision-grade","returns":"sum of trade percentages, not a compounded portfolio equity curve"},"errors":errors}
+    summary={"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"trade_count":len(trades),"win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"gross_return_sum_pct":round(sum(t["gross_pct"] for t in trades),4),"net_return_sum_pct":round(sum(vals),4),"average_net_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"assumptions":{"entry":"next 1H candle open after signal candle closes","stop":"engine SL_ATR_MULTIPLIER; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL-first conservative","costs":"fee and slippage on both entry and exit","overlap":"one position per symbol at a time","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","returns":"sum of trade percentages, not a compounded portfolio equity curve"},"diagnostics":diagnostics,"errors":errors}
     (OUT/"summary.json").write_text(json.dumps(summary,indent=2),encoding="utf-8"); print(json.dumps(summary,indent=2),flush=True)
     if not trades: raise SystemExit("No trades produced; do not infer profitability.")
 
