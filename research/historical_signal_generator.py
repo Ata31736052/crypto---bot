@@ -131,7 +131,7 @@ def add_causal_indicators(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def btc_regime_asof(cache: dict, decision_time) -> dict:
-    """Reproduce production BTC regime from its same bounded kline windows."""
+    """Read the precomputed, prefix-validated BTC indicators as of this time."""
     result = {}
     limits = {"1h": engine.KLINE_LIMIT_MAIN, "1d": engine.KLINE_LIMIT_DAILY}
     for tf, key in (("1h", "1h"), ("1d", "daily")):
@@ -145,12 +145,7 @@ def btc_regime_asof(cache: dict, decision_time) -> dict:
             result[key] = {"regime": "UNKNOWN", "score": 0,
                            "bullish": False, "bearish": False}
             continue
-        enriched = engine.add_indicators(frame)
-        if enriched is None or enriched.empty:
-            result[key] = {"regime": "UNKNOWN", "score": 0,
-                           "bullish": False, "bearish": False}
-        else:
-            result[key] = engine._btc_regime_from_row(enriched.iloc[-1])
+        result[key] = engine._btc_regime_from_row(frame.iloc[-1])
     h1, daily = result["1h"], result["daily"]
     if h1["bullish"] and daily["bullish"]:
         combined = "BULLISH"
@@ -368,7 +363,11 @@ def generate(args) -> dict:
     current_decision = {"time": None, "symbol": None}
     def historical_prepare(symbol):
         t = current_decision["time"]
-        cached = raw_candles.get(symbol)
+        # Use the already computed indicator frames. The prefix-invariance
+        # audit above verifies that indicator values do not change when future
+        # candles are appended, so slicing these frames as-of is causal and
+        # avoids recalculating every timeframe for every historical decision.
+        cached = raw.get(symbol)
         if not cached or t is None:
             return None
         limits = {
@@ -387,9 +386,9 @@ def generate(args) -> dict:
             if not engine.validate_market_dataframe(frame):
                 frames[tf] = None
                 continue
-            frames[tf] = engine.add_indicators(frame)
-            if frames[tf] is not None and frames[tf].empty:
-                frames[tf] = None
+            # Indicators were computed once for this symbol/timeframe before
+            # replay and verified by prefix-invariance checks.
+            frames[tf] = frame
         if frames["1h"] is None or frames["30m"] is None:
             return None
         if len(frames["1h"]) < 200 or len(frames["30m"]) < 80:
@@ -416,7 +415,7 @@ def generate(args) -> dict:
         for close_time in decisions:
             decision_time = pd.Timestamp(close_time) + pd.Timedelta(milliseconds=1)
             current_decision["time"] = decision_time
-            regime = btc_regime_asof(raw_candles["BTC"], decision_time)
+            regime = btc_regime_asof(raw["BTC"], decision_time)
             for symbol in symbols:
                 cached = raw.get(symbol)
                 if not cached or cached.get("1h") is None or cached.get("30m") is None:
