@@ -168,7 +168,7 @@ def run():
                     main.get_live_price=lambda _symbol, _price=current_price, _time=current_close_time: {
                         "price":_price,"fetched_at":_time,"request_latency_seconds":0.0,"source":"historical closed candle"
                     }
-                    scan=main.scan_symbol(sym,btc_regime)
+                    scan=main.analyze_one_symbol(sym,btc_regime)
                 except Exception as exc:
                     errors.append({"symbol":sym,"time":str(close_time),"error":f"production pipeline: {exc}"})
                     continue
