@@ -74,6 +74,7 @@ jobs:
               "entry extension metrics are persisted": '"entry_extension_atr": (' in source and '"ema21_distance_percent": (' in source,
               "configured late-entry RSI threshold is used": 'rsi >= MAX_LATE_ENTRY_RSI_BUY and extension_atr > 0.65' in source,
               "controlled early-confirmation exception exists": "def bottom_hunter_confirmation_gate_pass(" in source and "PRO_BOTTOM_EARLY_MIN_30M_CONFIRMATIONS = 3" in source,
+              "early-path blocker diagnostics are wired": "def bottom_hunter_early_confirmation_blockers(" in source and "EARLY_BLOCKED[" in source,
           }
           for label, ok in checks.items():
               print(f"{'PASS' if ok else 'FAIL'}: {label}")
@@ -109,6 +110,7 @@ jobs:
               ("v63.14.22 dry-run outcome recording", main.run_v63_14_22_dry_run_outcome_recording_self_test),
               ("v63.14.23 legacy outcome backfill", main.run_v63_14_23_legacy_outcome_backfill_self_test),
               ("v63.14.25 controlled early confirmation", main.run_v63_14_25_early_confirmation_exception_self_test),
+              ("v63.14.26 early-path blockers", main.run_v63_14_26_early_path_blocker_self_test),
           ]
           for label, test in tests:
               assert test() is True, f"{label} failed"
