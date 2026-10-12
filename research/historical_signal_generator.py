@@ -53,7 +53,12 @@ def closed_asof_slice(frame: pd.DataFrame | None, decision_time) -> pd.DataFrame
         decision = decision.tz_localize("UTC")
     else:
         decision = decision.tz_convert("UTC")
-    out = frame.loc[pd.to_datetime(frame["close_time"], utc=True) < decision].copy()
+    close_times = frame["close_time"]
+    if not pd.api.types.is_datetime64_any_dtype(close_times.dtype):
+        close_times = pd.to_datetime(close_times, utc=True)
+    elif getattr(close_times.dt, "tz", None) is None:
+        close_times = close_times.dt.tz_localize("UTC")
+    out = frame.loc[close_times < decision].copy()
     return out if not out.empty else None
 
 
@@ -302,6 +307,7 @@ def generate(args) -> dict:
                 coverage["candles"][f"{sym}_{tf}"] = {"rows": 0, "status": "MISSING"}
                 continue
             raw_candles[sym][tf] = frame
+            print(f"Downloaded {sym} {tf}: {len(frame)} closed candles")
             enriched = add_causal_indicators(frame)
             raw[sym][tf] = enriched
             coverage["candles"][f"{sym}_{tf}"] = {
