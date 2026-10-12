@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from research.replay_historical_entry_locations import analyze_signal, classify_setup, atr_from_closed_candles, policy_accepts, prior_move_metrics, simulate_pullback_reentry
+from research.replay_historical_entry_locations import analyze_signal, classify_setup, atr_from_closed_candles, policy_accepts, prior_move_metrics, simulate_pullback_reentry, evaluate_recorded_barriers
 
 
 def sample_candles(count=80):
@@ -161,6 +161,57 @@ class HistoricalLocationReplayTests(unittest.TestCase):
         base = analyze_signal(signal, candles)
         result = simulate_pullback_reentry(signal, candles, base)
         self.assertEqual(result["pullback_status"], "NO_PULLBACK_WITHIN_WAIT")
+
+    def test_same_candle_stop_and_tp1_is_conservatively_stop_first(self):
+        candles = sample_candles(80)
+        signal_time = candles[60]["open_time"] + timedelta(minutes=30)
+        # Following candle touches both the stored stop and TP1.
+        candles[61]["low"] = 97.0
+        candles[61]["high"] = 104.0
+        signal = {
+            "symbol": "TEST", "signal": "BUY", "timestamp": signal_time.isoformat(),
+            "entry": 100.0, "stop_loss": 98.0, "tp1": 103.0, "reasons": [],
+        }
+        result = evaluate_recorded_barriers(signal, candles)
+        self.assertEqual(result["barrier_8h_status"], "STOP_FIRST_AMBIGUOUS_CANDLE")
+        self.assertTrue(result["barrier_8h_ambiguous"])
+        self.assertAlmostEqual(result["barrier_8h_return_pct"], -2.0)
+
+    def test_first_tp1_hit_is_recorded(self):
+        candles = sample_candles(80)
+        signal_time = candles[60]["open_time"] + timedelta(minutes=30)
+        candles[61]["low"] = 99.0
+        candles[61]["high"] = 104.0
+        signal = {
+            "symbol": "TEST", "signal": "BUY", "timestamp": signal_time.isoformat(),
+            "entry": 100.0, "stop_loss": 98.0, "tp1": 103.0, "reasons": [],
+        }
+        result = evaluate_recorded_barriers(signal, candles)
+        self.assertEqual(result["barrier_8h_status"], "TP1")
+        self.assertAlmostEqual(result["barrier_8h_return_pct"], 3.0)
+
+    def test_sell_barrier_order_and_direction_are_respected(self):
+        candles = sample_candles(80)
+        signal_time = candles[60]["open_time"] + timedelta(minutes=30)
+        candles[61]["low"] = 96.0
+        candles[61]["high"] = 101.0
+        signal = {
+            "symbol": "TEST", "signal": "SELL", "timestamp": signal_time.isoformat(),
+            "entry": 100.0, "stop_loss": 102.0, "tp1": 97.0, "reasons": [],
+        }
+        result = evaluate_recorded_barriers(signal, candles)
+        self.assertEqual(result["barrier_8h_status"], "TP1")
+        self.assertAlmostEqual(result["barrier_8h_return_pct"], 3.0)
+
+    def test_missing_recorded_levels_fail_closed(self):
+        candles = sample_candles(80)
+        signal = {
+            "symbol": "TEST", "signal": "BUY",
+            "timestamp": (candles[60]["open_time"] + timedelta(minutes=30)).isoformat(),
+            "entry": 100.0,
+        }
+        result = evaluate_recorded_barriers(signal, candles)
+        self.assertEqual(result["barrier_8h_status"], "LEVELS_UNAVAILABLE")
 
     def test_invalid_entry_fails_closed(self):
         result = analyze_signal({
