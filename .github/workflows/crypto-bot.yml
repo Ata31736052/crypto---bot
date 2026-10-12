@@ -110,7 +110,7 @@ jobs:
           PY
           python -m py_compile main.py
           echo "Python compile: PASS"
-          python -m py_compile research/closed_candle_timing_audit.py tests/test_closed_candle_timing_audit.py
+          python -m py_compile research/closed_candle_timing_audit.py tests/test_closed_candle_timing_audit.py research/entry_exit_location_audit.py tests/test_entry_exit_location_audit.py
           echo "Research audit compile: PASS"
 
       - name: Run regression self-tests without scanning
@@ -147,7 +147,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m unittest tests/test_closed_candle_timing_audit.py -v
+          python -m unittest tests/test_closed_candle_timing_audit.py tests/test_entry_exit_location_audit.py -v
 
       - name: Verify Telegram delivery configuration
         if: github.event_name != 'pull_request'
