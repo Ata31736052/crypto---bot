@@ -3718,6 +3718,25 @@ def score_30m_confirmation(
         "MACD_hist_improving": (macd_hist > macd_hist_prev) if side == "BUY" else (macd_hist < macd_hist_prev),
         "RSI_momentum": (50 <= rsi < 70 and rsi >= safe_float(row.get("rsi_prev"))) if side == "BUY" else (30 < rsi <= 50 and rsi <= safe_float(row.get("rsi_prev"))),
     }
+    confirmation_metrics = {
+        "close": round(close, 8),
+        "ema9": round(safe_float(row.get("ema9")), 8),
+        "ema21": round(safe_float(row.get("ema21")), 8),
+        "ema9_ema21_pct": round((safe_float(row.get("ema9")) / safe_float(row.get("ema21")) - 1.0) * 100, 4) if safe_float(row.get("ema21")) > 0 else None,
+        "close_ema21_pct": round((close / safe_float(row.get("ema21")) - 1.0) * 100, 4) if safe_float(row.get("ema21")) > 0 else None,
+        "macd": round(safe_float(row.get("macd")), 8),
+        "macd_signal": round(safe_float(row.get("macd_signal")), 8),
+        "macd_hist": round(macd_hist, 8),
+        "macd_hist_prev": round(macd_hist_prev, 8),
+        "rsi": round(rsi, 3),
+        "rsi_prev": round(safe_float(row.get("rsi_prev")), 3),
+        "adx": round(adx, 3),
+        "plus_di": round(plus_di, 3),
+        "minus_di": round(minus_di, 3),
+        "volume_ratio": round(volume_ratio, 3),
+        "close_vwap_pct": round((close / vwap - 1.0) * 100, 4) if vwap > 0 else None,
+        "obv_slope": round(obv_slope, 8),
+    }
 
     # Require independent evidence rather than two easy EMA checks.
     confirmed = confirmations >= PRO_MIN_30M_CONFIRMATIONS
@@ -3733,6 +3752,7 @@ def score_30m_confirmation(
         "reasons": reasons,
         "checks": confirmation_checks,
         "failed_checks": [name for name, passed in confirmation_checks.items() if not passed],
+        "metrics": confirmation_metrics,
     }
 
 
@@ -9025,6 +9045,7 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         "confirmation_path": bottom_confirmation_path if mode == "BOTTOM_HUNTER" else "STANDARD",
         "confirmation_checks": dict(confirm.get("checks", {}) or {}),
         "confirmation_failed_checks": list(confirm.get("failed_checks", []) or []),
+        "confirmation_metrics": dict(confirm.get("metrics", {}) or {}),
         # Legacy aliases retained for compatibility; new logs use the fields above.
         "confirmations_30m": int(confirmations),
         "required_30m": int(required_confirmations), "htf_alignment": int(htf_align),
@@ -9262,6 +9283,9 @@ def analyze_one_symbol(symbol, btc_regime):
                             failed_confirmation_checks = pbreak.get("confirmation_failed_checks", []) or []
                             if failed_confirmation_checks:
                                 log("    Missing confirmation evidence: " + ", ".join(str(x) for x in failed_confirmation_checks))
+                            confirmation_metrics = pbreak.get("confirmation_metrics", {}) or {}
+                            if confirmation_metrics:
+                                log("    Confirmation values: " + " | ".join(f"{k}={v}" for k, v in confirmation_metrics.items()))
                         ledger_out = pbreak.get("component_ledger", {}) or {}
                         if isinstance(ledger_out, dict):
                             parts = []
