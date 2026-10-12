@@ -7,10 +7,10 @@ import requests
 import main
 
 BASE = os.getenv("BINANCE_BASE_URL", "https://data-api.binance.vision")
-SYMBOLS = [s.strip().upper().replace("/", "").replace("-", "") for s in os.getenv("BACKTEST_SYMBOLS", "ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT").split(",") if s.strip()]
-DAYS = max(30, min(365, int(os.getenv("BACKTEST_DAYS", "180"))))
-FEE_BPS = float(os.getenv("BACKTEST_FEE_BPS", "10"))
-SLIPPAGE_BPS = float(os.getenv("BACKTEST_SLIPPAGE_BPS", "5"))
+SYMBOLS = [s.strip().upper().replace("/", "").replace("-", "") for s in (os.getenv("BACKTEST_SYMBOLS") or "ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT").split(",") if s.strip()]
+DAYS = max(30, min(365, int((os.getenv("BACKTEST_DAYS") or "180"))))
+FEE_BPS = float((os.getenv("BACKTEST_FEE_BPS") or "10"))
+SLIPPAGE_BPS = float((os.getenv("BACKTEST_SLIPPAGE_BPS") or "5"))
 OUT = Path("backtest-results"); OUT.mkdir(exist_ok=True)
 MS = {"1h":3600000,"30m":1800000,"4h":14400000,"1d":86400000}
 SESSION = requests.Session()
