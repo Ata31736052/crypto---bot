@@ -7967,6 +7967,32 @@ def score_bottom_hunter(df_primary, df_confirm, btc_regime=None, diagnostic=None
 
     raw_score = max(0, min(100, int(round(score))))
 
+    # Per-symbol measurements make live Daily Bottom Hunter rejections
+    # actionable; aggregate counters alone cannot distinguish a score issue
+    # from a distance-to-low or confirmation issue.
+    if isinstance(diagnostic, dict):
+        diagnostic["metrics"] = {
+            "signal_timeframe": str(signal_timeframe).lower(),
+            "close": round(close, 10),
+            "recent_low": round(low_n, 10),
+            "distance_from_low_pct": round(dist_low, 3),
+            "near_low_acceptance_pct": 7.0,
+            "preferred_near_low_pct": BOTTOM_NEAR_LOW_PERCENT,
+            "lookback_candles": BOTTOM_LOOKBACK,
+            "rsi": round(rsi, 2),
+            "rsi_min": BOTTOM_RSI_MIN,
+            "rsi_max": BOTTOM_RSI_MAX,
+            "adx": round(adx, 2),
+            "volume_ratio": round(vol, 3),
+            "atr_percent": round(atr_percent, 3),
+            "confirmation_points": confirm,
+            "confirmation_required": 5,
+            "raw_score": raw_score,
+            "effective_score": None,
+            "minimum_setup_score": BOTTOM_MIN_SCORE,
+            "reversal_evidence": bool(reversal),
+        }
+
     # Quality caps: a reversal setup can accumulate many confirmations while
     # still lacking trend strength or real participation. Keep the signal
     # eligible, but prevent weak ADX/volume from producing inflated scores.
@@ -7987,6 +8013,10 @@ def score_bottom_hunter(df_primary, df_confirm, btc_regime=None, diagnostic=None
 
     # Apply the strictest applicable cap.
     score = min(raw_score, 95, *(cap for _, cap in quality_caps)) if quality_caps else min(raw_score, 95)
+
+    if isinstance(diagnostic, dict) and isinstance(diagnostic.get("metrics"), dict):
+        diagnostic["metrics"]["effective_score"] = score
+        diagnostic["metrics"]["quality_caps"] = [label for label, _ in quality_caps]
 
     for label, cap in quality_caps:
         if raw_score > cap:
@@ -9071,6 +9101,18 @@ def analyze_one_symbol(symbol, btc_regime):
                         "stage": "RISK_REJECT",
                         "reason": str(daily_bottom_signal.get("risk_reject_reason") or "DAILY_BOTTOM_RISK_REJECT")
                     })
+        elif ENABLE_DAILY_BOTTOM_HUNTER:
+            missing_tf = []
+            if data.get("1d") is None or len(data.get("1d", [])) < 80:
+                missing_tf.append("1D")
+            if data.get("4h") is None or len(data.get("4h", [])) < 30:
+                missing_tf.append("4H")
+            trace["daily_bottom_hunter"] = {
+                "candidate": False,
+                "stage": "DATA_REJECT",
+                "reason": "MISSING_OR_INSUFFICIENT_" + "_AND_".join(missing_tf or ["TIMEFRAME_DATA"]),
+                "diagnostic": {"missing_timeframes": missing_tf}
+            }
 
         breakout = score_breakout_1h(df_1h, df_30m, "BUY")
         breakout_sell = score_breakout_1h(df_1h, df_30m, "SELL")
@@ -9486,6 +9528,16 @@ def run_v63_14_20_daily_bottom_hunter_self_test():
     breakdown = test_signal.get("professional_quality_breakdown", {})
     assert breakdown.get("confirmation_timeframe") == "4H"
     assert breakdown.get("adx") == 31.0
+
+    daily_probe = {}
+    score_bottom_hunter(framed, frame4h, {"combined": "UNKNOWN"},
+                        diagnostic=daily_probe, signal_timeframe="1d")
+    probe_metrics = daily_probe.get("metrics", {})
+    assert probe_metrics.get("signal_timeframe") == "1d"
+    assert probe_metrics.get("lookback_candles") == BOTTOM_LOOKBACK
+    assert probe_metrics.get("minimum_setup_score") == BOTTOM_MIN_SCORE
+    assert probe_metrics.get("confirmation_required") == 5
+    assert "effective_score" in probe_metrics
 
     # Regression guard: 1H Bottom Hunter remains tracked, while 1D and 4H
     # signals must never enter the hourly outcome sample.
