@@ -31,7 +31,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: historical-backtest-180d
+  group: historical-backtest-${{ github.sha }}
   cancel-in-progress: true
 jobs:
   backtest:
