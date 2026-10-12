@@ -78,3 +78,29 @@ production integration, replay this gate against historical signals and compare
 candidate acceptance, net returns, MFE/MAE, and TP/SL first-event rates on a
 chronological holdout. Do not relax the existing production filters just to
 increase signal count.
+
+## Replay the repository's recorded signals
+
+`research/replay_historical_entry_locations.py` reads the existing
+`signals_history.json`, downloads public Binance Spot 1-hour candles for the
+recorded symbols, and writes `historical_entry_location_replay.csv`. On a pull
+request, the research workflow runs this in research-only mode and uploads the
+CSV as an artifact. It does not run the live scan or send Telegram messages.
+
+For each recorded signal, the replay:
+- Uses only candles whose close time is at or before the recorded signal timestamp
+  to derive ATR and historical swing levels; an in-progress candle is excluded.
+- Reports nearest historical resistance/support, obstacle distance in ATR,
+  structural stop/targets, and explicit location-gate rejection reasons.
+- Measures forward close returns, MFE and MAE at 1, 4, 8, 12, 24 and 48 hours
+  where Binance candle coverage is complete.
+- Reports data gaps/API failures rather than treating missing candles as a pass.
+
+**Important data limitation:** the existing history JSON does not store the
+engine's setup label for every row. The replay therefore uses reason-text heuristics
+and labels results `TREND_HEURISTIC` or `BOTTOM_HUNTER_HEURISTIC`; these labels
+are approximate, not authoritative. The replay is descriptive research, not a
+validated counterfactual backtest. It does not yet prove how the live engine would
+have behaved if the gate had been enabled. Do not wire this gate into production
+until the artifact has adequate coverage and results are reviewed on a chronological
+holdout.
