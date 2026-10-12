@@ -9348,7 +9348,7 @@ def run_v63_14_3_outcome_boundary_self_test():
 
     # v63.14.21: reject stretched BUY entries, but do not reject early/neutral
     # starts or apply the BUY timing rule to SELL signals.
-    assert early_entry_rejection("BUY", "TREND", 112.0, 100.0, 8.0, 60.0) is None
+    assert early_entry_rejection("BUY", "TREND", 108.0, 100.0, 8.0, 60.0) is None
     assert "late entry" in early_entry_rejection("BUY", "TREND", 111.0, 100.0, 8.0, 60.0)
     assert "overheated" in early_entry_rejection("BUY", "TREND", 106.0, 100.0, 8.0, 72.0)
     assert early_entry_rejection("SELL", "TREND", 120.0, 100.0, 8.0, 80.0) is None
