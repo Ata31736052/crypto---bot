@@ -105,6 +105,8 @@ jobs:
           PY
           python -m py_compile main.py
           echo "Python compile: PASS"
+          python -m py_compile research/closed_candle_timing_audit.py tests/test_closed_candle_timing_audit.py
+          echo "Research audit compile: PASS"
 
       - name: Run regression self-tests without scanning
         shell: bash
@@ -135,6 +137,12 @@ jobs:
           print('Core gates:', main.PRO_MIN_SCORE, main.PRO_MIN_1H_ADX,
                 main.PRO_MIN_VOLUME_RATIO, main.PRO_MIN_30M_CONFIRMATIONS)
           PY
+
+      - name: Test research-only closed-candle timing audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest tests/test_closed_candle_timing_audit.py -v
 
       - name: Verify Telegram delivery configuration
         if: github.event_name != 'pull_request'
