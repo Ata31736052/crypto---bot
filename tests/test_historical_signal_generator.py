@@ -47,6 +47,35 @@ class HistoricalSignalGeneratorTests(unittest.TestCase):
         self.assertEqual(out["event"], "INCOMPLETE_WINDOW")
         self.assertIsNone(out["net_return_pct"])
 
+    def test_buy_entry_already_below_stop_is_invalidated_not_a_trade(self):
+        signal = {"side": "BUY", "actual_entry": 94, "stop_loss": 95, "tp1": 105}
+        future = pd.DataFrame([{"open": 94, "high": 96, "low": 93, "close": 95}] * 8)
+        out = evaluate_barriers(signal, future, 8, 0.4)
+        self.assertEqual(out["event"], "ENTRY_INVALIDATED_BY_STOP")
+        self.assertIsNone(out["net_return_pct"])
+        self.assertEqual(out["bars"], 0)
+
+    def test_buy_entry_already_above_tp1_is_invalidated_not_a_trade(self):
+        signal = {"side": "BUY", "actual_entry": 106, "stop_loss": 95, "tp1": 105}
+        future = pd.DataFrame([{"open": 106, "high": 108, "low": 104, "close": 107}] * 8)
+        out = evaluate_barriers(signal, future, 8, 0.4)
+        self.assertEqual(out["event"], "ENTRY_INVALIDATED_BY_TP1")
+        self.assertIsNone(out["net_return_pct"])
+
+    def test_sell_entry_already_above_stop_is_invalidated_not_a_trade(self):
+        signal = {"side": "SELL", "actual_entry": 106, "stop_loss": 105, "tp1": 95}
+        future = pd.DataFrame([{"open": 106, "high": 108, "low": 104, "close": 107}] * 8)
+        out = evaluate_barriers(signal, future, 8, 0.4)
+        self.assertEqual(out["event"], "ENTRY_INVALIDATED_BY_STOP")
+        self.assertIsNone(out["net_return_pct"])
+
+    def test_sell_entry_already_below_tp1_is_invalidated_not_a_trade(self):
+        signal = {"side": "SELL", "actual_entry": 94, "stop_loss": 105, "tp1": 95}
+        future = pd.DataFrame([{"open": 94, "high": 96, "low": 93, "close": 95}] * 8)
+        out = evaluate_barriers(signal, future, 8, 0.4)
+        self.assertEqual(out["event"], "ENTRY_INVALIDATED_BY_TP1")
+        self.assertIsNone(out["net_return_pct"])
+
 
 if __name__ == "__main__":
     unittest.main()
