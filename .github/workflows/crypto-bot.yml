@@ -110,7 +110,7 @@ jobs:
           PY
           python -m py_compile main.py
           echo "Python compile: PASS"
-          python -m py_compile research/closed_candle_timing_audit.py tests/test_closed_candle_timing_audit.py research/entry_exit_location_audit.py tests/test_entry_exit_location_audit.py
+          python -m py_compile research/closed_candle_timing_audit.py tests/test_closed_candle_timing_audit.py research/entry_exit_location_audit.py tests/test_entry_exit_location_audit.py research/replay_historical_entry_locations.py tests/test_replay_historical_entry_locations.py
           echo "Research audit compile: PASS"
 
       - name: Run regression self-tests without scanning
@@ -147,7 +147,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m unittest tests/test_closed_candle_timing_audit.py tests/test_entry_exit_location_audit.py -v
+          python -m unittest tests/test_closed_candle_timing_audit.py tests/test_entry_exit_location_audit.py tests/test_replay_historical_entry_locations.py -v
+
+
+      - name: Replay recorded signal locations against historical Binance candles (research only)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python research/replay_historical_entry_locations.py \
+            --history signals_history.json \
+            --out historical_entry_location_replay.csv \
+            --min-room-atr 1.5
 
       - name: Verify Telegram delivery configuration
         if: github.event_name != 'pull_request'
@@ -182,5 +193,6 @@ jobs:
           path: |
             professional_diagnostics.txt
             symbol_diagnostics.txt
+            historical_entry_location_replay.csv
           if-no-files-found: warn
           retention-days: 7
