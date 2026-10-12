@@ -1,0 +1,96 @@
+name: Research Historical Signal Replay
+
+on:
+  push:
+    branches:
+      - research/closed-candle-architecture-audit-20261012
+  pull_request:
+    branches: [main]
+    paths:
+      - "research/historical_signal_generator.py"
+      - "tests/test_historical_signal_generator.py"
+      - ".github/workflows/historical-signal-replay.yml"
+  workflow_dispatch:
+    inputs:
+      evaluation_days:
+        description: "Historical evaluation window (days)"
+        required: true
+        default: "180"
+      warmup_days:
+        description: "Indicator warm-up window (days)"
+        required: true
+        default: "260"
+      symbols:
+        description: "Fixed Binance Spot cohort, comma-separated base symbols"
+        required: true
+        default: "BTC,ETH,BNB,SOL,XRP,ADA,DOGE,LTC,LINK,AVAX"
+      cost_pct:
+        description: "Assumed round-trip cost in percentage points"
+        required: true
+        default: "0.4"
+
+permissions:
+  contents: read
+
+# Keep the PR smoke run separate from the long research replay.
+concurrency:
+  group: historical-signal-replay-research-${{ github.event_name }}
+  # A newer research commit must not cancel an active full historical replay.
+  cancel-in-progress: false
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      DRY_RUN: "1"
+      RUN_ONCE: "0"
+      TELEGRAM_TEST_ON_START: "0"
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout research revision
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      - name: Compile research generator
+        run: |
+          python -m py_compile research/historical_signal_generator.py
+          python -m py_compile main.py
+      - name: Run deterministic regression tests
+        run: |
+          python tests/test_historical_signal_generator.py -v
+      - name: Run short smoke replay on PR
+        if: github.event_name == 'pull_request'
+        run: |
+          python research/historical_signal_generator.py \
+            --symbols BTC,ETH,SOL,BNB,XRP \
+            --evaluation-days 7 --warmup-days 260 \
+            --out-dir artifacts/historical-replay-smoke
+      - name: Run requested historical replay
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+        env:
+          EVALUATION_DAYS: ${{ inputs.evaluation_days || '180' }}
+          WARMUP_DAYS: ${{ inputs.warmup_days || '260' }}
+          SYMBOLS: ${{ inputs.symbols || 'BTC,ETH,BNB,SOL,XRP,ADA,DOGE,LTC,LINK,AVAX' }}
+          COST_PCT: ${{ inputs.cost_pct || '0.4' }}
+        run: |
+          python research/historical_signal_generator.py \
+            --symbols "$SYMBOLS" \
+            --evaluation-days "$EVALUATION_DAYS" \
+            --warmup-days "$WARMUP_DAYS" \
+            --cost-pct "$COST_PCT" \
+            --out-dir artifacts/historical-replay
+      - name: Upload research outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: historical-signal-replay-${{ github.run_id }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 30

@@ -9,7 +9,7 @@ on:
       timezone: 'Asia/Tehran'
 
 concurrency:
-  group: crypto-signal-bot
+  group: crypto-signal-bot-research
   cancel-in-progress: false
 
 jobs:
@@ -17,10 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      # Send qualified signals through the configured Telegram bot.
+      # Research branch safety lock: never send Telegram messages from this branch.
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      DRY_RUN: "0"
+      DRY_RUN: "1"
       RUN_ONCE: '1'
       TELEGRAM_TEST_ON_START: '0'
       PYTHONUNBUFFERED: '1'
@@ -49,6 +49,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if ! grep -Fq 'DRY_RUN: "1"' .github/workflows/crypto-bot.yml; then
+            echo "ERROR: research branch must keep DRY_RUN=1."
+            exit 1
+          fi
+          echo "Research branch Telegram safety lock: PASS"
           if [ ! -f main.py ]; then
             echo "ERROR: main.py is missing at repository root."
             echo "Python files found:"
@@ -105,6 +110,8 @@ jobs:
           PY
           python -m py_compile main.py
           echo "Python compile: PASS"
+          python -m py_compile research/closed_candle_timing_audit.py tests/test_closed_candle_timing_audit.py research/entry_exit_location_audit.py tests/test_entry_exit_location_audit.py research/replay_historical_entry_locations.py tests/test_replay_historical_entry_locations.py
+          echo "Research audit compile: PASS"
 
       - name: Run regression self-tests without scanning
         shell: bash
@@ -135,6 +142,24 @@ jobs:
           print('Core gates:', main.PRO_MIN_SCORE, main.PRO_MIN_1H_ADX,
                 main.PRO_MIN_VOLUME_RATIO, main.PRO_MIN_30M_CONFIRMATIONS)
           PY
+
+      - name: Test research-only closed-candle timing audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest tests/test_closed_candle_timing_audit.py tests/test_entry_exit_location_audit.py tests/test_replay_historical_entry_locations.py -v
+
+
+      - name: Replay recorded signal locations against historical Binance candles (research only)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python research/replay_historical_entry_locations.py \
+            --history signals_history.json \
+            --out historical_entry_location_replay.csv \
+            --summary-out historical_entry_location_summary.csv \
+            --min-room-atr 1.5
 
       - name: Verify Telegram delivery configuration
         if: github.event_name != 'pull_request'
@@ -169,5 +194,7 @@ jobs:
           path: |
             professional_diagnostics.txt
             symbol_diagnostics.txt
+            historical_entry_location_replay.csv
+            historical_entry_location_summary.csv
           if-no-files-found: warn
           retention-days: 7
