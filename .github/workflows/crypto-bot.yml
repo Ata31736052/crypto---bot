@@ -20,7 +20,7 @@ jobs:
       # Send qualified signals through the configured Telegram bot.
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      DRY_RUN: "0"
+      DRY_RUN: "1"
       RUN_ONCE: '1'
       TELEGRAM_TEST_ON_START: '0'
       PYTHONUNBUFFERED: '1'
@@ -60,6 +60,7 @@ jobs:
           import re
           source = Path('main.py').read_text(encoding='utf-8')
           checks = {
+              'safe dry-run default': 'DRY_RUN = os.getenv("DRY_RUN", "1")' in source,
               'v63.14.13 deployment marker': 'DEPLOYMENT_ID = "v63.14.15-extended-history-outcome-repair-20261010"' in source,
               'Bottom RSI lower bound': re.search(r'^BOTTOM_RSI_MIN\s*=\s*20\s*$', source, re.M) is not None,
               'Bottom RSI upper bound': re.search(r'^BOTTOM_RSI_MAX\s*=\s*44\s*$', source, re.M) is not None,
