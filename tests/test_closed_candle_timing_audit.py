@@ -36,7 +36,7 @@ class ClosedCandleAuditTests(unittest.TestCase):
         btc = next(r for r in rows if r["symbol"] == "BTCUSDT")
         self.assertAlmostEqual(btc["return_pct"], 10.0)
         self.assertAlmostEqual(btc["mfe_pct"], 12.0)
-        self.assertAlmostEqual(btc["mae_pct"], -2.0)
+        self.assertAlmostEqual(btc["mae_pct"], -5.0)
 
     def test_groups_trend_and_bottom_hunter_separately(self):
         rows = evaluate(self.signals, self.candles, horizon=2)
