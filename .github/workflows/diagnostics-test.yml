@@ -45,7 +45,7 @@ jobs:
           import re
           source = Path('main.py').read_text(encoding='utf-8')
           checks = {
-              'Telegram dry-run default is safe': re.search(r'^DRY_RUN = os\\.getenv\\(\\"DRY_RUN\\", \\"1\\"\\)', source, re.M) is not None,
+              'Telegram dry-run default is safe': 'DRY_RUN = os.getenv("DRY_RUN", "1")' in source,
               'deployment identity exists': 'DEPLOYMENT_ID =' in source,
               'outcome coverage self-test exists': 'def run_v63_14_14_finalization_metrics_self_test():' in source,
               'missing hourly candles fail closed': 'def _outcome_window_has_complete_candles(' in source,
