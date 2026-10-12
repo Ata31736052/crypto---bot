@@ -225,6 +225,60 @@ def analyze_signal(signal, candles, min_room_atr=1.5):
     return result
 
 
+def simulate_pullback_reentry(signal, candles, base_result, wait_hours=8, pullback_atr=0.5):
+    """Research-only long/short pullback-and-reclaim simulation; never emits a signal."""
+    if base_result.get("status") != "ASSESSED":
+        return {"pullback_status": "UNAVAILABLE"}
+    timestamp = parse_time(signal["timestamp"])
+    entry = float(base_result["entry"])
+    atr = float(base_result["atr"])
+    side = str(signal.get("signal", "BUY")).upper()
+    future = sorted((c for c in candles if c["close_time"] > timestamp), key=lambda c: c["close_time"])
+    deadline = timestamp + timedelta(hours=wait_hours)
+    pullback_index = None
+    for i, candle in enumerate(future):
+        if candle["open_time"] > deadline:
+            break
+        touched = candle["low"] <= entry - pullback_atr * atr if side != "SELL" else candle["high"] >= entry + pullback_atr * atr
+        if touched:
+            pullback_index = i
+            break
+    if pullback_index is None:
+        return {"pullback_status": "NO_PULLBACK_WITHIN_WAIT"}
+    reclaim = None
+    for candle in future[pullback_index + 1:]:
+        if candle["close_time"] > deadline:
+            break
+        reclaimed = candle["close"] >= entry if side != "SELL" else candle["close"] <= entry
+        if reclaimed:
+            reclaim = candle
+            break
+    if reclaim is None:
+        return {"pullback_status": "NO_RECLAIM_WITHIN_WAIT"}
+    actual_entry = reclaim["close"]
+    outcome = {
+        "pullback_status": "ENTERED_AFTER_PULLBACK_RECLAIM",
+        "pullback_entry": actual_entry,
+        "pullback_entry_time": reclaim["close_time"].isoformat(),
+        "pullback_wait_hours": (reclaim["close_time"] - timestamp).total_seconds() / 3600,
+        "pullback_depth_atr": ((entry - min(c["low"] for c in future[:pullback_index + 1])) / atr
+                               if side != "SELL" else
+                               (max(c["high"] for c in future[:pullback_index + 1]) - entry) / atr),
+    }
+    after_entry = [c for c in future if c["open_time"] >= reclaim["close_time"]]
+    for horizon in (8, 24, 48):
+        target = reclaim["close_time"] + timedelta(hours=horizon)
+        eligible = [c for c in after_entry if c["close_time"] >= target]
+        if not eligible:
+            outcome[f"pullback_return_{horizon}h_pct"] = ""
+            continue
+        close = eligible[0]["close"]
+        gross = ((actual_entry - close) / actual_entry * 100 if side == "SELL"
+                 else (close / actual_entry - 1) * 100)
+        outcome[f"pullback_return_{horizon}h_pct"] = gross
+    return outcome
+
+
 def policy_accepts(row, policy):
     if row.get("status") != "ASSESSED":
         return None
@@ -387,7 +441,9 @@ def replay(history_path, out_path, min_room_atr=1.5, summary_out_path=""):
             })
             continue
         try:
-            results.append(analyze_signal(signal, cache[symbol], min_room_atr))
+            analyzed = analyze_signal(signal, cache[symbol], min_room_atr)
+            analyzed.update(simulate_pullback_reentry(signal, cache[symbol], analyzed))
+            results.append(analyzed)
         except (ValueError, KeyError, TypeError) as exc:
             results.append({
                 "symbol": symbol,
@@ -441,6 +497,37 @@ def replay(history_path, out_path, min_room_atr=1.5, summary_out_path=""):
                               f"median={statistics.median(returns):.3f}%, "
                               f"positive={100*sum(v > 0 for v in returns)/len(returns):.1f}%, "
                               f"avg MAE={sum(maes)/len(maes):.3f}%")
+    # Pre-declared research comparison: baseline vs Trend-only late-move exclusion and a
+    # wait-for-pullback/reclaim entry. Outcomes are gross; report net sensitivities separately.
+    holdout_rows = [r for r in results if r.get("status") == "ASSESSED" and r.get("chronological_split") == "HOLDOUT"]
+    for setup in ("TREND_HEURISTIC", "BOTTOM_HUNTER_HEURISTIC"):
+        group = [r for r in holdout_rows if r.get("setup") == setup]
+        policies = [
+            ("BASELINE_SIGNAL_ENTRY", group),
+            ("EXCLUDE_LATE_THIRD_TREND_ONLY", [r for r in group if setup != "TREND_HEURISTIC" or r.get("progress_bucket_72h") != "LATE_THIRD"]),
+        ]
+        for policy_name, rows_for_policy in policies:
+            for horizon in (8, 24, 48):
+                vals = [float(r[f"close_return_{horizon}h_pct"]) for r in rows_for_policy
+                        if r.get(f"close_return_{horizon}h_pct") not in ("", None)]
+                if vals:
+                    print(f"POLICY HOLDOUT {setup} {policy_name} {horizon}h n={len(vals)} "
+                          f"gross_avg={statistics.mean(vals):.3f}% "
+                          f"net_after_0.2pct_cost={statistics.mean(vals)-0.2:.3f}% "
+                          f"net_after_0.4pct_cost={statistics.mean(vals)-0.4:.3f}% "
+                          f"positive_after_0.4pct_cost={100*sum(v-0.4>0 for v in vals)/len(vals):.1f}%")
+        if setup == "TREND_HEURISTIC":
+            waited = [r for r in group if r.get("pullback_status") == "ENTERED_AFTER_PULLBACK_RECLAIM"]
+            print(f"PULLBACK-RECLAIM HOLDOUT {setup}: entered={len(waited)}/{len(group)} "
+                  f"(0.5 ATR pullback and reclaim within 8h)")
+            for horizon in (8, 24, 48):
+                vals = [float(r[f"pullback_return_{horizon}h_pct"]) for r in waited
+                        if r.get(f"pullback_return_{horizon}h_pct") not in ("", None)]
+                if vals:
+                    print(f"  {horizon}h n={len(vals)} gross_avg={statistics.mean(vals):.3f}% "
+                          f"net_after_0.2pct_cost={statistics.mean(vals)-0.2:.3f}% "
+                          f"net_after_0.4pct_cost={statistics.mean(vals)-0.4:.3f}% "
+                          f"positive_after_0.4pct_cost={100*sum(v-0.4>0 for v in vals)/len(vals):.1f}%")
     summary = build_summary(results)
     print("MOVE-STAGE HOLDOUT (descriptive only; not a trading gate):")
     for row in summary:
