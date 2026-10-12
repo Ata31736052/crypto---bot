@@ -5,7 +5,7 @@
 # Confirmation TF: 30M
 # Higher TF Context: 4H + Daily
 # Binance Spot only | No auto-trading
-# Version: 2026-10-12 v63.14.25 | BOTTOM SCORE CALIBRATION + CONTROLLED EARLY-REVERSAL GATE | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
+# Version: 2026-10-12 v63.14.26 | BOTTOM SCORE CALIBRATION + CONTROLLED EARLY-REVERSAL GATE | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
 # =========================================================
 
 import os
@@ -33,7 +33,7 @@ TELEGRAM_TEST_ON_START = False
 DRY_RUN = os.getenv("DRY_RUN", "0").strip().lower() in ("1", "true", "yes", "on")
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.25-controlled-early-confirmation-20261012"
+DEPLOYMENT_ID = "v63.14.26-early-path-blocker-diagnostics-20261012"
 
 
 
@@ -8832,7 +8832,14 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         or (mode != "BOTTOM_HUNTER" and side == "SELL" and confirmations < required_confirmations)
     ):
         if mode == "BOTTOM_HUNTER":
-            reject.append(f"30M reversal confirmation insufficient (actual={confirmations}; required>={bottom_confirmation_required}; path={bottom_confirmation_path})")
+            path_label = bottom_confirmation_path
+            if signal_tf == "1h" and side == "BUY" and PRO_BOTTOM_EARLY_MIN_30M_CONFIRMATIONS <= confirmations < PRO_BOTTOM_MIN_30M_CONFIRMATIONS:
+                blockers = bottom_hunter_early_confirmation_blockers(
+                    side, signal_tf, confirmations, adx, volume, raw_score, momentum_components
+                )
+                if blockers:
+                    path_label = "EARLY_BLOCKED[" + "; ".join(blockers) + "]"
+            reject.append(f"30M reversal confirmation insufficient (actual={confirmations}; required>={bottom_confirmation_required}; path={path_label})")
         else:
             reject.append(f"30M confirmation insufficient (actual={confirmations}; required>={required_confirmations})")
     else:
@@ -9486,7 +9493,7 @@ def run_v63_14_3_outcome_boundary_self_test():
         },
     }
     assert _has_complete_outcome_horizons(complete_v57)
-    assert DEPLOYMENT_ID == "v63.14.25-controlled-early-confirmation-20261012"
+    assert DEPLOYMENT_ID == "v63.14.26-early-path-blocker-diagnostics-20261012"
 
     # v63.14.21: reject stretched BUY entries, but do not reject early/neutral
     # starts or apply the BUY timing rule to SELL signals.
@@ -9524,7 +9531,7 @@ def run_v63_14_3_outcome_boundary_self_test():
     assert any("reversal ADX too weak" in reason for reason in reject_reasons)
     assert any("reversal volume below professional minimum" in reason for reason in reject_reasons)
     assert any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
-    assert DEPLOYMENT_ID == "v63.14.25-controlled-early-confirmation-20261012"
+    assert DEPLOYMENT_ID == "v63.14.26-early-path-blocker-diagnostics-20261012"
     return True
 
 
@@ -9548,7 +9555,7 @@ def run_v63_14_8_confirmation_diagnostic_self_test():
     assert format_confirmation_diagnostic({
         "confirmations_30m": 3, "required_30m": 6,
     }) == "30M=3 (required >= 6)"
-    assert DEPLOYMENT_ID == "v63.14.25-controlled-early-confirmation-20261012"
+    assert DEPLOYMENT_ID == "v63.14.26-early-path-blocker-diagnostics-20261012"
     return True
 
 
@@ -9621,7 +9628,7 @@ def run_v63_14_7_final_gate_consistency_self_test():
     assert PRO_MIN_1H_ADX == 23.0
     assert PRO_MIN_VOLUME_RATIO == 1.35
     assert PRO_BOTTOM_MIN_30M_CONFIRMATIONS == 6
-    assert DEPLOYMENT_ID == "v63.14.25-controlled-early-confirmation-20261012"
+    assert DEPLOYMENT_ID == "v63.14.26-early-path-blocker-diagnostics-20261012"
     return True
 
 
@@ -9636,7 +9643,7 @@ def run_v63_14_2_bottom_rsi_self_test():
     assert BOTTOM_RSI_MIN <= 23 <= BOTTOM_RSI_MAX
     assert not (BOTTOM_RSI_MIN <= 19 <= BOTTOM_RSI_MAX)
     assert not (BOTTOM_RSI_MIN <= 45 <= BOTTOM_RSI_MAX)
-    assert DEPLOYMENT_ID == "v63.14.25-controlled-early-confirmation-20261012"
+    assert DEPLOYMENT_ID == "v63.14.26-early-path-blocker-diagnostics-20261012"
     return True
 
 
@@ -9829,6 +9836,62 @@ def bottom_hunter_confirmation_gate_pass(side, signal_timeframe, confirmations,
     return False, PRO_BOTTOM_MIN_30M_CONFIRMATIONS, "STANDARD"
 
 
+def bottom_hunter_early_confirmation_blockers(side, signal_timeframe, confirmations,
+                                                   adx, volume_ratio, raw_score,
+                                                   momentum_components):
+    """Explain why a 3-5/6 1H BUY setup cannot use the strict early path."""
+    blockers = []
+    side = str(side or "").upper()
+    signal_timeframe = str(signal_timeframe or "").lower()
+    confirmations = safe_int(confirmations, 0)
+    adx = safe_float(adx, 0.0)
+    volume_ratio = safe_float(volume_ratio, 0.0)
+    raw_score = safe_float(raw_score, 0.0)
+    momentum_components = safe_int(momentum_components, 0)
+
+    if side != "BUY":
+        blockers.append("side!=BUY")
+    if signal_timeframe != "1h":
+        blockers.append("timeframe!=1h")
+    if confirmations < PRO_BOTTOM_EARLY_MIN_30M_CONFIRMATIONS:
+        blockers.append(f"confirmations<{PRO_BOTTOM_EARLY_MIN_30M_CONFIRMATIONS}")
+    if adx < PRO_BOTTOM_EARLY_ADX_FLOOR:
+        blockers.append(f"ADX<{PRO_BOTTOM_EARLY_ADX_FLOOR:.1f}")
+    if volume_ratio < PRO_BOTTOM_EARLY_ADX_MIN_VOLUME:
+        blockers.append(f"volume<{PRO_BOTTOM_EARLY_ADX_MIN_VOLUME:.2f}x")
+    if raw_score < PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE:
+        blockers.append(f"raw_score<{PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE}")
+    if momentum_components < PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS:
+        blockers.append(f"momentum<{PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS}/3")
+    return blockers
+
+
+def run_v63_14_26_early_path_blocker_self_test():
+    blockers = bottom_hunter_early_confirmation_blockers(
+        "BUY", "1h", 3, 21.23, 0.66, 100, 2
+    )
+    assert "volume<1.50x" in blockers
+    assert bottom_hunter_early_confirmation_blockers(
+        "BUY", "1h", 3, 20, 1.50, 95, 2
+    ) == []
+    assert "raw_score<95" in bottom_hunter_early_confirmation_blockers(
+        "BUY", "1h", 3, 20, 1.50, 94, 2
+    )
+    assert "ADX<18.0" in bottom_hunter_early_confirmation_blockers(
+        "BUY", "1h", 3, 17.9, 1.50, 95, 2
+    )
+    assert "momentum<2/3" in bottom_hunter_early_confirmation_blockers(
+        "BUY", "1h", 3, 20, 1.50, 95, 1
+    )
+    assert "side!=BUY" in bottom_hunter_early_confirmation_blockers(
+        "SELL", "1h", 3, 20, 1.50, 95, 2
+    )
+    assert "timeframe!=1h" in bottom_hunter_early_confirmation_blockers(
+        "BUY", "1d", 3, 20, 1.50, 95, 2
+    )
+    return True
+
+
 def run_v63_14_25_early_confirmation_exception_self_test():
     passed = bottom_hunter_confirmation_gate_pass("BUY", "1h", 3, False, 20.0, 1.50, 95, 2)
     assert passed == (True, 3, "EARLY_REVERSAL")
@@ -9872,7 +9935,7 @@ def run_v63_14_16_bottom_rejection_diagnostic_self_test():
     assert PRO_BOTTOM_MIN_SCORE == 85
     assert PRO_BOTTOM_MIN_ADX == 23.0
     assert PRO_BOTTOM_MIN_VOLUME_RATIO == 1.35
-    assert DEPLOYMENT_ID == "v63.14.25-controlled-early-confirmation-20261012"
+    assert DEPLOYMENT_ID == "v63.14.26-early-path-blocker-diagnostics-20261012"
     assert run_v63_14_17_early_reversal_gate_self_test() is True
     return True
 
