@@ -17,7 +17,10 @@ from pathlib import Path
 
 import requests
 
-from research.entry_exit_location_audit import assess_trade_location
+try:
+    from research.entry_exit_location_audit import assess_trade_location
+except ModuleNotFoundError:  # supports direct execution as a script from research/
+    from entry_exit_location_audit import assess_trade_location
 
 BASE_URL = "https://data-api.binance.vision/api/v3/klines"
 HORIZONS = (1, 4, 8, 12, 24, 48)
