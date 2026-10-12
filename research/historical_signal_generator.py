@@ -126,15 +126,26 @@ def add_causal_indicators(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def btc_regime_asof(cache: dict, decision_time) -> dict:
-    """Reproduce the production BTC regime shape using only closed 1H/D candles."""
+    """Reproduce production BTC regime from its same bounded kline windows."""
     result = {}
+    limits = {"1h": engine.KLINE_LIMIT_MAIN, "1d": engine.KLINE_LIMIT_DAILY}
     for tf, key in (("1h", "1h"), ("1d", "daily")):
         frame = closed_asof_slice(cache.get(tf), decision_time)
-        if frame is None or len(frame) < 50:
+        if frame is None:
+            result[key] = {"regime": "UNKNOWN", "score": 0,
+                           "bullish": False, "bearish": False}
+            continue
+        frame = frame.tail(limits[tf]).copy()
+        if not engine.validate_market_dataframe(frame):
+            result[key] = {"regime": "UNKNOWN", "score": 0,
+                           "bullish": False, "bearish": False}
+            continue
+        enriched = engine.add_indicators(frame)
+        if enriched is None or enriched.empty:
             result[key] = {"regime": "UNKNOWN", "score": 0,
                            "bullish": False, "bearish": False}
         else:
-            result[key] = engine._btc_regime_from_row(frame.iloc[-1])
+            result[key] = engine._btc_regime_from_row(enriched.iloc[-1])
     h1, daily = result["1h"], result["daily"]
     if h1["bullish"] and daily["bullish"]:
         combined = "BULLISH"
@@ -150,7 +161,8 @@ def btc_regime_asof(cache: dict, decision_time) -> dict:
             "1h": h1, "daily": daily}
 
 
-def signal_rows_for_result(result: dict, symbol: str, decision_time, regime: dict) -> list[dict]:
+def signal_rows_for_result(result: dict, symbol: str, decision_time, regime: dict,
+                           raw_frames: dict) -> list[dict]:
     candidates = []
     if isinstance(result.get("signal"), dict):
         candidates.append(result["signal"])
@@ -160,12 +172,20 @@ def signal_rows_for_result(result: dict, symbol: str, decision_time, regime: dic
         side = str(sig.get("signal", "")).upper()
         if side not in ("BUY", "SELL"):
             continue
+        timeframe = str(sig.get("signal_timeframe") or sig.get("timeframe") or "1h").lower()
+        timeframe = {"daily": "1d", "1day": "1d", "1h": "1h", "4h": "4h", "30m": "30m"}.get(timeframe, timeframe)
+        candle_frame = closed_asof_slice(raw_frames.get(timeframe), decision_time)
+        signal_candle_close = (
+            candle_frame["close_time"].iloc[-1].isoformat()
+            if candle_frame is not None else pd.Timestamp(decision_time).isoformat()
+        )
         rows.append({
             "decision_time": pd.Timestamp(decision_time).isoformat(),
+            "signal_candle_close_time": signal_candle_close,
             "symbol": symbol,
             "side": side,
             "engine": str(sig.get("engine") or sig.get("signal_mode") or "UNKNOWN"),
-            "timeframe": str(sig.get("signal_timeframe") or sig.get("timeframe") or "1h"),
+            "timeframe": timeframe,
             "score": sig.get("score"),
             "quality_score": sig.get("professional_quality_score"),
             "regime": regime.get("combined", "UNKNOWN"),
@@ -256,6 +276,7 @@ def generate(args) -> dict:
 
     session = requests.Session()
     raw = {}
+    raw_candles = {}
     coverage = {"generated_at": datetime.now(timezone.utc).isoformat(),
                 "decision_engine": "current main.py analyze_one_symbol",
                 "evaluation_start": eval_start.isoformat(), "evaluation_end": end_time.isoformat(),
@@ -272,12 +293,15 @@ def generate(args) -> dict:
     all_symbols = list(dict.fromkeys(symbols + ["BTC"]))
     for sym in all_symbols:
         raw[sym] = {}
+        raw_candles[sym] = {}
         for tf in TIMEFRAMES:
             frame = fetch_history(sym, tf, start_ms, end_ms, session, args.request_pause)
             if frame.empty:
                 raw[sym][tf] = None
+                raw_candles[sym][tf] = None
                 coverage["candles"][f"{sym}_{tf}"] = {"rows": 0, "status": "MISSING"}
                 continue
+            raw_candles[sym][tf] = frame
             enriched = add_causal_indicators(frame)
             raw[sym][tf] = enriched
             coverage["candles"][f"{sym}_{tf}"] = {
@@ -328,10 +352,28 @@ def generate(args) -> dict:
     current_decision = {"time": None, "symbol": None}
     def historical_prepare(symbol):
         t = current_decision["time"]
-        cached = raw.get(symbol)
+        cached = raw_candles.get(symbol)
         if not cached or t is None:
             return None
-        frames = {tf: closed_asof_slice(cached.get(tf), t) for tf in TIMEFRAMES}
+        limits = {
+            "1h": engine.KLINE_LIMIT_MAIN,
+            "30m": engine.KLINE_LIMIT_CONFIRM,
+            "4h": engine.KLINE_LIMIT_4H,
+            "1d": engine.KLINE_LIMIT_DAILY,
+        }
+        frames = {}
+        for tf in TIMEFRAMES:
+            frame = closed_asof_slice(cached.get(tf), t)
+            if frame is None:
+                frames[tf] = None
+                continue
+            frame = frame.tail(limits[tf]).copy()
+            if not engine.validate_market_dataframe(frame):
+                frames[tf] = None
+                continue
+            frames[tf] = engine.add_indicators(frame)
+            if frames[tf] is not None and frames[tf].empty:
+                frames[tf] = None
         if frames["1h"] is None or frames["30m"] is None:
             return None
         if len(frames["1h"]) < 200 or len(frames["30m"]) < 80:
@@ -358,7 +400,7 @@ def generate(args) -> dict:
         for close_time in decisions:
             decision_time = pd.Timestamp(close_time) + pd.Timedelta(milliseconds=1)
             current_decision["time"] = decision_time
-            regime = btc_regime_asof(raw["BTC"], decision_time)
+            regime = btc_regime_asof(raw_candles["BTC"], decision_time)
             for symbol in symbols:
                 cached = raw.get(symbol)
                 if not cached or cached.get("1h") is None or cached.get("30m") is None:
@@ -381,19 +423,20 @@ def generate(args) -> dict:
                     errors["engine_exception"] += 1
                     continue
                 decision_count += 1
-                for row in signal_rows_for_result(result, symbol, decision_time, regime):
+                for row in signal_rows_for_result(result, symbol, decision_time, regime, cached):
                     row["actual_entry"] = actual_entry
                     row["planned_entry_gap_pct"] = (
                         (actual_entry / _num(row.get("signal_entry"), actual_entry) - 1.0) * 100.0
                         if _num(row.get("signal_entry"), 0) > 0 else None
                     )
                     # Attach barrier outcomes from the actual next 1H open.
-                    entry_index = cached["1h"].index[cached["1h"]["open_time"] >= decision_time]
+                    entry_frame = raw_candles[symbol]["1h"]
+                    entry_index = entry_frame.index[entry_frame["open_time"] >= decision_time]
                     if len(entry_index):
                         start_pos = int(entry_index[0])
-                        future = cached["1h"].iloc[start_pos:]
+                        future = entry_frame.iloc[start_pos:]
                     else:
-                        future = cached["1h"].iloc[0:0]
+                        future = entry_frame.iloc[0:0]
                     for horizon in (8, 24, 48):
                         out = evaluate_barriers(row, future, horizon, args.cost_pct)
                         for k, v in out.items():
@@ -408,7 +451,7 @@ def generate(args) -> dict:
     # Keep alert count and independent decision-candle count distinct.
     dedup = {}
     for row in signals:
-        key = (row["symbol"], row["decision_time"], row["side"], row["engine"], row["timeframe"])
+        key = (row["symbol"], row["signal_candle_close_time"], row["side"], row["engine"], row["timeframe"])
         dedup.setdefault(key, row)
     unique_signals = list(dedup.values())
     coverage["run"] = {
