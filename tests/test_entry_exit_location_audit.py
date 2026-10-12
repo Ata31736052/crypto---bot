@@ -6,13 +6,13 @@ from research.entry_exit_location_audit import assess_trade_location
 def candles_with_resistance(high=110.0, count=12):
     rows = []
     for i in range(count):
-        close = 100.0 + (i % 3) * 0.2
-        rows.append({"open": close, "high": close + 0.8, "low": close - 0.8, "close": close})
-    rows[4] = {"open": 100, "high": 101, "low": 98, "close": 100}
-    rows[5] = {"open": 101, "high": 102, "low": 99, "close": 101}
-    rows[6] = {"open": 102, "high": high, "low": 100, "close": min(102.5, high)}
-    rows[7] = {"open": 101, "high": 102, "low": 99, "close": 101}
-    rows[8] = {"open": 100, "high": 101, "low": 98, "close": 100}
+        close = 98.0 + (i % 2) * 0.1
+        rows.append({"open": close, "high": close + 0.4, "low": close - 0.4, "close": close})
+    rows[4] = {"open": 98, "high": 99, "low": 97, "close": 98}
+    rows[5] = {"open": 99, "high": 100, "low": 97.5, "close": 99}
+    rows[6] = {"open": 100, "high": high, "low": 98, "close": min(100.5, high)}
+    rows[7] = {"open": 99, "high": 100, "low": 97.5, "close": 99}
+    rows[8] = {"open": 98, "high": 99, "low": 97, "close": 98}
     rows[-1] = {"open": 100, "high": 101, "low": 99, "close": 100}
     return rows
 
