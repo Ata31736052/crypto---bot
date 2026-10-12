@@ -234,7 +234,11 @@ def _num(value, default=0.0):
 
 
 def generate(args) -> dict:
-    end_time = pd.Timestamp(args.end).tz_convert("UTC") if args.end else pd.Timestamp.now(tz="UTC")
+    if args.end:
+        end_time = pd.Timestamp(args.end)
+        end_time = end_time.tz_localize("UTC") if end_time.tzinfo is None else end_time.tz_convert("UTC")
+    else:
+        end_time = pd.Timestamp.now(tz="UTC")
     eval_start = end_time - pd.Timedelta(days=args.evaluation_days)
     data_start = eval_start - pd.Timedelta(days=args.warmup_days)
     start_ms, end_ms = int(data_start.timestamp() * 1000), int(end_time.timestamp() * 1000)
@@ -288,12 +292,20 @@ def generate(args) -> dict:
         prefix = add_causal_indicators(source.iloc[:cut].copy())
         full = add_causal_indicators(source.copy()).iloc[:cut].reset_index(drop=True)
         prefix = prefix.reset_index(drop=True)
-        cols = [c for c in prefix.columns if c in full.columns and pd.api.types.is_numeric_dtype(prefix[c])]
+        cols = [c for c in prefix.columns if c in full.columns and
+                (pd.api.types.is_numeric_dtype(prefix[c]) or pd.api.types.is_bool_dtype(prefix[c]))]
         mismatch = []
         for col in cols:
-            a = pd.to_numeric(prefix[col], errors="coerce")
-            b = pd.to_numeric(full[col], errors="coerce")
-            ok = (a.fillna(9.87654321e99).sub(b.fillna(9.87654321e99)).abs() < 1e-8).all()
+            a = prefix[col]
+            b = full[col]
+            if pd.api.types.is_bool_dtype(a) or pd.api.types.is_bool_dtype(b):
+                ok = a.fillna(False).equals(b.fillna(False))
+            else:
+                av = pd.to_numeric(a, errors="coerce").to_numpy(dtype=float)
+                bv = pd.to_numeric(b, errors="coerce").to_numpy(dtype=float)
+                same_nan = pd.Series(av).isna().equals(pd.Series(bv).isna())
+                finite = pd.Series(av).sub(pd.Series(bv)).abs().lt(1e-8).fillna(False).all()
+                ok = bool(same_nan and finite)
             if not ok:
                 mismatch.append(col)
         prefix_checks.append({"symbol": sym, "cut_index": cut, "mismatch_columns": mismatch})
