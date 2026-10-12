@@ -93,3 +93,29 @@ The replay now calculates both pre-signal returns and forward returns in the sig
 For Bottom Hunter, the early-third group looked materially better than the late-third group, but the late-third group has only four events. Do not tune or deploy a cutoff based on that tiny subgroup. The engine labels are inferred from historical reason text, not guaranteed ground truth.
 
 **Decision:** do not lower global score/ADX/volume gates and do not integrate a blanket location gate. The next research step should evaluate a *Trend-only late-move rejection or re-entry/wait rule* against a chronological holdout with directional 8h/24h/48h returns, MFE/MAE, and explicit fee/slippage assumptions. Keep Bottom Hunter separate. No production files or live Telegram behavior were changed.
+
+
+## Stage 2: Trend-only late-move exclusion vs pullback/reclaim
+
+Research run: [workflow #269](https://github.com/Ata31736052/crypto---bot/actions/runs/38260704784)  
+[Replay CSV artifact](https://github.com/Ata31736052/crypto---bot/actions/runs/38260704784/artifacts/11752094643)
+
+The comparison was pre-declared as a research diagnostic, not a production policy. It uses the same 94 Trend and 30 Bottom Hunter events in the chronological holdout. Cost sensitivities subtract either 0.2% or 0.4% from each gross directional return; these are assumptions, not measured fees/slippage for a specific account or exchange execution.
+
+| Trend holdout policy | Events with outcome | 8h gross avg | 24h gross avg | 48h gross avg | 24h avg after 0.4% assumed costs |
+|---|---:|---:|---:|---:|---:|
+| Baseline signal entry | 94 | -0.54% | -0.54% | -1.12% | -0.94% |
+| Exclude late-third events only | 39 | -0.51% | +0.11% | +0.06% | -0.29% |
+| Wait for 0.5 ATR pullback then reclaim within 8h | 28 entered | -1.18% | -1.38% | -2.12%* | -1.78% |
+
+*48h result has 27 outcomes; one event lacks enough follow-up candles.
+
+### Interpretation
+
+- **Late-third exclusion improves the holdout's 24h/48h average relative to the baseline, but does not establish positive net expectancy.** At the 0.4% cost sensitivity, the remaining Trend sample averages -0.29% at 24h and -0.35% at 48h. It also reduces the sample from 94 to 39, so it is not yet a sufficient production rule.
+- **The tested 0.5 ATR pullback-and-reclaim rule performed worse in this holdout.** Only 28/94 signals met the defined condition within 8 hours, and their mean forward returns remained negative at all tested horizons. Do not adopt this exact wait rule based on these data.
+- The Bottom Hunter baseline in this holdout averaged +2.10% at 24h and +3.31% at 48h before assumed costs, with 30 events. That is a promising descriptive contrast, not a guarantee; reason-text setup labels are heuristic and the sample is small.
+- The simulator deliberately avoids using the signal-time/in-progress candle for the pullback event. Returns are measured after the reclaim candle; they are not a full stop/target path simulation, and the cost subtraction is only a simple sensitivity analysis.
+- These tests do not yet model whether SL or TP is hit first, gaps, spread, market impact, funding (not relevant to spot, but execution conditions still are), or actual fill probability. No threshold was selected to maximize in-sample performance.
+
+**Decision:** do not merge a new entry rule into the production engine. The tested wait-for-pullback variant should be rejected for now. Keep late-third exclusion as a hypothesis for further validation only; next work should use a longer untouched historical period, explicitly resolve same-candle SL/TP ordering and realistic execution costs, and preserve separate evaluations for Trend and Bottom Hunter.
