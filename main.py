@@ -3938,23 +3938,25 @@ def entry_location_guard(df, side, lookback=20, min_room_atr=PRO_MAX_RESISTANCE_
 
 def run_entry_location_guard_self_test():
     import pandas as pd
+    # 20 completed lookback candles plus one preceding candle and the current
+    # signal candle: the guard intentionally requires lookback + 2 rows.
     near = pd.DataFrame({
-        "high": [100.0] * 20 + [100.2],
-        "low": [98.0] * 21,
-        "close": [99.5] * 20 + [99.6],
-        "atr": [1.0] * 21,
+        "high": [100.0] * 21 + [100.2],
+        "low": [98.0] * 22,
+        "close": [99.5] * 21 + [99.6],
+        "atr": [1.0] * 22,
     })
     allowed, reason = entry_location_guard(near, "BUY", lookback=20, min_room_atr=0.8)
     assert not allowed and "TOO_CLOSE_TO_RESISTANCE" in reason, (allowed, reason)
 
     room = near.copy()
-    room.loc[20, "close"] = 98.5
+    room.loc[21, "close"] = 98.5
     allowed, reason = entry_location_guard(room, "BUY", lookback=20, min_room_atr=0.8)
     assert allowed and "ROOM_OK" in reason, (allowed, reason)
 
     support_near = near.copy()
     support_near["low"] = 99.0
-    support_near.loc[20, "close"] = 99.4
+    support_near.loc[21, "close"] = 99.4
     allowed, reason = entry_location_guard(support_near, "SELL", lookback=20, min_room_atr=0.8)
     assert not allowed and "TOO_CLOSE_TO_SUPPORT" in reason, (allowed, reason)
     return True
