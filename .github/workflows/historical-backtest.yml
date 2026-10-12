@@ -1,5 +1,11 @@
 name: Historical Binance Backtest | 180D | Offline Signals
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'main.py'
+      - 'historical_backtest.py'
+      - '.github/workflows/historical-backtest.yml'
   workflow_dispatch:
     inputs:
       days:
