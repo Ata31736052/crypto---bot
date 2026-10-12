@@ -5,7 +5,7 @@
 # Confirmation TF: 30M
 # Higher TF Context: 4H + Daily
 # Binance Spot only | No auto-trading
-# Version: 2026-10-12 v63.14.26 | BOTTOM SCORE CALIBRATION + CONTROLLED EARLY-REVERSAL GATE | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
+# Version: 2026-10-12 v63.14.28 | EARLY ADX RAW-SCORE WIRING FIX | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
 # =========================================================
 
 import os
@@ -33,7 +33,7 @@ TELEGRAM_TEST_ON_START = False
 DRY_RUN = os.getenv("DRY_RUN", "0").strip().lower() in ("1", "true", "yes", "on")
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.27-raw-score-wiring-fix-20261012"
+DEPLOYMENT_ID = "v63.14.28-early-adx-raw-score-wiring-fix-20261012"
 
 
 
@@ -8712,7 +8712,7 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         momentum_components = int(rsi_improving) + int(macd_hist_improving) + int(reversal_energy)
         momentum_improving = momentum_components >= PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS
         # v63.14.17: sub-23 ADX is allowed only with exceptional score, volume and momentum.
-        adx_ok = bottom_hunter_adx_gate_pass(adx, volume, raw_score, momentum_components)
+        adx_ok = bottom_hunter_adx_gate_pass(adx, volume, engine_raw_score, momentum_components)
         if not adx_ok:
             reject.append(f"reversal ADX too weak ({adx:.1f}; standard>={PRO_BOTTOM_MIN_ADX:.1f}, early exception requires ADX>={PRO_BOTTOM_EARLY_ADX_FLOOR:.1f}, volume>={PRO_BOTTOM_EARLY_ADX_MIN_VOLUME:.2f}x, raw_score>={PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE}, momentum>={PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS}/3)")
         elif not momentum_improving:
@@ -9892,6 +9892,22 @@ def run_v63_14_27_raw_score_wiring_self_test():
     return True
 
 
+def run_v63_14_28_early_adx_raw_score_wiring_self_test():
+    """The ADX exception uses engine raw score; final eligibility keeps effective score."""
+    import inspect
+    source = inspect.getsource(professional_signal_quality_gate)
+    assert "adx_ok = bottom_hunter_adx_gate_pass(adx, volume, engine_raw_score, momentum_components)" in source
+    effective_score, engine_raw_score = 88, 95
+    adx, volume, momentum = 19.5, 1.50, 2
+    assert effective_score >= PRO_BOTTOM_MIN_SCORE
+    assert effective_score < PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE
+    assert engine_raw_score >= PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE
+    assert bottom_hunter_adx_gate_pass(adx, volume, engine_raw_score, momentum)
+    assert not bottom_hunter_adx_gate_pass(adx, volume, effective_score, momentum)
+    assert not bottom_hunter_adx_gate_pass(adx, 1.49, engine_raw_score, momentum)
+    return True
+
+
 def run_v63_14_26_early_path_blocker_self_test():
     blockers = bottom_hunter_early_confirmation_blockers(
         "BUY", "1h", 3, 21.23, 0.66, 100, 2
@@ -10504,7 +10520,7 @@ def scan_market():
     try:
         diag_path = "professional_diagnostics.txt"
         with open(diag_path, "w", encoding="utf-8") as fh:
-            fh.write("Crypto Signal Bot v63.14.16 Professional Diagnostics\n")
+            fh.write(f"Crypto Signal Bot {DEPLOYMENT_ID} Professional Diagnostics\n")
             fh.write(f"DEPLOYMENT_ID: {DEPLOYMENT_ID}\n")
             fh.write(f"Professional pass: {safe_int(bd.get('professional_passed'))}\n")
             fh.write(f"Professional reject: {safe_int(bd.get('professional_rejected'))}\n")
@@ -11609,6 +11625,7 @@ if __name__ == "__main__":
     assert run_v63_14_11_analytics_scope_self_test() is True
     assert run_v63_14_14_finalization_metrics_self_test() is True
     assert run_v63_14_27_raw_score_wiring_self_test() is True
+    assert run_v63_14_28_early_adx_raw_score_wiring_self_test() is True
 
     try:
 
