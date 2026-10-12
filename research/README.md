@@ -26,7 +26,7 @@ cannot inflate forward return, MFE, or MAE.
 ## Run
 
 ```bash
-python -m unittest tests/test_closed_candle_timing_audit.py -v
+python -m unittest tests/test_closed_candle_timing_audit.py tests/test_entry_exit_location_audit.py -v
 python research/closed_candle_timing_audit.py \
   --signals signals.csv \
   --candles candles.csv \
@@ -56,3 +56,25 @@ hourly close. Recovery is reported only when it occurs within that horizon.
   score gate, BTC regime input, and diagnostic label before any deployment.
 - The main branch is intentionally unchanged. The workflow in this research
   branch has `DRY_RUN=1` as a safety lock.
+
+## Historical support/resistance and trade-location audit
+
+The separate `research/entry_exit_location_audit.py` module evaluates proposed entry
+location and trade geometry; it is **not connected to the live bot**. It uses only
+confirmed swing highs/lows from candles before the signal candle, excluding the
+signal candle itself from level detection.
+
+For BUY setups it can reject entries too close to overhead historical resistance,
+targets that would sit through resistance, or structurally excessive stop distances.
+For SELL setups it checks the mirrored support/target geometry. It returns explicit
+rejection reasons, obstacle distance in ATR units, structural stop, TP1/TP2, and R:R.
+Defaults require at least 1.5 ATR of room to the nearest obstacle, use a 0.25 ATR
+buffer, and retain the configured 1.8/2.4 R:R targets. These are research defaults
+to evaluate, not a validated profitable configuration.
+
+The test suite includes a BUY near resistance, signal-candle exclusion, targets
+blocked by resistance, SELL near support, and invalid-input cases. Before any
+production integration, replay this gate against historical signals and compare
+candidate acceptance, net returns, MFE/MAE, and TP/SL first-event rates on a
+chronological holdout. Do not relax the existing production filters just to
+increase signal count.
