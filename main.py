@@ -8114,6 +8114,19 @@ def summarize_engine_trace(trace):
         htf[tf] = {'stage': stage, 'reason': reason}
         stage_counts[stage] = stage_counts.get(stage, 0) + 1
     result['higher_tf'] = htf
+
+    # Daily Bottom Hunter is a separate 1D setup + 4H confirmation path.
+    # Keep its outcome visible instead of hiding it in generic reversal/HTF stats.
+    daily = trace.get('daily_bottom_hunter') if isinstance(trace.get('daily_bottom_hunter'), dict) else {}
+    daily_diag = daily.get('diagnostic') if isinstance(daily.get('diagnostic'), dict) else {}
+    daily_stage = str(daily.get('stage') or ('CANDIDATE' if daily.get('candidate') else 'NO_CANDIDATE'))
+    daily_reason = str(daily.get('reason') or 'NO_DAILY_BOTTOM_DIAGNOSTIC')
+    daily_rejections = daily_diag.get('rejection_reasons') or []
+    if daily_stage == 'NO_CANDIDATE' and daily_rejections:
+        daily_reason = ' | '.join(str(x) for x in daily_rejections[:6])
+    result['daily_bottom_hunter'] = {'stage': daily_stage, 'reason': daily_reason}
+    stage_counts[daily_stage] = stage_counts.get(daily_stage, 0) + 1
+
     result['stage_counts'] = stage_counts
     return result
 
@@ -9502,6 +9515,19 @@ def run_v63_14_20_daily_bottom_hunter_self_test():
     assert analytics["ALL"]["signals"] == 1
     assert analytics["BOTTOM_HUNTER"]["signals"] == 1
     assert analytics["SCORE_90_PLUS"]["signals"] == 1
+
+    # Daily Bottom Hunter rejections must be visible in the persisted summary.
+    daily_summary = summarize_engine_trace({
+        "trend": {}, "reversal": {}, "breakout": {},
+        "daily_bottom_hunter": {
+            "candidate": False,
+            "reason": "NO_DAILY_BOTTOM_CANDIDATE",
+            "diagnostic": {"rejection_reasons": ["NOT_NEAR_RECENT_LOW"]},
+        },
+    })
+    assert daily_summary["daily_bottom_hunter"]["stage"] == "NO_CANDIDATE"
+    assert daily_summary["daily_bottom_hunter"]["reason"] == "NOT_NEAR_RECENT_LOW"
+    assert daily_summary["stage_counts"]["NO_CANDIDATE"] >= 1
     return True
 
 
@@ -10138,6 +10164,7 @@ def scan_market():
                 for engine in ('trend','reversal','breakout'):
                     fh.write(f"  {engine.upper()}: {tr.get(engine) or {}}\n")
                 fh.write(f"  HIGHER_TF: {tr.get('higher_tf') or {}}\n")
+                fh.write(f"  DAILY_BOTTOM_HUNTER: {tr.get('daily_bottom_hunter') or {}}\n")
                 fh.write(f"  STAGE_SUMMARY: {summarize_engine_trace(tr)}\n")
                 fh.write("\n")
         log(f"Symbol diagnostics file: {symbol_diag_path}")
