@@ -308,8 +308,10 @@ def generate(args) -> dict:
             else:
                 av = pd.to_numeric(a, errors="coerce").to_numpy(dtype=float)
                 bv = pd.to_numeric(b, errors="coerce").to_numpy(dtype=float)
-                same_nan = pd.Series(av).isna().equals(pd.Series(bv).isna())
-                finite = pd.Series(av).sub(pd.Series(bv)).abs().lt(1e-8).fillna(False).all()
+                sa, sb = pd.Series(av), pd.Series(bv)
+                same_nan = sa.isna().equals(sb.isna())
+                valid = sa.notna() & sb.notna()
+                finite = sa.loc[valid].sub(sb.loc[valid]).abs().lt(1e-8).all()
                 ok = bool(same_nan and finite)
             if not ok:
                 mismatch.append(col)
