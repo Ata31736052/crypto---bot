@@ -43,6 +43,8 @@ jobs:
               'deployment identity exists': 'DEPLOYMENT_ID =' in source,
               'dry-run outcome tracking helper exists': 'def _record_dry_run_signal(signal, history):' in source,
               'legacy outcome backfill helper exists': 'def _outcome_record_needs_historical_repair(record):' in source,
+              'entry extension metrics are stored': '"entry_extension_atr": (' in source and '"ema21_distance_percent": (' in source,
+              'configured late-entry RSI threshold is used': 'rsi >= MAX_LATE_ENTRY_RSI_BUY and extension_atr > 0.65' in source,
               'new diagnostic self-test exists': 'def run_v63_14_11_analytics_scope_self_test():' in source,
               'outcome coverage self-test exists': 'def run_v63_14_14_finalization_metrics_self_test():' in source,
               'missing hourly candles fail closed': 'def _outcome_window_has_complete_candles(' in source,
