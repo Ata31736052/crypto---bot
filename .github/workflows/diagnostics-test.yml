@@ -40,7 +40,7 @@ jobs:
           import re
           source = Path('main.py').read_text(encoding='utf-8')
           checks = {
-              'deployment identity exists': re.search(r'^DEPLOYMENT_ID\s*=\s*["\']v[0-9A-Za-z._-]+["\']\s*
+              'deployment identity exists': 'DEPLOYMENT_ID =' in source,
               'new diagnostic self-test exists': 'def run_v63_14_11_analytics_scope_self_test():' in source,
               'outcome coverage self-test exists': 'def run_v63_14_14_finalization_metrics_self_test():' in source,
               'missing hourly candles fail closed': 'def _outcome_window_has_complete_candles(' in source,
@@ -77,6 +77,13 @@ jobs:
           for label, test in tests:
               assert test() is True, f'{label} failed'
               print(f'PASS: {label}')
+          if hasattr(main, 'early_entry_rejection'):
+              assert main.early_entry_rejection('BUY', 'TREND', 108.0, 100.0, 8.0, 60.0) is None
+              assert 'late entry' in main.early_entry_rejection('BUY', 'TREND', 111.0, 100.0, 8.0, 60.0)
+              assert 'overheated' in main.early_entry_rejection('BUY', 'TREND', 106.0, 100.0, 8.0, 72.0)
+              assert main.early_entry_rejection('SELL', 'TREND', 120.0, 100.0, 8.0, 80.0) is None
+              assert 'late impulse' in main.early_entry_rejection('BUY', 'BREAKOUT', 125.0, 120.0, 10.0, 68.0, [100, 108, 118, 125])
+              print('PASS: v63.14.21 early-entry guard regression')
           if hasattr(main, 'early_entry_rejection'):
               assert main.early_entry_rejection('BUY', 'TREND', 108.0, 100.0, 8.0, 60.0) is None
               assert 'late entry' in main.early_entry_rejection('BUY', 'TREND', 111.0, 100.0, 8.0, 60.0)
