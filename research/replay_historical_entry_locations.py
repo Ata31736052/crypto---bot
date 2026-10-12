@@ -103,7 +103,7 @@ def _signal_candle(entry):
     return {"open": entry, "high": entry, "low": entry, "close": entry}
 
 
-def prior_move_metrics(prior, entry, side):
+def prior_move_metrics(prior, entry, side, atr):
     """Describe how far price had already moved using only closed pre-signal candles."""
     metrics = {}
     side = str(side or "BUY").upper()
@@ -134,7 +134,7 @@ def prior_move_metrics(prior, entry, side):
         obstacle = high - entry if side != "SELL" else entry - low
         metrics[f"range_position_{hours}h_pct"] = position
         metrics[f"directional_progress_{hours}h_pct"] = directional
-        metrics[f"distance_to_directional_obstacle_{hours}h_atr"] = obstacle
+        metrics[f"distance_to_directional_obstacle_{hours}h_atr"] = obstacle / atr if atr and atr > 0 else ""
     progress = metrics.get("directional_progress_72h_pct", "")
     if progress == "":
         metrics["progress_bucket_72h"] = "UNAVAILABLE"
@@ -174,7 +174,7 @@ def analyze_signal(signal, candles, min_room_atr=1.5):
             "status": "ATR_UNAVAILABLE", "closed_candles_before_signal": len(prior),
         }
 
-    move_metrics = prior_move_metrics(prior, entry, str(signal.get("signal", "BUY")).upper())
+    move_metrics = prior_move_metrics(prior, entry, str(signal.get("signal", "BUY")).upper(), atr)
     assessment = assess_trade_location(
         [*prior, _signal_candle(entry)],
         entry=entry,
