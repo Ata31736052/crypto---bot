@@ -75,6 +75,7 @@ jobs:
               "configured late-entry RSI threshold is used": 'rsi >= MAX_LATE_ENTRY_RSI_BUY and extension_atr > 0.65' in source,
               "controlled early-confirmation exception exists": "def bottom_hunter_confirmation_gate_pass(" in source and "PRO_BOTTOM_EARLY_MIN_30M_CONFIRMATIONS = 3" in source,
               "early-path blocker diagnostics are wired": "def bottom_hunter_early_confirmation_blockers(" in source and "EARLY_BLOCKED[" in source,
+              "early confirmation and blocker diagnostics use pre-cap engine raw score": 'adx, volume, engine_raw_score, momentum_components' in source and 'side, signal_tf, confirmations, adx, volume, engine_raw_score, momentum_components' in source,
           }
           for label, ok in checks.items():
               print(f"{'PASS' if ok else 'FAIL'}: {label}")
@@ -111,6 +112,7 @@ jobs:
               ("v63.14.23 legacy outcome backfill", main.run_v63_14_23_legacy_outcome_backfill_self_test),
               ("v63.14.25 controlled early confirmation", main.run_v63_14_25_early_confirmation_exception_self_test),
               ("v63.14.26 early-path blockers", main.run_v63_14_26_early_path_blocker_self_test),
+              ("v63.14.27 raw-score wiring", main.run_v63_14_27_raw_score_wiring_self_test),
           ]
           for label, test in tests:
               assert test() is True, f"{label} failed"
@@ -134,6 +136,7 @@ jobs:
           import main
           assert callable(main.bottom_hunter_early_confirmation_blockers)
           assert main.run_v63_14_26_early_path_blocker_self_test() is True
+          assert main.run_v63_14_27_raw_score_wiring_self_test() is True
           blockers = main.bottom_hunter_early_confirmation_blockers("BUY", "1h", 3, 21.23, 0.66, 100, 2)
           assert "volume<1.50x" in blockers
           assert "raw_score<95" not in blockers
