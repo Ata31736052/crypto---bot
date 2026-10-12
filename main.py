@@ -5,7 +5,7 @@
 # Confirmation TF: 30M
 # Higher TF Context: 4H + Daily
 # Binance Spot only | No auto-trading
-# Version: 2026-10-11 v63.14.18 | BOTTOM SCORE CALIBRATION + CONTROLLED EARLY-REVERSAL GATE | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
+# Version: 2026-10-12 v63.14.22 | BOTTOM SCORE CALIBRATION + CONTROLLED EARLY-REVERSAL GATE | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
 # =========================================================
 
 import os
@@ -33,7 +33,7 @@ TELEGRAM_TEST_ON_START = False
 DRY_RUN = os.getenv("DRY_RUN", "0").strip().lower() in ("1", "true", "yes", "on")
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.21-early-entry-guard-20261012"
+DEPLOYMENT_ID = "v63.14.22-dry-run-outcome-tracking-20261012"
 
 
 
@@ -6539,6 +6539,67 @@ def add_signal_to_history(
     return True
 
 
+def _record_dry_run_signal(signal, history):
+    """Record only fully validated dry-run signals for later outcome measurement.
+
+    These records are explicitly tagged as dry-run and do not mark a signal as
+    sent or mutate the live duplicate-suppression state.
+    """
+    if not isinstance(signal, dict) or not isinstance(history, list):
+        return False
+    if str(signal.get("delivery_diagnostic_status", "")) != "READY_BUT_SUPPRESSED_DRY_RUN":
+        return False
+    symbol = str(signal.get("symbol", "")).upper()
+    side = str(signal.get("signal", "")).upper()
+    timeframe = str(signal.get("signal_timeframe", TIMEFRAME_MAIN)).lower()
+    candle_time = str(signal.get("candle_time", ""))
+    if not symbol or side not in ("BUY", "SELL") or not candle_time:
+        return False
+
+    for record in reversed(history):
+        if not isinstance(record, dict):
+            continue
+        if (
+            str(record.get("symbol", "")).upper() == symbol
+            and str(record.get("signal", "")).upper() == side
+            and str(record.get("signal_timeframe", TIMEFRAME_MAIN)).lower() == timeframe
+            and str(record.get("candle_time", "")) == candle_time
+            and record.get("validation_mode") == "DRY_RUN"
+        ):
+            return False
+
+    if not add_signal_to_history(signal, history):
+        return False
+    record = history[-1]
+    record["validation_mode"] = "DRY_RUN"
+    record["delivery_suppressed"] = True
+    record["delivery_diagnostic_status"] = "READY_BUT_SUPPRESSED_DRY_RUN"
+    return True
+
+
+def run_v63_14_22_dry_run_outcome_recording_self_test():
+    sample = {
+        "symbol": "TESTUSDT", "signal": "BUY", "signal_mode": "TREND",
+        "signal_timeframe": "1h", "candle_time": "2026-10-12T10:00:00+00:00",
+        "entry": 100.0, "price": 100.0, "score": 95,
+        "delivery_diagnostic_status": "READY_BUT_SUPPRESSED_DRY_RUN",
+    }
+    history = []
+    assert _record_dry_run_signal(sample, history) is True
+    assert len(history) == 1
+    assert history[0]["validation_mode"] == "DRY_RUN"
+    assert history[0]["delivery_suppressed"] is True
+    assert history[0]["outcome_status"] == "OPEN"
+    assert _record_dry_run_signal(sample, history) is False
+    assert len(history) == 1
+    rejected = dict(sample, symbol="REJECTED", delivery_diagnostic_status="BLOCKED_SIGNAL_QUALITY")
+    assert _record_dry_run_signal(rejected, history) is False
+    daily = dict(sample, symbol="DAILY", signal_timeframe="1d", candle_time="2026-10-11T00:00:00+00:00")
+    assert _record_dry_run_signal(daily, history) is True
+    assert history[-1]["outcome_status"] == "EXCLUDED_TIMEFRAME"
+    return True
+
+
 # =========================================================
 # PROCESS NEW SIGNAL
 # =========================================================
@@ -6620,6 +6681,14 @@ def process_signal(
         tf_label = "4H" if signal_mode == "4H_SIGNAL" or signal_tf == "4h" else ("DAILY" if signal_mode == "DAILY_SIGNAL" or signal_tf == "1d" else "1H")
         diagnostic_status = str(signal.get("delivery_diagnostic_status", "DELIVERY_FAILED_OR_UNCLASSIFIED"))
         diagnostic_reason = str(signal.get("delivery_diagnostic_reason", "no specific delivery diagnostic was recorded"))
+        if DRY_RUN and diagnostic_status == "READY_BUT_SUPPRESSED_DRY_RUN":
+            if _record_dry_run_signal(signal, history):
+                save_signal_history(history)
+                log(
+                    f"DRY_RUN outcome sample recorded: {signal.get('symbol')} "
+                    f"{signal.get('signal')} candle={signal.get('candle_time')}; "
+                    "no Telegram message sent"
+                )
         log(
             f"Signal not sent: {signal.get('symbol')} TF={tf_label} "
             f"Mode={signal_mode} Status={diagnostic_status} Reason={diagnostic_reason}"
@@ -9344,7 +9413,7 @@ def run_v63_14_3_outcome_boundary_self_test():
         },
     }
     assert _has_complete_outcome_horizons(complete_v57)
-    assert DEPLOYMENT_ID == "v63.14.21-early-entry-guard-20261012"
+    assert DEPLOYMENT_ID == "v63.14.22-dry-run-outcome-tracking-20261012"
 
     # v63.14.21: reject stretched BUY entries, but do not reject early/neutral
     # starts or apply the BUY timing rule to SELL signals.
@@ -9381,7 +9450,7 @@ def run_v63_14_3_outcome_boundary_self_test():
     assert any("reversal ADX too weak" in reason for reason in reject_reasons)
     assert any("reversal volume below professional minimum" in reason for reason in reject_reasons)
     assert any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
-    assert DEPLOYMENT_ID == "v63.14.21-early-entry-guard-20261012"
+    assert DEPLOYMENT_ID == "v63.14.22-dry-run-outcome-tracking-20261012"
     return True
 
 
@@ -9405,7 +9474,7 @@ def run_v63_14_8_confirmation_diagnostic_self_test():
     assert format_confirmation_diagnostic({
         "confirmations_30m": 3, "required_30m": 6,
     }) == "30M=3 (required >= 6)"
-    assert DEPLOYMENT_ID == "v63.14.21-early-entry-guard-20261012"
+    assert DEPLOYMENT_ID == "v63.14.22-dry-run-outcome-tracking-20261012"
     return True
 
 
@@ -9478,7 +9547,7 @@ def run_v63_14_7_final_gate_consistency_self_test():
     assert PRO_MIN_1H_ADX == 23.0
     assert PRO_MIN_VOLUME_RATIO == 1.35
     assert PRO_BOTTOM_MIN_30M_CONFIRMATIONS == 6
-    assert DEPLOYMENT_ID == "v63.14.21-early-entry-guard-20261012"
+    assert DEPLOYMENT_ID == "v63.14.22-dry-run-outcome-tracking-20261012"
     return True
 
 
@@ -9493,7 +9562,7 @@ def run_v63_14_2_bottom_rsi_self_test():
     assert BOTTOM_RSI_MIN <= 23 <= BOTTOM_RSI_MAX
     assert not (BOTTOM_RSI_MIN <= 19 <= BOTTOM_RSI_MAX)
     assert not (BOTTOM_RSI_MIN <= 45 <= BOTTOM_RSI_MAX)
-    assert DEPLOYMENT_ID == "v63.14.21-early-entry-guard-20261012"
+    assert DEPLOYMENT_ID == "v63.14.22-dry-run-outcome-tracking-20261012"
     return True
 
 
@@ -9685,7 +9754,7 @@ def run_v63_14_16_bottom_rejection_diagnostic_self_test():
     assert PRO_BOTTOM_MIN_SCORE == 85
     assert PRO_BOTTOM_MIN_ADX == 23.0
     assert PRO_BOTTOM_MIN_VOLUME_RATIO == 1.35
-    assert DEPLOYMENT_ID == "v63.14.21-early-entry-guard-20261012"
+    assert DEPLOYMENT_ID == "v63.14.22-dry-run-outcome-tracking-20261012"
     assert run_v63_14_17_early_reversal_gate_self_test() is True
     return True
 
