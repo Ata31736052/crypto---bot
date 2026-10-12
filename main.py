@@ -33,7 +33,7 @@ TELEGRAM_TEST_ON_START = False
 DRY_RUN = os.getenv("DRY_RUN", "0").strip().lower() in ("1", "true", "yes", "on")
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.18-bottom-score-calibration-20261011"
+DEPLOYMENT_ID = "v63.14.19-daily-bottom-hunter-20261012"
 
 
 
@@ -49,6 +49,7 @@ TIMEFRAME_DAILY = "1d"
 # Separate higher-timeframe signals
 ENABLE_4H_SIGNALS = True
 ENABLE_DAILY_SIGNALS = True
+ENABLE_DAILY_BOTTOM_HUNTER = True
 HIGHER_TF_MIN_SCORE = 90
 HIGHER_TF_STRONG_SCORE = 95
 
@@ -7717,8 +7718,8 @@ def log_scan_progress(
 # PREPARE ONE SYMBOL
 # =========================================================
 
-def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_context=None):
-    """Separate 1H early-reversal scanner; never claims the exact bottom.
+def score_bottom_hunter(df_primary, df_confirm, btc_regime=None, diagnostic=None, mtf_context=None, signal_timeframe="1h"):
+    """Timeframe-aware early-reversal scanner; never claims the exact bottom.
 
     When ``diagnostic`` is supplied, this function records the stage at which
     a Bottom Hunter setup is filtered out. Qualification logic is unchanged.
@@ -7733,14 +7734,14 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
             if reason not in reasons:
                 reasons.append(reason)
 
-    if df_1h is None or df_30m is None or len(df_1h) < 80 or len(df_30m) < 30:
+    if df_primary is None or df_confirm is None or len(df_primary) < 80 or len(df_confirm) < 30:
         dmark("insufficient_data")
         dreject("INSUFFICIENT_DATA")
         return None
     dmark("data_ready")
 
-    row = df_1h.iloc[-1]
-    prev = df_1h.iloc[-2]
+    row = df_primary.iloc[-1]
+    prev = df_primary.iloc[-2]
     close = safe_float(row.get("close"))
     rsi = safe_float(row.get("rsi"))
     prev_rsi = safe_float(prev.get("rsi"))
@@ -7758,8 +7759,8 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
     prev_hist = safe_float(prev.get("macd_hist"))
     vol = safe_float(row.get("volume_ratio"))
 
-    low_n = safe_float(df_1h["low"].iloc[-BOTTOM_LOOKBACK:].min())
-    high_n = safe_float(df_1h["high"].iloc[-BOTTOM_LOOKBACK:].max())
+    low_n = safe_float(df_primary["low"].iloc[-BOTTOM_LOOKBACK:].min())
+    high_n = safe_float(df_primary["high"].iloc[-BOTTOM_LOOKBACK:].max())
     if low_n <= 0 or high_n <= 0:
         dmark("invalid_range")
         dreject("INVALID_RECENT_RANGE")
@@ -7780,7 +7781,7 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
         abs(close / fib786 - 1) * 100 if fib786 > 0 else 999
     )
 
-    divergence = analyze_divergence(df_1h)
+    divergence = analyze_divergence(df_primary)
     bullish_rsi_div = bool(divergence.get("bullish_rsi", False))
     bullish_macd_div = bool(divergence.get("bullish_macd", False))
 
@@ -7795,7 +7796,7 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
 
     if dist_low <= BOTTOM_NEAR_LOW_PERCENT:
         score += 20
-        reasons.append(f"Near {BOTTOM_LOOKBACK}H low ({dist_low:.2f}% above)")
+        reasons.append(f"Near {BOTTOM_LOOKBACK}{'D' if str(signal_timeframe).lower() == '1d' else 'H'} low ({dist_low:.2f}% above)")
     elif dist_low <= 7:
         score += 12
         reasons.append(f"Close to recent low ({dist_low:.2f}% above)")
@@ -7855,15 +7856,15 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
     if safe_float(row.get("close")) > safe_float(row.get("open")):
         score += 6
         reversal = True
-        reasons.append("Bullish 1H candle")
+        reasons.append(f"Bullish {'Daily' if str(signal_timeframe).lower() == '1d' else '1H'} candle")
 
     if close > safe_float(prev.get("close")):
         score += 4
         reversal = True
         reasons.append("Price reclaimed previous close")
 
-    c = df_30m.iloc[-1]
-    cp = df_30m.iloc[-2]
+    c = df_confirm.iloc[-1]
+    cp = df_confirm.iloc[-2]
     cr = safe_float(c.get("rsi"))
     cm = safe_float(c.get("macd"))
     cs = safe_float(c.get("macd_signal"))
@@ -7879,7 +7880,7 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
     if confirm >= 5:
         score += min(confirm, 10)
         reversal = True
-        reasons.append("30M reversal confirmation")
+        reasons.append(f"{'4H' if str(signal_timeframe).lower() == '1d' else '30M'} reversal confirmation")
         dmark("confirm_30m")
     else:
         dmark("no_confirm_30m")
@@ -7987,6 +7988,7 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
         "raw_score": raw_score,
         "signal": "BUY",
         "signal_mode": "BOTTOM_HUNTER",
+        "signal_timeframe": str(signal_timeframe).lower(),
         "strength": "EARLY REVERSAL",
         "price": close,
         "rsi": rsi,
@@ -8008,6 +8010,7 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
         "mtf_adjustment": mtf_adjustment,
         "reasons": reasons,
         "candle_time": str(row.get("open_time")),
+        "bottom_primary_timeframe": str(signal_timeframe).lower(),
         "bottom_warning": "Early reversal setup; exact bottom is not confirmed."
     }
 
@@ -8366,7 +8369,12 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         confirm_df = data.get("1h")
         confirmation_tf_label = "1H"
         context_frames = (dfd,)
-    elif mode == "DAILY_SIGNAL" or signal_tf == "1d":
+    elif mode == "DAILY_SIGNAL" or (signal_tf == "1d" and mode != "BOTTOM_HUNTER"):
+        df1 = dfd
+        confirm_df = df4
+        confirmation_tf_label = "4H"
+        context_frames = (df4,)
+    elif mode == "BOTTOM_HUNTER" and signal_tf == "1d":
         df1 = dfd
         confirm_df = df4
         confirmation_tf_label = "4H"
@@ -8544,7 +8552,7 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         confirm = {}
     confirmations = safe_int(confirm.get("confirmations", 0))
     required_confirmations = PRO_SELL_MIN_30M_CONFIRMATIONS if side == "SELL" and mode != "BOTTOM_HUNTER" else PRO_MIN_30M_CONFIRMATIONS
-    if mode in ("4H_SIGNAL", "DAILY_SIGNAL"):
+    if mode in ("4H_SIGNAL", "DAILY_SIGNAL") or (mode == "BOTTOM_HUNTER" and signal_tf == "1d"):
         # HTF setup gets a directional lower-timeframe confirmation, but does
         # not inherit the main 1H/30M gate as if it were a 1H signal.
         if not confirm.get("confirmed"):
@@ -8671,8 +8679,8 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     ledger["Bollinger_location"] = _diag_item(1 if bb_ok else 0, 1, "PASS" if bb_ok else "FAIL")
     conf_required = PRO_BOTTOM_MIN_30M_CONFIRMATIONS if mode == "BOTTOM_HUNTER" else required_confirmations
     conf_ok = bool(confirm.get("confirmed")) and confirmations >= conf_required
-    if mode in ("4H_SIGNAL", "DAILY_SIGNAL"):
-        conf_ok = bool(confirm.get("confirmed"))
+    if mode in ("4H_SIGNAL", "DAILY_SIGNAL") or (mode == "BOTTOM_HUNTER" and signal_tf == "1d"):
+        conf_ok = bool(confirm.get("confirmed")) and (mode != "BOTTOM_HUNTER" or confirmations >= PRO_BOTTOM_MIN_30M_CONFIRMATIONS)
     confirmation_ledger_key = f"{confirmation_tf_label}_confirmation"
     ledger[confirmation_ledger_key] = _diag_item(3 if conf_ok else 0, 3, "PASS" if conf_ok else "FAIL", confirmations, f">={conf_required}")
     ledger["HTF_alignment"] = _diag_item(3 if htf_align >= 2 else (2 if htf_align == 1 else 0), 3, "PASS" if htf_align >= required_htf else "FAIL", htf_align, f">={required_htf}")
@@ -8972,6 +8980,43 @@ def analyze_one_symbol(symbol, btc_regime):
                         bottom_diagnostic["professional_passed"] = safe_int(bottom_diagnostic.get("professional_passed", 0)) + 1
                         bottom_signal["professional_quality_score"] = quality_score
 
+        # Daily Bottom Hunter: daily reversal setup confirmed on 4H candles.
+        # It uses the existing professional and risk gates; no thresholds are relaxed.
+        daily_bottom_signal_to_return = None
+        daily_bottom_diagnostic = {}
+        if ENABLE_DAILY_BOTTOM_HUNTER and data.get("1d") is not None and data.get("4h") is not None:
+            daily_bottom_signal = score_bottom_hunter(
+                data.get("1d"), data.get("4h"), btc_regime,
+                diagnostic=daily_bottom_diagnostic, mtf_context=mtf_context,
+                signal_timeframe="1d"
+            )
+            trace["daily_bottom_hunter"] = {
+                "candidate": bool(daily_bottom_signal),
+                "diagnostic": dict(daily_bottom_diagnostic),
+                "reason": "DAILY_BOTTOM_CANDIDATE" if daily_bottom_signal else "NO_DAILY_BOTTOM_CANDIDATE"
+            }
+            if daily_bottom_signal:
+                daily_bottom_signal["symbol"] = symbol
+                daily_bottom_signal["engine"] = "REVERSAL_DAILY"
+                daily_bottom_signal = attach_trade_levels(daily_bottom_signal)
+                if validate_risk_levels(daily_bottom_signal):
+                    daily_passed, daily_reasons, daily_quality_score = professional_signal_quality_gate(
+                        daily_bottom_signal, data, btc_regime
+                    )
+                    if daily_passed and _validate_selected_engine_signal(daily_bottom_signal)[0]:
+                        daily_bottom_signal["professional_quality_score"] = daily_quality_score
+                        daily_bottom_signal_to_return = daily_bottom_signal
+                        trace["daily_bottom_hunter"].update({"stage": "ACCEPTED", "reason": "PASSED_RISK_AND_PROFESSIONAL_GATES"})
+                    else:
+                        p = daily_bottom_signal.get("professional_quality_breakdown", {})
+                        daily_rejects = (p.get("reject_reasons", []) if isinstance(p, dict) else []) or daily_reasons or ["DAILY_BOTTOM_GATE_REJECT"]
+                        trace["daily_bottom_hunter"].update({"stage": "PROFESSIONAL_REJECT", "reason": " | ".join(str(x) for x in daily_rejects[:6])})
+                else:
+                    trace["daily_bottom_hunter"].update({
+                        "stage": "RISK_REJECT",
+                        "reason": str(daily_bottom_signal.get("risk_reject_reason") or "DAILY_BOTTOM_RISK_REJECT")
+                    })
+
         breakout = score_breakout_1h(df_1h, df_30m, "BUY")
         breakout_sell = score_breakout_1h(df_1h, df_30m, "SELL")
         if breakout_sell.get("score",0) > breakout.get("score",0):
@@ -9027,6 +9072,8 @@ def analyze_one_symbol(symbol, btc_regime):
             _log_selected_engine_diagnostic(selected)
 
         higher_signals = []
+        if daily_bottom_signal_to_return:
+            higher_signals.append(daily_bottom_signal_to_return)
         if ENABLE_4H_SIGNALS:
             sig_4h = analyze_higher_timeframe_signal(symbol, data, "4h", btc_regime)
             htf_trace = (data.get("_higher_tf_diagnostic", {}) or {}).get("4h", {})
@@ -9156,7 +9203,7 @@ def run_v63_14_3_outcome_boundary_self_test():
         },
     }
     assert _has_complete_outcome_horizons(complete_v57)
-    assert DEPLOYMENT_ID == "v63.14.18-bottom-score-calibration-20261011"
+    assert DEPLOYMENT_ID == "v63.14.19-daily-bottom-hunter-20261012"
 
     # Low score must not suppress other rejection reasons in diagnostics.
     row = {
@@ -9184,7 +9231,7 @@ def run_v63_14_3_outcome_boundary_self_test():
     assert any("reversal ADX too weak" in reason for reason in reject_reasons)
     assert any("reversal volume below professional minimum" in reason for reason in reject_reasons)
     assert any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
-    assert DEPLOYMENT_ID == "v63.14.18-bottom-score-calibration-20261011"
+    assert DEPLOYMENT_ID == "v63.14.19-daily-bottom-hunter-20261012"
     return True
 
 
@@ -9208,7 +9255,7 @@ def run_v63_14_8_confirmation_diagnostic_self_test():
     assert format_confirmation_diagnostic({
         "confirmations_30m": 3, "required_30m": 6,
     }) == "30M=3 (required >= 6)"
-    assert DEPLOYMENT_ID == "v63.14.18-bottom-score-calibration-20261011"
+    assert DEPLOYMENT_ID == "v63.14.19-daily-bottom-hunter-20261012"
     return True
 
 
@@ -9281,7 +9328,7 @@ def run_v63_14_7_final_gate_consistency_self_test():
     assert PRO_MIN_1H_ADX == 23.0
     assert PRO_MIN_VOLUME_RATIO == 1.35
     assert PRO_BOTTOM_MIN_30M_CONFIRMATIONS == 6
-    assert DEPLOYMENT_ID == "v63.14.18-bottom-score-calibration-20261011"
+    assert DEPLOYMENT_ID == "v63.14.19-daily-bottom-hunter-20261012"
     return True
 
 
@@ -9296,7 +9343,7 @@ def run_v63_14_2_bottom_rsi_self_test():
     assert BOTTOM_RSI_MIN <= 23 <= BOTTOM_RSI_MAX
     assert not (BOTTOM_RSI_MIN <= 19 <= BOTTOM_RSI_MAX)
     assert not (BOTTOM_RSI_MIN <= 45 <= BOTTOM_RSI_MAX)
-    assert DEPLOYMENT_ID == "v63.14.18-bottom-score-calibration-20261011"
+    assert DEPLOYMENT_ID == "v63.14.19-daily-bottom-hunter-20261012"
     return True
 
 
@@ -9401,7 +9448,7 @@ def run_v63_14_16_bottom_rejection_diagnostic_self_test():
     assert PRO_BOTTOM_MIN_SCORE == 85
     assert PRO_BOTTOM_MIN_ADX == 23.0
     assert PRO_BOTTOM_MIN_VOLUME_RATIO == 1.35
-    assert DEPLOYMENT_ID == "v63.14.18-bottom-score-calibration-20261011"
+    assert DEPLOYMENT_ID == "v63.14.19-daily-bottom-hunter-20261012"
     assert run_v63_14_17_early_reversal_gate_self_test() is True
     return True
 
