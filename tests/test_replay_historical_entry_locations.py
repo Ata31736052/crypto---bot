@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from research.replay_historical_entry_locations import analyze_signal, classify_setup, atr_from_closed_candles, policy_accepts, prior_move_metrics
+from research.replay_historical_entry_locations import analyze_signal, classify_setup, atr_from_closed_candles, policy_accepts, prior_move_metrics, simulate_pullback_reentry
 
 
 def sample_candles(count=80):
@@ -121,6 +121,46 @@ class HistoricalLocationReplayTests(unittest.TestCase):
         self.assertLess(result["close_return_1h_pct"], 0)
         self.assertLess(result["mfe_1h_pct"], 0)
         self.assertLess(result["mae_1h_pct"], 0)
+
+    def test_pullback_reclaim_requires_pullback_then_later_reclaim(self):
+        candles = sample_candles(80)
+        signal_time = candles[60]["open_time"] + timedelta(minutes=30)
+        for idx in range(61, 80):
+            close = 100.0
+            candles[idx]["open"] = close
+            candles[idx]["close"] = close
+            candles[idx]["high"] = 101.0
+            candles[idx]["low"] = 99.5
+        candles[61]["low"] = 96.0  # 0.5 ATR pullback
+        candles[62]["close"] = 100.5  # reclaim only after pullback candle
+        candles[62]["high"] = 101.0
+        base = analyze_signal({
+            "symbol": "TEST", "signal": "BUY", "timestamp": signal_time.isoformat(),
+            "entry": 100.0, "reasons": ["EMA9 > EMA21"],
+        }, candles)
+        result = simulate_pullback_reentry({
+            "symbol": "TEST", "signal": "BUY", "timestamp": signal_time.isoformat(),
+            "entry": 100.0, "reasons": ["EMA9 > EMA21"],
+        }, candles, base)
+        self.assertEqual(result["pullback_status"], "ENTERED_AFTER_PULLBACK_RECLAIM")
+        self.assertGreaterEqual(result["pullback_entry"], 100.0)
+        self.assertEqual(result["pullback_entry_time"], candles[62]["close_time"].isoformat())
+
+    def test_pullback_reclaim_reports_no_pullback(self):
+        candles = sample_candles(80)
+        signal_time = candles[60]["open_time"] + timedelta(minutes=30)
+        for idx in range(61, 80):
+            candles[idx]["open"] = 100.0
+            candles[idx]["close"] = 101.0
+            candles[idx]["high"] = 102.0
+            candles[idx]["low"] = 100.0
+        signal = {
+            "symbol": "TEST", "signal": "BUY", "timestamp": signal_time.isoformat(),
+            "entry": 100.0, "reasons": ["EMA9 > EMA21"],
+        }
+        base = analyze_signal(signal, candles)
+        result = simulate_pullback_reentry(signal, candles, base)
+        self.assertEqual(result["pullback_status"], "NO_PULLBACK_WITHIN_WAIT")
 
     def test_invalid_entry_fails_closed(self):
         result = analyze_signal({
