@@ -98,7 +98,7 @@ For Bottom Hunter, the early-third group looked materially better than the late-
 ## Stage 2: Trend-only late-move exclusion vs pullback/reclaim
 
 Research run: [workflow #269](https://github.com/Ata31736052/crypto---bot/actions/runs/38260704784)  
-[Replay CSV artifact](https://github.com/Ata31736052/crypto---bot/actions/runs/38260704784/artifacts/11752094643)
+[Replay CSV artifact](https://github.com/Ata31736052/crypto---bot/actions/runs/38260704784/artifacts/11751429499)
 
 The comparison was pre-declared as a research diagnostic, not a production policy. It uses the same 94 Trend and 30 Bottom Hunter events in the chronological holdout. Cost sensitivities subtract either 0.2% or 0.4% from each gross directional return; these are assumptions, not measured fees/slippage for a specific account or exchange execution.
 
