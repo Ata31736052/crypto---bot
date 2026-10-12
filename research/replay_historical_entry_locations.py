@@ -179,6 +179,10 @@ def policy_accepts(row, policy):
     if policy == "STRICT_1P5_ATR_BOTH_TARGETS":
         return bool(row.get("location_gate_accepted"))
     reasons = set(filter(None, str(row.get("rejection_reasons", "")).split(";")))
+    # The stored reasons were generated with the strict 1.5 ATR threshold;
+    # candidate policies apply their own numeric room threshold below.
+    reasons.discard("BUY_TOO_CLOSE_TO_HISTORICAL_RESISTANCE")
+    reasons.discard("SELL_TOO_CLOSE_TO_HISTORICAL_SUPPORT")
     if "STRUCTURAL_STOP_TOO_WIDE" in reasons:
         return False
     if "TP1_BLOCKED_BY_RESISTANCE" in reasons or "TP1_BLOCKED_BY_SUPPORT" in reasons:
