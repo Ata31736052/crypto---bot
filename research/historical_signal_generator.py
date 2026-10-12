@@ -324,35 +324,37 @@ def generate(args) -> dict:
     # point. This catches accidental future-dependent indicator columns.
     prefix_checks = []
     for sym in all_symbols:
-        frame = raw.get(sym, {}).get("1h")
-        if frame is None or len(frame) < 220:
-            continue
-        cut = max(200, min(len(frame) - 2, len(frame) // 2))
-        source = frame[["open_time", "close_time", "open", "high", "low", "close", "volume"]].copy()
-        prefix = add_causal_indicators(source.iloc[:cut].copy())
-        full = add_causal_indicators(source.copy()).iloc[:cut].reset_index(drop=True)
-        prefix = prefix.reset_index(drop=True)
-        cols = [c for c in prefix.columns if c in full.columns and
-                (pd.api.types.is_numeric_dtype(prefix[c]) or pd.api.types.is_bool_dtype(prefix[c]))]
-        mismatch = []
-        for col in cols:
-            a = prefix[col]
-            b = full[col]
-            if pd.api.types.is_bool_dtype(a) or pd.api.types.is_bool_dtype(b):
-                ok = a.fillna(False).equals(b.fillna(False))
-            else:
-                av = pd.to_numeric(a, errors="coerce").to_numpy(dtype=float)
-                bv = pd.to_numeric(b, errors="coerce").to_numpy(dtype=float)
-                sa, sb = pd.Series(av), pd.Series(bv)
-                same_nan = sa.isna().equals(sb.isna())
-                valid = sa.notna() & sb.notna()
-                finite = sa.loc[valid].sub(sb.loc[valid]).abs().lt(1e-8).all()
-                ok = bool(same_nan and finite)
-            if not ok:
-                mismatch.append(col)
-        prefix_checks.append({"symbol": sym, "cut_index": cut, "mismatch_columns": mismatch})
-        if mismatch:
-            raise RuntimeError(f"Indicator prefix invariance failed for {sym}: {mismatch[:8]}")
+        for tf in TIMEFRAMES:
+            frame = raw.get(sym, {}).get(tf)
+            if frame is None or len(frame) < 220:
+                continue
+            cut = max(200, min(len(frame) - 2, len(frame) // 2))
+            source = frame[["open_time", "close_time", "open", "high", "low", "close", "volume"]].copy()
+            prefix = add_causal_indicators(source.iloc[:cut].copy())
+            full = add_causal_indicators(source.copy()).iloc[:cut].reset_index(drop=True)
+            prefix = prefix.reset_index(drop=True)
+            cols = [c for c in prefix.columns if c in full.columns and
+                    (pd.api.types.is_numeric_dtype(prefix[c]) or pd.api.types.is_bool_dtype(prefix[c]))]
+            mismatch = []
+            for col in cols:
+                a = prefix[col]
+                b = full[col]
+                if pd.api.types.is_bool_dtype(a) or pd.api.types.is_bool_dtype(b):
+                    ok = a.fillna(False).equals(b.fillna(False))
+                else:
+                    av = pd.to_numeric(a, errors="coerce").to_numpy(dtype=float)
+                    bv = pd.to_numeric(b, errors="coerce").to_numpy(dtype=float)
+                    sa, sb = pd.Series(av), pd.Series(bv)
+                    same_nan = sa.isna().equals(sb.isna())
+                    valid = sa.notna() & sb.notna()
+                    finite = sa.loc[valid].sub(sb.loc[valid]).abs().lt(1e-8).all()
+                    ok = bool(same_nan and finite)
+                if not ok:
+                    mismatch.append(col)
+            prefix_checks.append({"symbol": sym, "timeframe": tf, "cut_index": cut,
+                                  "mismatch_columns": mismatch})
+            if mismatch:
+                raise RuntimeError(f"Indicator prefix invariance failed for {sym} {tf}: {mismatch[:8]}")
     coverage["indicator_prefix_checks"] = prefix_checks
     if not prefix_checks:
         raise RuntimeError("No symbol had enough candles for an indicator prefix check")
