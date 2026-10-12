@@ -5,7 +5,7 @@
 # Confirmation TF: 30M
 # Higher TF Context: 4H + Daily
 # Binance Spot only | No auto-trading
-# Version: 2026-10-10 v63.14.13 | OUTCOME CANDLE-COVERAGE GATE | SCORE-GRADE SEMANTICS | NO THRESHOLD RELAXATION | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
+# Version: v63.14.16 | HISTORICAL ENTRY-LOCATION GUARD | NO THRESHOLD RELAXATION | CLOSED-CANDLE ONLY | Binance Spot Only
 # =========================================================
 
 import os
@@ -34,7 +34,7 @@ TELEGRAM_TEST_ON_START = False
 DRY_RUN = os.getenv("DRY_RUN", "0").strip().lower() in ("1", "true", "yes", "on")
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.15-extended-history-outcome-repair-20261010"
+DEPLOYMENT_ID = "v63.14.16-entry-location-guard-20261012"
 
 
 
