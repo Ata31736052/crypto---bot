@@ -78,6 +78,13 @@ class ClosedCandleAuditTests(unittest.TestCase):
         btc = next(r for r in rows if r["symbol"] == "BTCUSDT")
         self.assertEqual(btc["recovery_to_entry_hours"], 2)
 
+    def test_recovery_after_horizon_is_not_counted(self):
+        rows = evaluate(self.signals, self.candles, horizons=(1, 2), fee_bps_per_side=0, slippage_bps_per_side=0)
+        btc_1h = next(r for r in rows if r["symbol"] == "BTCUSDT" and r["horizon_hours"] == 1)
+        btc_2h = next(r for r in rows if r["symbol"] == "BTCUSDT" and r["horizon_hours"] == 2)
+        self.assertIsNone(btc_1h["recovery_to_entry_hours"])
+        self.assertEqual(btc_2h["recovery_to_entry_hours"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()
