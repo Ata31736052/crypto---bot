@@ -6394,6 +6394,26 @@ def mark_signal_sent(
 # ADD SIGNAL TO HISTORY
 # =========================================================
 
+def _is_hourly_outcome_eligible(signal):
+    """Keep the existing 1H outcome tracker isolated from 4H/1D signals.
+
+    Legacy records with no timeframe metadata remain eligible unless their
+    engine/mode explicitly identifies a non-hourly signal.
+    """
+    if not isinstance(signal, dict):
+        return False
+    mode = str(signal.get("signal_mode", "")).strip().upper()
+    engine = str(signal.get("engine", "")).strip().upper()
+    timeframe = str(signal.get("signal_timeframe", "")).strip().lower()
+    if engine == "REVERSAL_DAILY":
+        return False
+    if mode in ("DAILY_SIGNAL", "4H_SIGNAL"):
+        return False
+    if timeframe in ("1d", "1day", "daily", "d", "4h", "4hour", "4hours", "240m"):
+        return False
+    return True
+
+
 def add_signal_to_history(
     signal,
     history
@@ -6483,7 +6503,13 @@ def add_signal_to_history(
             "btc_regime",
             "UNKNOWN"
         ),
-        
+
+        # Preserve signal provenance so the hourly-only outcome tracker can
+        # exclude non-hourly records on this and future scans.
+        "signal_mode": signal.get("signal_mode", "TREND"),
+        "engine": signal.get("engine", ""),
+        "signal_timeframe": signal.get("signal_timeframe", TIMEFRAME_MAIN),
+        "outcome_tracking_excluded": not _is_hourly_outcome_eligible(signal),
 
         "candle_time": signal.get(
             "candle_time"
@@ -6491,7 +6517,7 @@ def add_signal_to_history(
 
         # Outcome tracker fields. These are filled by future scans and do
         # not affect signal generation or Telegram delivery.
-        "outcome_status": "OPEN",
+        "outcome_status": "EXCLUDED_TIMEFRAME" if not _is_hourly_outcome_eligible(signal) else "OPEN",
         "outcome_created_at": now_iran().isoformat(),
         "horizons": {},
         "first_event": None,
@@ -6955,6 +6981,10 @@ def _update_signal_outcome_record(record, df, now_utc):
     """
     if not isinstance(record, dict):
         return False
+    if record.get("outcome_tracking_excluded") or not _is_hourly_outcome_eligible(record):
+        record["outcome_tracking_excluded"] = True
+        record["outcome_status"] = "EXCLUDED_TIMEFRAME"
+        return False
     df = _normalize_outcome_dataframe(df)
     if df is None:
         return False
@@ -7278,7 +7308,10 @@ def summarize_outcome_history_coverage(history):
     """Count tracked records separately from the FINAL-only performance sample."""
     valid = [
         r for r in (history if isinstance(history, list) else [])
-        if isinstance(r, dict) and str(r.get("signal", "")).upper() in ("BUY", "SELL")
+        if isinstance(r, dict)
+        and str(r.get("signal", "")).upper() in ("BUY", "SELL")
+        and not r.get("outcome_tracking_excluded")
+        and _is_hourly_outcome_eligible(r)
     ]
     finalized = sum(1 for r in valid if str(r.get("outcome_status", "OPEN")).upper() == "FINAL")
     return {"tracked": len(valid), "finalized": finalized, "open": len(valid) - finalized}
@@ -7399,7 +7432,10 @@ def build_outcome_analytics(history):
     """Build descriptive analytics by mode, score band, and direction."""
     finalized = [
         r for r in history
-        if isinstance(r, dict) and str(r.get("outcome_status", "OPEN")).upper() == "FINAL"
+        if isinstance(r, dict)
+        and str(r.get("outcome_status", "OPEN")).upper() == "FINAL"
+        and not r.get("outcome_tracking_excluded")
+        and _is_hourly_outcome_eligible(r)
     ]
     groups = {
         "ALL": finalized,
@@ -7529,6 +7565,12 @@ def update_signal_outcomes(history):
         if not isinstance(record, dict):
             continue
         if str(record.get("signal", "")).upper() not in ("BUY", "SELL"):
+            continue
+        if record.get("outcome_tracking_excluded") or not _is_hourly_outcome_eligible(record):
+            record["outcome_tracking_excluded"] = True
+            if str(record.get("outcome_status", "")).upper() != "EXCLUDED_TIMEFRAME":
+                record["outcome_status"] = "EXCLUDED_TIMEFRAME"
+                changed += 1
             continue
         version = safe_int(record.get("outcome_engine_version", 0))
         complete_v57 = _has_complete_outcome_horizons(record)
@@ -9431,6 +9473,35 @@ def run_v63_14_20_daily_bottom_hunter_self_test():
     breakdown = test_signal.get("professional_quality_breakdown", {})
     assert breakdown.get("confirmation_timeframe") == "4H"
     assert breakdown.get("adx") == 31.0
+
+    # Regression guard: 1H Bottom Hunter remains tracked, while 1D and 4H
+    # signals must never enter the hourly outcome sample.
+    hourly = {"signal": "BUY", "signal_mode": "BOTTOM_HUNTER", "signal_timeframe": "1h"}
+    daily = {"signal": "BUY", "signal_mode": "BOTTOM_HUNTER", "engine": "REVERSAL_DAILY", "signal_timeframe": "1d"}
+    four_hour = {"signal": "BUY", "signal_mode": "4H_SIGNAL", "signal_timeframe": "4h"}
+    assert _is_hourly_outcome_eligible(hourly)
+    assert not _is_hourly_outcome_eligible(daily)
+    assert not _is_hourly_outcome_eligible(four_hour)
+
+    sample_history = []
+    assert add_signal_to_history(dict(hourly, symbol="TEST1", entry=100), sample_history)
+    assert add_signal_to_history(dict(daily, symbol="TEST2", entry=100), sample_history)
+    assert add_signal_to_history(dict(four_hour, symbol="TEST3", entry=100), sample_history)
+    assert sample_history[0]["outcome_status"] == "OPEN"
+    assert sample_history[1]["outcome_status"] == "EXCLUDED_TIMEFRAME"
+    assert sample_history[2]["outcome_status"] == "EXCLUDED_TIMEFRAME"
+    coverage = summarize_outcome_history_coverage(sample_history)
+    assert coverage == {"tracked": 1, "finalized": 0, "open": 1}
+
+    analytics_history = [
+        dict(sample_history[0], outcome_status="FINAL", score=95, horizons={}),
+        dict(sample_history[1], outcome_status="FINAL", score=99, horizons={}),
+        dict(sample_history[2], outcome_status="FINAL", score=98, horizons={}),
+    ]
+    analytics = build_outcome_analytics(analytics_history)
+    assert analytics["ALL"]["signals"] == 1
+    assert analytics["BOTTOM_HUNTER"]["signals"] == 1
+    assert analytics["SCORE_90_PLUS"]["signals"] == 1
     return True
 
 
