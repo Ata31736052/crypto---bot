@@ -104,6 +104,7 @@ jobs:
               ("v63.14.11 analytics scope", main.run_v63_14_11_analytics_scope_self_test),
               ("v63.14.14 outcome coverage", main.run_v63_14_14_finalization_metrics_self_test),
               ("v63.14.22 dry-run outcome recording", main.run_v63_14_22_dry_run_outcome_recording_self_test),
+              ("v63.14.23 legacy outcome backfill", main.run_v63_14_23_legacy_outcome_backfill_self_test),
           ]
           for label, test in tests:
               assert test() is True, f"{label} failed"
