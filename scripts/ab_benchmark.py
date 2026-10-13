@@ -94,6 +94,7 @@ def one(label, phase, ordinal):
     progress_path=OUT/"progress.json"
     run_id=f"{phase}-{label}-{ordinal}"
     started=time.perf_counter()
+    started_unix=time.time()
     timeout_seconds=int(os.getenv("AB_SINGLE_RUN_TIMEOUT_SECONDS","2700"))
     print(f"START {run_id}; per-run timeout={timeout_seconds}s; log={log_path}",flush=True)
     with log_path.open("w",encoding="utf-8") as log_file:
@@ -103,7 +104,7 @@ def one(label, phase, ordinal):
             elapsed=time.perf_counter()-started
             progress={"current_run":run_id,"elapsed_seconds":round(elapsed,1),
                       "pid":proc.pid,"timeout_seconds":timeout_seconds,
-                      "started_unix":time.time(),"status":"RUNNING"}
+                      "started_unix":started_unix,"status":"RUNNING"}
             progress_path.write_text(json.dumps(progress,indent=2),encoding="utf-8")
             print(f"HEARTBEAT {run_id}: elapsed={int(elapsed)}s pid={proc.pid}",flush=True)
             if elapsed >= timeout_seconds:
