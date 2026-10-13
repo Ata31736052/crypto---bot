@@ -145,7 +145,7 @@ def historical_btc_regime(frames, decision_time):
 
 def run():
     end=pd.Timestamp.now(tz="UTC").floor("h"); start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=30)
-    trades=[]; errors=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"first_no_signal_reasons":[]}
+    trades=[]; errors=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
     print(f"PERIOD {start} -> {end}; symbols={SYMBOLS}; fee/side={FEE_BPS}bps; slippage/side={SLIPPAGE_BPS}bps",flush=True)
     # Fetch BTC context once and rebuild it at each historical decision instant.
     try:
@@ -210,9 +210,18 @@ def run():
                 result=max(candidates,key=lambda x:(float(x.get("professional_quality_score",0) or 0),float(x.get("score",0) or 0),1 if x.get("strength")=="STRONG" else 0))
                 side=str(result.get("signal","NO_SIGNAL")).upper()
                 diagnostics["signals_before_execution"] += 1
+                # EXPERIMENTAL backtest-only anti-chase test. This is intentionally
+                # not wired into main.py: compare current baseline against rejecting
+                # BUY signals already >1.50 ATR above EMA21, including Bottom Hunter.
+                location_diag = signal_diagnostics(data["1h"],side)
+                ema21_extension = float(location_diag.get("ema21_extension_atr",0) or 0)
+                if side == "BUY" and ema21_extension > 1.50:
+                    diagnostics["signals_rejected_anti_chase"] += 1
+                    print(f"ANTI_CHASE_REJECT {sym} {side} {c.open_time} engine={result.get('engine',result.get('signal_mode','UNKNOWN'))} ema21_extension={ema21_extension:.2f} ATR",flush=True)
+                    continue
                 trade,exit_i=simulate(sym,side,c.open_time,i+1,h1,float(c.get("atr",0) or 0),result.get("score",0),result.get("strength",""),result)
                 if trade:
-                    trade.update(signal_diagnostics(data["1h"],side))
+                    trade.update(location_diag)
                     trade["engine"]=result.get("engine",result.get("signal_mode","UNKNOWN"))
                     trade["signal_mode"]=result.get("signal_mode","UNKNOWN")
                     trade["btc_regime"]=btc_regime.get("combined","UNKNOWN")
@@ -223,7 +232,7 @@ def run():
     columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason"]
     pd.DataFrame(trades,columns=columns).to_csv(OUT/"trades.csv",index=False)
     vals=[float(t["net_pct"]) for t in trades]
-    summary={"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"trade_count":len(trades),"win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"gross_return_sum_pct":round(sum(t["gross_pct"] for t in trades),4),"net_return_sum_pct":round(sum(vals),4),"average_net_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"assumptions":{"entry":"next 1H candle open after signal candle closes","stop":"engine SL_ATR_MULTIPLIER; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL-first conservative","costs":"fee and slippage on both entry and exit","overlap":"one position per symbol at a time","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","returns":"sum of trade percentages, not a compounded portfolio equity curve"},"engine_breakdown":{k:{"trades":sum(str(t.get("engine","UNKNOWN"))==k for t in trades),"net_return_sum_pct":round(sum(float(t["net_pct"]) for t in trades if str(t.get("engine","UNKNOWN"))==k),4)} for k in sorted({str(t.get("engine","UNKNOWN")) for t in trades})},"diagnostics":diagnostics,"errors":errors}
+    summary={"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"trade_count":len(trades),"win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"gross_return_sum_pct":round(sum(t["gross_pct"] for t in trades),4),"net_return_sum_pct":round(sum(vals),4),"average_net_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"assumptions":{"entry":"next 1H candle open after signal candle closes","stop":"engine SL_ATR_MULTIPLIER; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL-first conservative","costs":"fee and slippage on both entry and exit","overlap":"one position per symbol at a time","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","experimental_filter":"Reject BUY signal when close is >1.50 ATR above EMA21; backtest-only hypothesis, not live-engine change","returns":"sum of trade percentages, not a compounded portfolio equity curve"},"engine_breakdown":{k:{"trades":sum(str(t.get("engine","UNKNOWN"))==k for t in trades),"net_return_sum_pct":round(sum(float(t["net_pct"]) for t in trades if str(t.get("engine","UNKNOWN"))==k),4)} for k in sorted({str(t.get("engine","UNKNOWN")) for t in trades})},"diagnostics":diagnostics,"errors":errors}
     (OUT/"summary.json").write_text(json.dumps(summary,indent=2),encoding="utf-8"); print(json.dumps(summary,indent=2),flush=True)
     if not trades: raise SystemExit("No trades produced; do not infer profitability.")
 
