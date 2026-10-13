@@ -117,7 +117,11 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
         if t1: exitp,reason,xi=tp1,"TP1",j; break
     gross=((exitp-entry)/entry*100) if side=="BUY" else ((entry-exitp)/entry*100)
     costs=2*(FEE_BPS+SLIPPAGE_BPS)/100
-    return {"symbol":symbol,"side":side,"signal_time":str(signal_time),"entry_time":str(row.open_time),"entry":entry,"stop_loss":sl,"tp1":tp1,"tp2":tp2,"exit_time":str(h1.iloc[xi].open_time),"exit":exitp,"exit_reason":reason,"gross_pct":round(gross,4),"cost_pct":round(costs,4),"net_pct":round(gross-costs,4),"bars_held":xi-entry_i,"score":score,"strength":strength},xi
+    path=[]
+    for k in range(entry_i, xi+1):
+        candle=h1.iloc[k]
+        path.append({"time":str(candle.close_time),"price":float(exitp if k==xi else candle.close)})
+    return {"symbol":symbol,"side":side,"signal_time":str(signal_time),"entry_time":str(row.open_time),"entry":entry,"stop_loss":sl,"tp1":tp1,"tp2":tp2,"exit_time":str(h1.iloc[xi].close_time),"exit":exitp,"exit_reason":reason,"gross_pct":round(gross,4),"cost_pct":round(costs,4),"net_pct":round(gross-costs,4),"bars_held":xi-entry_i,"score":score,"strength":strength,"_path":path},xi
 
 def historical_btc_regime(frames, decision_time):
     """Rebuild the engine's combined BTC 1H + Daily regime using only closed candles."""
