@@ -230,6 +230,31 @@ def closed_prefix(df, decision_time, limit=None):
     return df.iloc[begin:stop]
 
 
+def closed_prefix_self_test():
+    """Binary-search prefix must match the old closed-candle mask/tail exactly."""
+    times = pd.date_range("2026-01-01T00:00:00Z", periods=12, freq="1h")
+    frame = pd.DataFrame({"close_time": times, "value": range(len(times))})
+    cutoffs = [
+        times[0] - pd.Timedelta(seconds=1),
+        times[0],
+        times[4] + pd.Timedelta(minutes=30),
+        times[7],
+        times[-1],
+        times[-1] + pd.Timedelta(hours=1),
+    ]
+    for cutoff in cutoffs:
+        for limit in (1, 3, 20):
+            expected = frame[frame["close_time"] <= cutoff].tail(limit)
+            actual = closed_prefix(frame, cutoff, limit)
+            assert actual.reset_index(drop=True).equals(expected.reset_index(drop=True)), (
+                f"closed-prefix mismatch at cutoff={cutoff}, limit={limit}"
+            )
+    assert closed_prefix(frame, times[0] - pd.Timedelta(seconds=1), 3).empty
+    assert closed_prefix(pd.DataFrame(), times[-1], 3).empty
+    print("CLOSED_PREFIX_SELF_TEST: PASS")
+    return True
+
+
 def historical_btc_regime(frames, decision_time):
     """Rebuild the engine BTC regime using only closed candles, without rescanning history."""
     latest = {}
