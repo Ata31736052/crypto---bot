@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
-      AB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      AB_BASE_SHA: 007edcd8e5aa9edd17b94fd4018b899d78efe77c
       AB_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
       AB_REPEATS: "3"
       BACKTEST_DAYS: "180"
