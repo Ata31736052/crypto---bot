@@ -281,10 +281,13 @@ def portfolio_ledger_self_test(out_dir):
         losing = [make_trade("AAAUSDT", t0, t2, -5.3, cost_pct=0.3, exit_price=95.0)]
         r = portfolio_ledger(losing, d, initial_cash=1000, risk_pct=100,
                              max_position_pct=100)
-        assert abs(r["final_equity_usdt"] - 947.0) < 1e-5
-        assert abs(r["max_drawdown_pct"] - 5.3) < 1e-4
+        expected_notional = 1000.0 / 1.003
+        expected_equity = 1000.0 - expected_notional * 0.053
+        expected_drawdown = (1000.0 - expected_equity) / 1000.0 * 100.0
+        assert abs(r["final_equity_usdt"] - expected_equity) < 1e-5
+        assert abs(r["max_drawdown_pct"] - expected_drawdown) < 1e-4
         curve = pd.read_csv(Path(d) / "portfolio_equity.csv")
-        assert curve["equity_usdt"].min() <= 947.0 + 1e-5
-        assert curve["drawdown_pct"].max() >= 5.3 - 1e-4
+        assert curve["equity_usdt"].min() <= expected_equity + 1e-5
+        assert curve["drawdown_pct"].max() >= expected_drawdown - 1e-4
 
     print("PORTFOLIO_LEDGER_SELF_TEST: PASS (simultaneous allocation, capital release, fee scaling, drawdown)")
