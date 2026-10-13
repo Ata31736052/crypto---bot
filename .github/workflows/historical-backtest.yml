@@ -49,7 +49,7 @@ jobs:
       BACKTEST_SYMBOLS: ${{ github.event.inputs.symbols || 'ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT' }}
       BACKTEST_FEE_BPS: ${{ github.event.inputs.fee_bps || '10' }}
       BACKTEST_SLIPPAGE_BPS: ${{ github.event.inputs.slippage_bps || '5' }}
-      BACKTEST_END_TIME: ${{ github.event.inputs.end_time || '' }}
+      BACKTEST_END_TIME: ${{ github.event.inputs.end_time || '2026-10-13T13:00:00Z' }}
       PYTHONUNBUFFERED: "1"
       TELEGRAM_TOKEN: ""
       TELEGRAM_CHAT_ID: ""
