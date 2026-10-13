@@ -104,30 +104,78 @@ def signal_diagnostics(df, side):
     hi=float(highs.max()) if highs.notna().any() else close
     lo=float(lows.min()) if lows.notna().any() else close
     out["range_position_20"]=((close-lo)/(hi-lo)) if hi>lo else 0.5
-    # Backtest-only location diagnostic. Keep it local so the replay can
-    # compare candidate engine versions even when main.py has no public guard.
+    # Backtest-only guard uses confirmed 2-left/2-right swing pivots, not every
+    # candle high/low. All five candles in a pivot are already closed at signal time.
     prior = df.iloc[-21:-1]
+    prior_highs = pd.to_numeric(prior["high"], errors="coerce").reset_index(drop=True)
+    prior_lows = pd.to_numeric(prior["low"], errors="coerce").reset_index(drop=True)
+    swing_highs, swing_lows = [], []
+    for i in range(2, len(prior) - 2):
+        h = prior_highs.iloc[i]
+        l = prior_lows.iloc[i]
+        h_left = prior_highs.iloc[i-2:i]
+        h_right = prior_highs.iloc[i+1:i+3]
+        l_left = prior_lows.iloc[i-2:i]
+        l_right = prior_lows.iloc[i+1:i+3]
+        if pd.notna(h) and h > h_left.max() and h >= h_right.max():
+            swing_highs.append(float(h))
+        if pd.notna(l) and l < l_left.min() and l <= l_right.min():
+            swing_lows.append(float(l))
     if side == "BUY":
-        levels = pd.to_numeric(prior["high"], errors="coerce")
-        levels = levels[levels > close]
-        if levels.empty:
-            allowed, reason = True, "ENTRY_LOCATION_LEVEL_CLEARED_RESISTANCE"
+        levels = [level for level in swing_highs if level > close]
+        if not levels:
+            allowed, reason = True, "ENTRY_LOCATION_NO_CONFIRMED_RESISTANCE"
         else:
-            room_atr = (float(levels.min()) - close) / atr
+            room_atr = (min(levels) - close) / atr
             allowed = room_atr >= 0.80
-            reason = f"ENTRY_LOCATION_ROOM_{room_atr:.2f}_ATR"
+            reason = f"ENTRY_LOCATION_SWING_ROOM_{room_atr:.2f}_ATR"
     else:
-        levels = pd.to_numeric(prior["low"], errors="coerce")
-        levels = levels[levels < close]
-        if levels.empty:
-            allowed, reason = True, "ENTRY_LOCATION_LEVEL_CLEARED_SUPPORT"
+        levels = [level for level in swing_lows if level < close]
+        if not levels:
+            allowed, reason = True, "ENTRY_LOCATION_NO_CONFIRMED_SUPPORT"
         else:
-            room_atr = (close - float(levels.max())) / atr
+            room_atr = (close - max(levels)) / atr
             allowed = room_atr >= 0.80
-            reason = f"ENTRY_LOCATION_ROOM_{room_atr:.2f}_ATR"
+            reason = f"ENTRY_LOCATION_SWING_ROOM_{room_atr:.2f}_ATR"
     out["entry_guard_allowed"] = bool(allowed)
     out["entry_guard_reason"] = reason
     return out
+
+
+def entry_location_guard_self_test():
+    """Reject only when a confirmed directional swing obstacle is too close."""
+    def frame_with_levels(side, obstacle):
+        rows = []
+        for i in range(22):
+            close = 100.0
+            high, low = 99.0, 101.0
+            if 1 <= i <= 20:
+                high, low = (99.0, 101.0)
+            rows.append({"open":close,"high":high,"low":low,"close":close,
+                         "atr":2.0,"atr_percent":2.0,"rsi":55.0,"adx":25.0,
+                         "volume_ratio":1.5,"ema21":100.0})
+        # Prior-window index 8 is a clear swing; adjacent highs/lows remain non-pivots.
+        if side == "BUY":
+            rows[1+8]["high"] = obstacle
+        else:
+            rows[1+8]["low"] = obstacle
+        return pd.DataFrame(rows)
+
+    # A close non-pivot high is ignored when a farther confirmed swing is the true obstacle.
+    rows = frame_with_levels("BUY", 104.0)
+    rows[1+7]["high"] = 100.5
+    d = signal_diagnostics(rows, "BUY")
+    assert d["entry_guard_allowed"] is True and "2.00_ATR" in d["entry_guard_reason"], d
+    # Confirmed swing only 0.5 ATR away is rejected.
+    d = signal_diagnostics(frame_with_levels("BUY", 101.0), "BUY")
+    assert d["entry_guard_allowed"] is False and "0.50_ATR" in d["entry_guard_reason"], d
+    # Same directional rule applies to confirmed support for SELL.
+    d = signal_diagnostics(frame_with_levels("SELL", 96.0), "SELL")
+    assert d["entry_guard_allowed"] is True and "2.00_ATR" in d["entry_guard_reason"], d
+    d = signal_diagnostics(frame_with_levels("SELL", 99.0), "SELL")
+    assert d["entry_guard_allowed"] is False and "0.50_ATR" in d["entry_guard_reason"], d
+    print("ENTRY_LOCATION_SWING_GUARD_SELF_TEST: PASS")
+    return True
 
 
 def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=None):
@@ -312,7 +360,7 @@ def run():
     guarded_trades=[t for t in trades if bool(t.get("entry_guard_allowed",True))]
     guard_portfolio=portfolio_ledger(guarded_trades,OUT/"entry-location-guard",initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
     guard_comparison={"rule":"nearest obstacle in previous 20 closed 1H candles must be at least 0.80 ATR away","baseline_candidate_trades":len(trades),"guard_candidate_trades":len(guarded_trades),"filtered_candidate_trades":len(trades)-len(guarded_trades),"status":"EXPERIMENTAL_COMPARISON_ONLY; not enabled in live engine"}
-    summary={"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL-first conservative","costs":"fee and slippage on both entry and exit included in net P/L","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"Reject BUY signal when close is >1.50 ATR above EMA21; backtest-only hypothesis, not live-engine change","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to nearest obstacle in previous 20 closed 1H candles; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":sum(str(t.get("engine","UNKNOWN"))==k for t in trades),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in trades if str(t.get("engine","UNKNOWN"))==k),4)} for k in sorted({str(t.get("engine","UNKNOWN")) for t in trades})},"diagnostics":diagnostics,"errors":errors}
+    summary={"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"fee and slippage on both entry and exit included in net P/L","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"Reject BUY signal when close is >1.50 ATR above EMA21; backtest-only hypothesis, not live-engine change","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":sum(str(t.get("engine","UNKNOWN"))==k for t in trades),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in trades if str(t.get("engine","UNKNOWN"))==k),4)} for k in sorted({str(t.get("engine","UNKNOWN")) for t in trades})},"diagnostics":diagnostics,"errors":errors}
     (OUT/"summary.json").write_text(json.dumps(summary,indent=2),encoding="utf-8"); print(json.dumps(summary,indent=2),flush=True)
     if not trades: raise SystemExit("No trades produced; do not infer profitability.")
 if __name__=="__main__": run()
