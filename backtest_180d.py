@@ -96,7 +96,35 @@ def run_symbol(sym,start,end,btc):
         c["professional_filter"]="PASSED"; c["professional_quality_score"]=qs; c["signal_time"]=str(cut); c["entry_time"]=str(nxt.open_time); c["symbol"]=sym
         if not main.final_telegram_quality_gate(c):rejects["final_gate_reject"]=rejects.get("final_gate_reject",0)+1;continue
         t=exit_trade(c,replay.iloc[i+1:min(len(replay),i+49)])
-        if t:trades.append(t);last=sm;active=pd.Timestamp(t["exit_time"]) if t["exit_time"] else None
+        if t:
+            # Capture entry-location diagnostics so high-score losing trades can be explained.
+            r1=d["1h"].iloc[-1]
+            prior=d["1h"].iloc[:-1].tail(20)
+            close=float(r1.get("close",0) or 0)
+            atr=float(r1.get("atr",0) or 0)
+            ema9=float(r1.get("ema9",0) or 0)
+            recent_high=float(prior["high"].max()) if not prior.empty else 0.0
+            room_atr=(recent_high-close)/atr if atr>0 and recent_high>close else None
+            ext_atr=(close-ema9)/atr if atr>0 and ema9>0 else None
+            raw_open=float(nxt["open"])
+            t.update({
+                "signal_close_price":close,
+                "next_hour_open":raw_open,
+                "signal_to_open_gap_pct":round((raw_open/close-1)*100,5) if close>0 else None,
+                "ema9_extension_atr":round(ext_atr,4) if ext_atr is not None else None,
+                "room_to_prior_20bar_high_atr":round(room_atr,4) if room_atr is not None else None,
+                "prior_20bar_high":recent_high if recent_high>0 else None,
+                "rsi_1h":float(r1.get("rsi",0) or 0),
+                "adx_1h":float(r1.get("adx",0) or 0),
+                "plus_di_1h":float(r1.get("plus_di",0) or 0),
+                "minus_di_1h":float(r1.get("minus_di",0) or 0),
+                "volume_ratio_1h":float(r1.get("volume_ratio",0) or 0),
+                "atr_percent_1h":float(r1.get("atr_percent",0) or 0),
+                "ema21_distance_pct":float(r1.get("distance_ema21",0) or 0),
+                "ema200_distance_pct":float(r1.get("distance_ema200",0) or 0),
+                "btc_regime":br.get("combined","UNKNOWN"),
+            })
+            trades.append(t);last=sm;active=pd.Timestamp(t["exit_time"]) if t["exit_time"] else None
     return trades,rejects,{"symbol":sym,"replay_1h_bars":len(replay),"history_1h_bars":len(h)}
 def summarize(ts):
     if not ts:return {"trades":0,"wins":0,"losses":0,"win_rate_pct":0,"gross_pnl_usdt":0,"fees_usdt":0,"net_pnl_usdt":0,"profit_factor":None,"max_drawdown_usdt":0,"expectancy_usdt":0}
@@ -113,7 +141,7 @@ def run():
         for k,v in rs.items():rej[k]=rej.get(k,0)+v
         print(f"DONE {sym}: trades={len(ts)}",flush=True)
     alltr.sort(key=lambda x:x["entry_time"]); smry=summarize(alltr)
-    report={"engine_version":"v63.14.28","method":"repository 1H+30M trend scoring and professional gate; BUY-only spot trades; next-hour-open entry; modeled slippage each side; fees; closed candles; stop-first ambiguous bars; 50/50 TP1/TP2; 48h max hold; 6h cooldown; signals in final 48h excluded so outcomes mature","period_days":DAYS,"start_utc":datetime.fromtimestamp(start/1000,timezone.utc).isoformat(),"end_utc":datetime.fromtimestamp(end/1000,timezone.utc).isoformat(),"symbols":SYMBOLS,"fee_rate_per_side":FEE,"slippage_rate_per_side":SLIPPAGE,"fees_included":True,"summary":smry,"coverage":cov,"rejection_counts":dict(sorted(rej.items(),key=lambda x:-x[1])[:40]),"limitations":["six liquid symbols only, not the full Binance universe","BUY-only spot trades; SELL signals are counted as non-tradable, not simulated as short trades","TREND engine only; Bottom Hunter/Breakout/independent 4H/Daily engines excluded","aggregate PnL sums independent symbol tests and does not enforce a shared 1000-USDT portfolio capital/exposure cap","slippage is a fixed assumption, not a measured order-book simulation","historical simulation is not a guarantee of future returns"]}
+    report={"engine_version":"v63.14.28","method":"repository 1H+30M trend scoring and professional gate; BUY-only spot trades; next-hour-open entry; modeled slippage each side; fees; closed candles; stop-first ambiguous bars; 50/50 TP1/TP2; 48h max hold; 6h cooldown; final 48h excluded; entry-location diagnostics included","period_days":DAYS,"start_utc":datetime.fromtimestamp(start/1000,timezone.utc).isoformat(),"end_utc":datetime.fromtimestamp(end/1000,timezone.utc).isoformat(),"symbols":SYMBOLS,"fee_rate_per_side":FEE,"slippage_rate_per_side":SLIPPAGE,"fees_included":True,"summary":smry,"coverage":cov,"rejection_counts":dict(sorted(rej.items(),key=lambda x:-x[1])[:40]),"limitations":["six liquid symbols only, not the full Binance universe","BUY-only spot trades; SELL signals are counted as non-tradable, not simulated as short trades","TREND engine only; Bottom Hunter/Breakout/independent 4H/Daily engines excluded","aggregate PnL sums independent symbol tests and does not enforce a shared 1000-USDT portfolio capital/exposure cap","slippage is a fixed assumption, not a measured order-book simulation","historical simulation is not a guarantee of future returns"]}
     (OUT/"summary.json").write_text(json.dumps(report,indent=2,ensure_ascii=False),encoding="utf-8");pd.DataFrame(alltr).to_csv(OUT/"trades.csv",index=False)
     (OUT/"summary.md").write_text("# ApexSignal historical replay\n\n"+f"- Engine: {report['engine_version']}\n- Days: {DAYS}\n- Symbols: {', '.join(SYMBOLS)}\n- Fee per side: {FEE:.3%}\n- Slippage per side: {SLIPPAGE:.3%}\n- BUY-only spot trades\n- Trades: {smry['trades']}\n- Win rate: {smry['win_rate_pct']}%\n- Net PnL after fees: {smry['net_pnl_usdt']} USDT\n- Profit factor: {smry['profit_factor']}\n- Max trade-equity drawdown: {smry['max_drawdown_usdt']} USDT\n- Expectancy/trade: {smry['expectancy_usdt']} USDT\n\n## Limitations\n"+"\n".join("- "+x for x in report["limitations"])+"\n",encoding="utf-8")
     print(json.dumps(smry),flush=True);print("BACKTEST_REPORT_WRITTEN",flush=True)
