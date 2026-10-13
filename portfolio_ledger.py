@@ -83,10 +83,13 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
                 continue
 
             risk_budget = equity_before_entry * max(0.0, float(risk_pct)) / 100.0
-            risk_sized_notional = risk_budget / risk_fraction
-            # Reserve enough shared cash to cover configured round-trip costs.
-            # net_pct includes entry+exit costs; cost_pct is the fee reserve ratio.
+            # Include estimated round-trip fees/slippage in risk sizing. Otherwise
+            # a stop-out can exceed the configured equity-risk budget by cost_pct.
+            # stop distance is a fraction; cost_pct is stored as a percentage.
             cost_pct = max(0.0, float(trade.get("cost_pct", 0) or 0))
+            all_in_stop_fraction = risk_fraction + cost_pct / 100.0
+            risk_sized_notional = risk_budget / all_in_stop_fraction
+            # Reserve enough shared cash to cover configured round-trip costs.
             fee_reserve_factor = 1.0 + cost_pct / 100.0
             cash_limited_notional = cash / fee_reserve_factor
             notional = min(
@@ -276,7 +279,22 @@ def portfolio_ledger_self_test(out_dir):
         assert abs(half["net_pnl_usdt"] - 3.5) < 1e-5
         assert abs(full["net_pnl_usdt"] / half["net_pnl_usdt"] - 1.994) < 0.01
 
-    # 4) Equity is marked to market and drawdown is measured from the running peak.
+    # 4) The all-in stop loss, including fees/slippage, must stay within risk budget.
+    with tempfile.TemporaryDirectory() as d:
+        stop_trade = make_trade("AAAUSDT", t0, t2, -2.3, cost_pct=0.3, exit_price=98.0)
+        stop_trade["stop_loss"] = 98.0
+        r = portfolio_ledger([stop_trade], d, initial_cash=1000, risk_pct=1,
+                             max_position_pct=100)
+        row = pd.read_csv(Path(d) / "portfolio_trades.csv").iloc[0]
+        all_in_loss = -float(row["portfolio_pnl_usdt"])
+        assert abs(all_in_loss - 10.0) < 1e-4, (
+            f"all-in stop loss {all_in_loss} must equal $10 risk budget"
+        )
+        assert float(row["position_notional_usdt"]) < 500.0, (
+            "fees/slippage must be included in stop-distance position sizing"
+        )
+
+    # 5) Equity is marked to market and drawdown is measured from the running peak.
     with tempfile.TemporaryDirectory() as d:
         losing = [make_trade("AAAUSDT", t0, t2, -5.3, cost_pct=0.3, exit_price=95.0)]
         r = portfolio_ledger(losing, d, initial_cash=1000, risk_pct=100,
