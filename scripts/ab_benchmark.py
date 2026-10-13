@@ -13,7 +13,7 @@ from statistics import median
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUT = ROOT / "ab-benchmark-results"
 CACHE = OUT / "http-cache"
-WORK = OUT / "worktrees"
+WORK = pathlib.Path(os.getenv("RUNNER_TEMP", "/tmp")) / "apexsignal-ab-worktrees"
 OUT.mkdir(exist_ok=True); CACHE.mkdir(exist_ok=True); WORK.mkdir(exist_ok=True)
 BASE_SHA = os.environ["AB_BASE_SHA"]
 CANDIDATE_SHA = os.environ["AB_CANDIDATE_SHA"]
