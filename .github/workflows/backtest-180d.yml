@@ -2,6 +2,13 @@ name: ApexSignal Historical Backtest 180D
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - fix/workflow-v63-14-28-validation
+    paths:
+      - "main.py"
+      - "backtest_180d.py"
+      - ".github/workflows/backtest-180d.yml"
   pull_request:
     branches:
       - backtest/historical-180d
