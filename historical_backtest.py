@@ -221,17 +221,26 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
         path.append({"time":str(candle.close_time),"price":float(exitp if k==xi else candle.close)})
     return {"symbol":symbol,"side":side,"signal_time":str(signal_time),"entry_time":str(row.open_time),"entry":entry,"stop_loss":sl,"tp1":tp1,"tp2":tp2,"exit_time":str(h1.iloc[xi].close_time),"exit":exitp,"exit_reason":reason,"gross_pct":round(gross,4),"cost_pct":round(costs,4),"net_pct":round(gross-costs,4),"bars_held":xi-entry_i,"score":score,"strength":strength,"_path":path},xi
 
+def closed_prefix(df, decision_time, limit=None):
+    """Select the same closed-candle prefix via a sorted timestamp index (O(log n))."""
+    if df is None or df.empty:
+        return df
+    stop = int(df["close_time"].searchsorted(decision_time, side="right"))
+    begin = max(0, stop - int(limit)) if limit is not None else 0
+    return df.iloc[begin:stop]
+
+
 def historical_btc_regime(frames, decision_time):
-    """Rebuild the engine's combined BTC 1H + Daily regime using only closed candles."""
+    """Rebuild the engine BTC regime using only closed candles, without rescanning history."""
     latest = {}
     for tf in ("1h", "1d"):
         df = frames.get(tf)
         if df is None or df.empty:
             return None
-        closed = df[df["close_time"] <= decision_time]
-        if closed.empty:
+        stop = int(df["close_time"].searchsorted(decision_time, side="right"))
+        if stop <= 0:
             return None
-        latest[tf] = main._btc_regime_from_row(closed.iloc[-1])
+        latest[tf] = main._btc_regime_from_row(df.iloc[stop - 1])
     h, d = latest["1h"], latest["1d"]
     if h["bullish"] and d["bullish"]:
         combined = "BULLISH"
@@ -270,11 +279,16 @@ def simulate_self_test():
 def run():
     end=pd.Timestamp.now(tz="UTC").floor("h"); start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
     trades=[]; engine_candidate_trades={}; errors=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
+    perf={"stage_seconds":{},"counters":{"candle_steps":0,"timeframe_index_lookups":0,"rows_materialized":0,"btc_regime_lookups":0,"engine_calls":0}}
+    def stage_done(name, started):
+        perf["stage_seconds"][name]=perf["stage_seconds"].get(name,0.0)+(time.perf_counter()-started)
     print(f"PERIOD {start} -> {end}; symbols={SYMBOLS}; fee/side={FEE_BPS}bps; slippage/side={SLIPPAGE_BPS}bps",flush=True)
     # Fetch BTC context once and rebuild it at each historical decision instant.
     try:
         btc_raw={tf:fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000)) for tf in ("1h","1d")}
+        t_prepare=time.perf_counter()
         btc_frames={tf:prepare(df) for tf,df in btc_raw.items()}
+        stage_done("prepare_btc_history", t_prepare)
         if btc_frames["1h"].empty or btc_frames["1d"].empty:
             raise RuntimeError("BTC historical context unavailable")
         validate_warmup(btc_frames, start, "BTCUSDT", ("1h", "1d"))
@@ -287,20 +301,35 @@ def run():
             print("FETCH",sym,flush=True)
             raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000)) for tf in ("1h","30m","4h","1d")}
             if len(raw["1h"])<250 or len(raw["30m"])<50: raise RuntimeError("Insufficient historical candles")
+            t_prepare=time.perf_counter()
             frames={tf:prepare(d) for tf,d in raw.items()}
+            stage_done("prepare_symbol_history", t_prepare)
             validate_warmup(frames, start, sym)
             h1=frames["1h"]
             idx=max(220,int(h1.open_time.searchsorted(start)))
             baseline_last_exit=idx-1
             engine_last_exit={}
             for i in range(idx,len(h1)-1):
+                t_step=time.perf_counter()
                 c=h1.iloc[i]; close_time=c.close_time
                 if close_time<start: continue
+                perf["counters"]["candle_steps"] += 1
                 data={}
                 for tf,df in frames.items():
-                    data[tf]=df[df.close_time<=close_time].tail(TIMEFRAME_LIMITS[tf]).copy() if not df.empty else None
+                    if not df.empty:
+                        stop=int(df["close_time"].searchsorted(close_time, side="right"))
+                        begin=max(0,stop-TIMEFRAME_LIMITS[tf])
+                        data[tf]=df.iloc[begin:stop].copy()
+                        perf["counters"]["timeframe_index_lookups"] += 1
+                        perf["counters"]["rows_materialized"] += len(data[tf])
+                    else:
+                        data[tf]=None
+                stage_done("closed_candle_selection", t_step)
                 if len(data["1h"])<50 or len(data["30m"])<30: continue
+                t_btc=time.perf_counter()
                 btc_regime=historical_btc_regime(btc_frames,close_time)
+                perf["counters"]["btc_regime_lookups"] += 1
+                stage_done("btc_regime", t_btc)
                 if btc_regime is None:
                     errors.append({"symbol":sym,"time":str(close_time),"error":"BTC historical regime unavailable"})
                     continue
@@ -317,7 +346,10 @@ def run():
                     main.get_live_price=lambda _symbol, _price=current_price, _time=current_close_time: {
                         "price":_price,"fetched_at":_time,"request_latency_seconds":0.0,"source":"historical closed candle"
                     }
+                    t_engine=time.perf_counter()
                     scan=main.analyze_one_symbol(sym,btc_regime)
+                    stage_done("signal_engine", t_engine)
+                    perf["counters"]["engine_calls"] += 1
                 except Exception as exc:
                     errors.append({"symbol":sym,"time":str(close_time),"error":f"production pipeline: {exc}"})
                     continue
@@ -403,7 +435,9 @@ def run():
     guarded_trades=[t for t in trades if bool(t.get("entry_guard_allowed",True))]
     guard_portfolio=portfolio_ledger(guarded_trades,OUT/"entry-location-guard",initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
     guard_comparison={"rule":"nearest obstacle in previous 20 closed 1H candles must be at least 0.80 ATR away","baseline_candidate_trades":len(trades),"guard_candidate_trades":len(guarded_trades),"filtered_candidate_trades":len(trades)-len(guarded_trades),"status":"EXPERIMENTAL_COMPARISON_ONLY; not enabled in live engine"}
-    summary={"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"fee and slippage on both entry and exit included in net P/L","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
+    perf["stage_seconds"]={k:round(v,4) for k,v in perf["stage_seconds"].items()}
+    perf["total_instrumented_seconds"]=round(sum(perf["stage_seconds"].values()),4)
+    summary={"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"fee and slippage on both entry and exit included in net P/L","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
     (OUT/"summary.json").write_text(json.dumps(summary,indent=2),encoding="utf-8"); print(json.dumps(summary,indent=2),flush=True)
     if not trades: raise SystemExit("No trades produced; do not infer profitability.")
 if __name__=="__main__": run()
