@@ -21,6 +21,13 @@ TIMEFRAME_LIMITS = {"1h": main.KLINE_LIMIT_MAIN, "30m": main.KLINE_LIMIT_CONFIRM
                     "4h": main.KLINE_LIMIT_4H, "1d": main.KLINE_LIMIT_DAILY}
 SESSION = requests.Session()
 
+def filter_closed_before_end(d, end_ms):
+    """Exclude candles not fully closed before the exclusive UTC end boundary."""
+    if d is None or d.empty:
+        return d
+    boundary=pd.to_datetime(end_ms,unit="ms",utc=True)
+    return d[d["close_time"] < boundary]
+
 def fetch(symbol, tf, start_ms, end_ms):
     rows=[]; cursor=start_ms
     while cursor < end_ms:
@@ -37,8 +44,28 @@ def fetch(symbol, tf, start_ms, end_ms):
     d=pd.DataFrame(rows,columns=["open_time","open","high","low","close","volume","close_time","qv","trades","tb","tq","ignore"])
     d["open_time"]=pd.to_datetime(d.open_time,unit="ms",utc=True); d["close_time"]=pd.to_datetime(d.close_time,unit="ms",utc=True)
     for c in ("open","high","low","close","volume"): d[c]=pd.to_numeric(d[c],errors="coerce")
-    d=d[d.close_time < pd.Timestamp.now(tz="UTC")].dropna(subset=["open","high","low","close","volume"])
+    # Treat end_ms as an exclusive closed-candle boundary. Binance endTime can
+    # include a candle whose open_time equals the boundary but whose close is later.
+    d=d[d.close_time < pd.Timestamp.now(tz="UTC")]
+    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])
     return d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]
+
+
+def closed_end_cutoff_self_test():
+    """A fixed end boundary must exclude candles that close at/after that boundary."""
+    end=pd.Timestamp("2026-10-13T12:00:00Z")
+    sample=pd.DataFrame({
+        "open_time":pd.to_datetime(["2026-10-13T10:00:00Z","2026-10-13T11:00:00Z"],utc=True),
+        "close_time":pd.to_datetime(["2026-10-13T10:59:59.999Z","2026-10-13T11:59:59.999Z"],utc=True),
+    })
+    sample=pd.concat([sample,pd.DataFrame({
+        "open_time":pd.to_datetime(["2026-10-13T12:00:00Z"],utc=True),
+        "close_time":pd.to_datetime(["2026-10-13T12:59:59.999Z"],utc=True),
+    })],ignore_index=True)
+    kept=filter_closed_before_end(sample,int(end.timestamp()*1000))
+    assert len(kept)==2 and kept.close_time.max() < end, "post-boundary candle leaked into fixed window"
+    print("CLOSED_END_CUTOFF_SELF_TEST: PASS")
+    return True
 
 def prepare(d):
     if d.empty: return d
@@ -302,7 +329,18 @@ def simulate_self_test():
 
 
 def run():
-    end=pd.Timestamp.now(tz="UTC").floor("h"); start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
+    # Fixed UTC end lets baseline and experiment use identical closed-candle windows.
+    end_raw = os.getenv("BACKTEST_END_TIME", "").strip()
+    if end_raw:
+        end = pd.Timestamp(end_raw)
+        if end.tzinfo is None:
+            raise ValueError("BACKTEST_END_TIME must include Z or an explicit UTC offset")
+        end = end.tz_convert("UTC").floor("h")
+        if end > pd.Timestamp.now(tz="UTC").floor("h"):
+            raise ValueError("BACKTEST_END_TIME cannot be in the future")
+    else:
+        end = pd.Timestamp.now(tz="UTC").floor("h")
+    start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
     trades=[]; engine_candidate_trades={}; errors=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
     perf={"stage_seconds":{},"counters":{"candle_steps":0,"timeframe_index_lookups":0,"rows_materialized":0,"btc_regime_lookups":0,"engine_calls":0}}
     # ENGINE_INTERNAL_PROFILE: profile exactly one real production-engine invocation.
