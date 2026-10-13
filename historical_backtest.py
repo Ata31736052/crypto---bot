@@ -14,6 +14,11 @@ FEE_BPS = float((os.getenv("BACKTEST_FEE_BPS") or "10"))
 SLIPPAGE_BPS = float((os.getenv("BACKTEST_SLIPPAGE_BPS") or "5"))
 OUT = Path("backtest-results"); OUT.mkdir(exist_ok=True)
 MS = {"1h":3600000,"30m":1800000,"4h":14400000,"1d":86400000}
+# Daily/4H EMA200 context requires substantially more than 30 days of warm-up.
+WARMUP_DAYS = 250
+WARMUP_BARS = 200
+TIMEFRAME_LIMITS = {"1h": main.KLINE_LIMIT_MAIN, "30m": main.KLINE_LIMIT_CONFIRM,
+                    "4h": main.KLINE_LIMIT_4H, "1d": main.KLINE_LIMIT_DAILY}
 SESSION = requests.Session()
 
 def fetch(symbol, tf, start_ms, end_ms):
@@ -39,6 +44,40 @@ def prepare(d):
     if d.empty: return d
     x=main.add_indicators(d.copy())
     return x.sort_values("open_time").reset_index(drop=True) if x is not None and not x.empty else pd.DataFrame()
+
+
+def validate_warmup(frames, start_time, symbol="", required_timeframes=None):
+    """Fail closed unless each requested timeframe has enough closed pre-test candles."""
+    required_timeframes = tuple(required_timeframes or ("1h", "30m", "4h", "1d"))
+    failures = []
+    for tf in required_timeframes:
+        frame = frames.get(tf)
+        if frame is None or frame.empty or "close_time" not in frame:
+            failures.append(f"{tf}: missing history")
+            continue
+        before_start = frame[frame["close_time"] <= start_time]
+        if len(before_start) < WARMUP_BARS:
+            failures.append(f"{tf}: {len(before_start)} closed pre-test bars < {WARMUP_BARS}")
+    if failures:
+        raise RuntimeError(f"Insufficient indicator warm-up for {symbol or 'market'}: " + "; ".join(failures))
+    return True
+
+
+def validate_warmup_self_test():
+    """Regression test: adequate warm-up passes; one missing required bar fails closed."""
+    start = pd.Timestamp("2026-10-01T00:00:00Z")
+    base = pd.date_range(end=start, periods=WARMUP_BARS, freq="1h", tz="UTC")
+    frame = pd.DataFrame({"close_time": base})
+    assert validate_warmup({"1h": frame}, start, "TEST", ("1h",)) is True
+    try:
+        validate_warmup({"1h": frame.iloc[1:]}, start, "TEST", ("1h",))
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("warm-up guard accepted fewer than required historical candles")
+    print("HISTORICAL_WARMUP_SELF_TEST: PASS")
+    return True
+
 
 def signal_diagnostics(df, side):
     """Capture signal-time location/momentum fields to diagnose late entries."""
@@ -149,7 +188,7 @@ def historical_btc_regime(frames, decision_time):
     return {"combined": combined, "combined_score": h["score"] + d["score"], "1h": h, "daily": d}
 
 def run():
-    end=pd.Timestamp.now(tz="UTC").floor("h"); start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=30)
+    end=pd.Timestamp.now(tz="UTC").floor("h"); start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
     trades=[]; errors=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
     print(f"PERIOD {start} -> {end}; symbols={SYMBOLS}; fee/side={FEE_BPS}bps; slippage/side={SLIPPAGE_BPS}bps",flush=True)
     # Fetch BTC context once and rebuild it at each historical decision instant.
@@ -158,7 +197,8 @@ def run():
         btc_frames={tf:prepare(df) for tf,df in btc_raw.items()}
         if btc_frames["1h"].empty or btc_frames["1d"].empty:
             raise RuntimeError("BTC historical context unavailable")
-        print("BTC historical context loaded",flush=True)
+        validate_warmup(btc_frames, start, "BTCUSDT", ("1h", "1d"))
+        print(f"BTC historical context loaded; warm-up={WARMUP_DAYS}d",flush=True)
     except Exception as exc:
         errors.append({"symbol":"BTCUSDT","error":f"BTC context: {exc}"})
         btc_frames={"1h":pd.DataFrame(),"1d":pd.DataFrame()}
@@ -167,14 +207,16 @@ def run():
             print("FETCH",sym,flush=True)
             raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000)) for tf in ("1h","30m","4h","1d")}
             if len(raw["1h"])<250 or len(raw["30m"])<50: raise RuntimeError("Insufficient historical candles")
-            frames={tf:prepare(d) for tf,d in raw.items()}; h1=frames["1h"]
+            frames={tf:prepare(d) for tf,d in raw.items()}
+            validate_warmup(frames, start, sym)
+            h1=frames["1h"]
             idx=max(220,int(h1.open_time.searchsorted(start))); last_exit=idx-1
             for i in range(idx,len(h1)-1):
                 c=h1.iloc[i]; close_time=c.close_time
                 if close_time<start or i<=last_exit: continue
                 data={}
                 for tf,df in frames.items():
-                    data[tf]=df[df.close_time<=close_time].copy() if not df.empty else None
+                    data[tf]=df[df.close_time<=close_time].tail(TIMEFRAME_LIMITS[tf]).copy() if not df.empty else None
                 if len(data["1h"])<50 or len(data["30m"])<30: continue
                 btc_regime=historical_btc_regime(btc_frames,close_time)
                 if btc_regime is None:
@@ -247,7 +289,7 @@ def run():
     guarded_trades=[t for t in trades if bool(t.get("entry_guard_allowed",True))]
     guard_portfolio=portfolio_ledger(guarded_trades,OUT/"entry-location-guard",initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
     guard_comparison={"rule":"nearest obstacle in previous 20 closed 1H candles must be at least 0.80 ATR away","baseline_candidate_trades":len(trades),"guard_candidate_trades":len(guarded_trades),"filtered_candidate_trades":len(trades)-len(guarded_trades),"status":"EXPERIMENTAL_COMPARISON_ONLY; not enabled in live engine"}
-    summary={"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL-first conservative","costs":"fee and slippage on both entry and exit included in net P/L","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","experimental_filter":"Reject BUY signal when close is >1.50 ATR above EMA21; backtest-only hypothesis, not live-engine change","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to nearest obstacle in previous 20 closed 1H candles; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":sum(str(t.get("engine","UNKNOWN"))==k for t in trades),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in trades if str(t.get("engine","UNKNOWN"))==k),4)} for k in sorted({str(t.get("engine","UNKNOWN")) for t in trades})},"diagnostics":diagnostics,"errors":errors}
+    summary={"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL-first conservative","costs":"fee and slippage on both entry and exit included in net P/L","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"Reject BUY signal when close is >1.50 ATR above EMA21; backtest-only hypothesis, not live-engine change","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to nearest obstacle in previous 20 closed 1H candles; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":sum(str(t.get("engine","UNKNOWN"))==k for t in trades),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in trades if str(t.get("engine","UNKNOWN"))==k),4)} for k in sorted({str(t.get("engine","UNKNOWN")) for t in trades})},"diagnostics":diagnostics,"errors":errors}
     (OUT/"summary.json").write_text(json.dumps(summary,indent=2),encoding="utf-8"); print(json.dumps(summary,indent=2),flush=True)
     if not trades: raise SystemExit("No trades produced; do not infer profitability.")
 if __name__=="__main__": run()
