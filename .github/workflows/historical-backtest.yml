@@ -5,6 +5,7 @@ on:
     paths:
       - 'main.py'
       - 'historical_backtest.py'
+      - 'portfolio_ledger.py'
       - '.github/workflows/historical-backtest.yml'
   workflow_dispatch:
     inputs:
