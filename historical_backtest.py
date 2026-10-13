@@ -163,7 +163,7 @@ def entry_location_guard_self_test():
 
     # A close non-pivot high is ignored when a farther confirmed swing is the true obstacle.
     rows = frame_with_levels("BUY", 104.0)
-    rows[1+7]["high"] = 100.5
+    rows.loc[1+7, "high"] = 100.5
     d = signal_diagnostics(rows, "BUY")
     assert d["entry_guard_allowed"] is True and "2.00_ATR" in d["entry_guard_reason"], d
     # Confirmed swing only 0.5 ATR away is rejected.
