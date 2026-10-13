@@ -90,18 +90,48 @@ for label in ("A","B"):
 def one(label, phase, ordinal):
     path=WORK/label
     shutil.rmtree(path/"backtest-results",ignore_errors=True)
+    log_path=OUT/f"{phase}-{label}-{ordinal}.log"
+    progress_path=OUT/"progress.json"
+    run_id=f"{phase}-{label}-{ordinal}"
     started=time.perf_counter()
-    proc=run([sys.executable,"historical_backtest.py"],cwd=path,env=ENV,capture=True)
+    timeout_seconds=int(os.getenv("AB_SINGLE_RUN_TIMEOUT_SECONDS","2700"))
+    print(f"START {run_id}; per-run timeout={timeout_seconds}s; log={log_path}",flush=True)
+    with log_path.open("w",encoding="utf-8") as log_file:
+        proc=subprocess.Popen([sys.executable,"-u","historical_backtest.py"],cwd=path,env=ENV,
+                              stdout=log_file,stderr=subprocess.STDOUT,text=True)
+        while proc.poll() is None:
+            elapsed=time.perf_counter()-started
+            progress={"current_run":run_id,"elapsed_seconds":round(elapsed,1),
+                      "pid":proc.pid,"timeout_seconds":timeout_seconds,
+                      "started_unix":time.time(),"status":"RUNNING"}
+            progress_path.write_text(json.dumps(progress,indent=2),encoding="utf-8")
+            print(f"HEARTBEAT {run_id}: elapsed={int(elapsed)}s pid={proc.pid}",flush=True)
+            if elapsed >= timeout_seconds:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=15)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait()
+                progress.update({"status":"TIMED_OUT","returncode":proc.returncode})
+                progress_path.write_text(json.dumps(progress,indent=2),encoding="utf-8")
+                raise SystemExit(f"TIMEOUT: {run_id} exceeded {timeout_seconds}s; inspect {log_path}")
+            time.sleep(min(60,max(1,timeout_seconds-elapsed)))
     wall=time.perf_counter()-started
-    log=proc.stdout
-    (OUT/f"{phase}-{label}-{ordinal}.log").write_text(log,encoding="utf-8")
+    progress={"current_run":run_id,"elapsed_seconds":round(wall,1),
+              "returncode":proc.returncode,"status":"COMPLETED" if proc.returncode==0 else "FAILED"}
+    progress_path.write_text(json.dumps(progress,indent=2),encoding="utf-8")
+    if proc.returncode != 0:
+        tail=log_path.read_text(encoding="utf-8",errors="replace")[-5000:]
+        raise SystemExit(f"{run_id} exited with code {proc.returncode}; log tail:\\n{tail}")
+    log=log_path.read_text(encoding="utf-8",errors="replace")
     summary_path=path/"backtest-results"/"summary.json"
     trades_path=path/"backtest-results"/"trades.csv"
     if not summary_path.exists() or not trades_path.exists():
-        raise SystemExit(f"{label} run did not produce summary.json and trades.csv")
+        raise SystemExit(f"{label} run did not produce summary.json and trades.csv; inspect {log_path}")
     summary=json.loads(summary_path.read_text())
     if summary.get("status") != "COMPLETED" or summary.get("errors"):
-        raise SystemExit(f"{label} backtest has errors; refusing to compare")
+        raise SystemExit(f"{label} backtest has errors; refusing to compare; inspect {log_path}")
     # Store full outputs per sample to compare and inspect after the workflow.
     sample=OUT/f"{phase}-{label}-{ordinal}"
     sample.mkdir(exist_ok=True)
@@ -167,7 +197,7 @@ report={
           "Wall time includes Python startup; signal_engine stage is the primary optimization metric.",
           "No signal thresholds, strategy rules, Telegram delivery, or orders are changed."]
 }
-report["signal_engine_median_improvement_pct"]=round(
+progress_path.write_text(json.dumps({"status":"BENCHMARK_COMPARISON_COMPLETE","completed_unix":time.time()},indent=2),encoding="utf-8")\nreport["signal_engine_median_improvement_pct"]=round(
     (1-report["timings"]["candidate_B"]["signal_engine"]["median"]/
      report["timings"]["baseline_A"]["signal_engine"]["median"])*100,2
 ) if report["timings"]["baseline_A"]["signal_engine"]["median"] else None
