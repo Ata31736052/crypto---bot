@@ -79,6 +79,26 @@ for label, sha in (("A",BASE_SHA),("B",CANDIDATE_SHA)):
     path=WORK/label
     if path.exists(): shutil.rmtree(path)
     run(["git","worktree","add","--detach",str(path),sha],cwd=ROOT)
+# The historical baseline predates BACKTEST_END_TIME support and otherwise
+# silently uses the runner's current hour. Apply a benchmark-only date-anchor
+# shim to A so both revisions receive the exact same fixed test window. This
+# changes no strategy or performance code; the report/logs preserve both SHAs.
+baseline_file = WORK / "A" / "historical_backtest.py"
+baseline_source = baseline_file.read_text(encoding="utf-8")
+legacy_end = '    end=pd.Timestamp.now(tz="UTC").floor("h"); start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)'
+fixed_end = '''    end_raw=os.getenv("BACKTEST_END_TIME", "").strip()
+    if end_raw:
+        end=pd.Timestamp(end_raw)
+        if end.tzinfo is None:
+            raise ValueError("BACKTEST_END_TIME must include Z or an explicit UTC offset")
+        end=end.tz_convert("UTC").floor("h")
+    else:
+        end=pd.Timestamp.now(tz="UTC").floor("h")
+    start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)'''
+if legacy_end in baseline_source:
+    baseline_file.write_text(baseline_source.replace(legacy_end, fixed_end, 1), encoding="utf-8")
+elif 'BACKTEST_END_TIME' not in baseline_source:
+    raise SystemExit("Cannot safely anchor baseline: expected legacy end-time expression was not found")
 # Verify both revisions can run the exact same harness entrypoint.
 for label in ("A","B"):
     path=WORK/label
