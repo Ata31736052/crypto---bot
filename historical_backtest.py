@@ -146,15 +146,16 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
     if side=="BUY": sl,tp1,tp2=entry-risk,entry+risk*rr1,entry+risk*rr2
     else: sl,tp1,tp2=entry+risk,entry-risk*rr1,entry-risk*rr2
     end_i=min(len(h1)-1,entry_i+72); exitp=float(h1.iloc[end_i].close); reason="TIME_EXIT_72H"; xi=end_i
-    # Conservative OHLC ambiguity policy: stop loss wins if multiple levels touched in one candle.
+    # Conservative OHLC ambiguity policy: SL wins over targets; if both targets
+    # are touched in one candle, credit only TP1 because intrabar order is unknown.
     for j in range(entry_i,end_i+1):
         c=h1.iloc[j]; hi,lo=float(c.high),float(c.low)
         slhit=(lo<=sl if side=="BUY" else hi>=sl)
         t2=(hi>=tp2 if side=="BUY" else lo<=tp2)
         t1=(hi>=tp1 if side=="BUY" else lo<=tp1)
         if slhit: exitp,reason,xi=sl,"SL",j; break
-        if t2: exitp,reason,xi=tp2,"TP2",j; break
         if t1: exitp,reason,xi=tp1,"TP1",j; break
+        if t2: exitp,reason,xi=tp2,"TP2",j; break
     gross=((exitp-entry)/entry*100) if side=="BUY" else ((entry-exitp)/entry*100)
     costs=2*(FEE_BPS+SLIPPAGE_BPS)/100
     path=[]
@@ -186,6 +187,28 @@ def historical_btc_regime(frames, decision_time):
     else:
         combined = "NEUTRAL"
     return {"combined": combined, "combined_score": h["score"] + d["score"], "1h": h, "daily": d}
+
+def simulate_self_test():
+    """Regression tests for same-candle stop/target ambiguity."""
+    signal_time = pd.Timestamp("2026-10-01T00:00:00Z")
+    entry_time = pd.Timestamp("2026-10-01T01:00:00Z")
+    close_time = pd.Timestamp("2026-10-01T01:59:59.999000Z")
+    candle = pd.DataFrame([{
+        "open_time": entry_time, "close_time": close_time,
+        "open": 100.0, "high": 105.0, "low": 99.0, "close": 104.0,
+    }])
+    trade, _ = simulate("TESTUSDT", "BUY", signal_time, 0, candle, 1.0, 95, "TEST",
+                        {"entry": 100.0, "stop_loss": 98.0})
+    assert trade is not None and trade["exit_reason"] == "TP1"
+    assert abs(trade["exit"] - 103.6) < 1e-9, "same-candle TP1+TP2 must be credited as TP1"
+    stop_conflict = candle.copy()
+    stop_conflict.loc[0, "low"] = 97.0
+    trade, _ = simulate("TESTUSDT", "BUY", signal_time, 0, stop_conflict, 1.0, 95, "TEST",
+                        {"entry": 100.0, "stop_loss": 98.0})
+    assert trade is not None and trade["exit_reason"] == "SL", "SL must win same-candle SL/TP conflict"
+    print("HISTORICAL_EXIT_AMBIGUITY_SELF_TEST: PASS")
+    return True
+
 
 def run():
     end=pd.Timestamp.now(tz="UTC").floor("h"); start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
