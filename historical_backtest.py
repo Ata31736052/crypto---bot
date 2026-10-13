@@ -302,7 +302,18 @@ def simulate_self_test():
 
 
 def run():
-    end=pd.Timestamp.now(tz="UTC").floor("h"); start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
+    # Fixed UTC end lets baseline and experiment use identical closed-candle windows.
+    end_raw = os.getenv("BACKTEST_END_TIME", "").strip()
+    if end_raw:
+        end = pd.Timestamp(end_raw)
+        if end.tzinfo is None:
+            raise ValueError("BACKTEST_END_TIME must include Z or an explicit UTC offset")
+        end = end.tz_convert("UTC").floor("h")
+        if end > pd.Timestamp.now(tz="UTC").floor("h"):
+            raise ValueError("BACKTEST_END_TIME cannot be in the future")
+    else:
+        end = pd.Timestamp.now(tz="UTC").floor("h")
+    start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
     trades=[]; engine_candidate_trades={}; errors=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
     perf={"stage_seconds":{},"counters":{"candle_steps":0,"timeframe_index_lookups":0,"rows_materialized":0,"btc_regime_lookups":0,"engine_calls":0}}
     # ENGINE_INTERNAL_PROFILE: profile exactly one real production-engine invocation.
