@@ -8928,18 +8928,9 @@ def analyze_one_symbol(symbol, btc_regime):
         if not bottom_signal and trace["first_rejection"] is None:
             trace["first_rejection"] = "REVERSAL:" + str(trace["reversal"].get("reason"))
         if bottom_signal:
-            # Apply the same execution-location guard to Bottom Hunter as Trend.
-            # Previously reversal candidates could bypass the guard and buy directly
-            # under recent resistance, even when the diagnostic marked them rejected.
-            location_ok, location_reason = entry_location_guard(
-                df_1h, bottom_signal.get("signal"), lookback=20,
-                min_room_atr=PRO_MAX_RESISTANCE_ROOM_ATR
-            )
-            if not location_ok:
-                bottom_diagnostic["entry_location_rejected"] = safe_int(bottom_diagnostic.get("entry_location_rejected", 0)) + 1
-                bottom_diagnostic["entry_location_reject_reason"] = location_reason
-                trace["reversal"]["entry_location_rejection"] = location_reason
-                bottom_signal = None
+            # Reversal entries are intentionally not blanket-blocked by the trend location guard.
+            # Historical baseline showed that the same proximity rule can reject profitable
+            # reversal trades; keep the diagnostic available, but do not use it as a hard veto here.
         if bottom_signal:
             bottom_signal["symbol"] = symbol
             bottom_signal["engine"] = "REVERSAL"
