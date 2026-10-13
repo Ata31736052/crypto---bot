@@ -228,10 +228,12 @@ def historical_btc_regime(frames, decision_time):
         df = frames.get(tf)
         if df is None or df.empty:
             return None
-        closed = df[df["close_time"] <= decision_time]
-        if closed.empty:
+        # Frames are sorted once during prepare(); use a binary-search boundary
+        # rather than allocating a full boolean mask for every hourly decision.
+        end = int(df["close_time"].searchsorted(decision_time, side="right"))
+        if end <= 0:
             return None
-        latest[tf] = main._btc_regime_from_row(closed.iloc[-1])
+        latest[tf] = main._btc_regime_from_row(df.iloc[end - 1])
     h, d = latest["1h"], latest["1d"]
     if h["bullish"] and d["bullish"]:
         combined = "BULLISH"
@@ -296,7 +298,15 @@ def run():
                 if close_time<start or i<=last_exit: continue
                 data={}
                 for tf,df in frames.items():
-                    data[tf]=df[df.close_time<=close_time].tail(TIMEFRAME_LIMITS[tf]).copy() if not df.empty else None
+                    if df.empty:
+                        data[tf] = None
+                        continue
+                    # Find the closed-candle boundary in O(log n), then copy only
+                    # the configured tail window. This preserves <= close_time and
+                    # avoids repeatedly scanning/copying the entire historical frame.
+                    end_idx = int(df["close_time"].searchsorted(close_time, side="right"))
+                    start_idx = max(0, end_idx - TIMEFRAME_LIMITS[tf])
+                    data[tf] = df.iloc[start_idx:end_idx].copy()
                 if len(data["1h"])<50 or len(data["30m"])<30: continue
                 btc_regime=historical_btc_regime(btc_frames,close_time)
                 if btc_regime is None:
