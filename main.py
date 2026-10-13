@@ -3791,48 +3791,26 @@ def score_btc_regime(
 # DIVERGENCE SCORE
 # =========================================================
 
-def score_divergence(
-    df,
-    side
-):
-
-    data = analyze_divergence(
-        df
-    )
-
+def score_divergence_from_analysis(data, side):
+    """Score a previously computed combined divergence result for one side."""
     side = str(side).upper()
 
     if side == "BUY":
-
-        score = min(
-            data["bullish_score"] * 2,
-            4
-        )
-
-        return {
-            "score": score,
-            "reason": data["buy_reason"],
-            "data": data
-        }
+        score = min(data["bullish_score"] * 2, 4)
+        return {"score": score, "reason": data["buy_reason"], "data": data}
 
     if side == "SELL":
+        score = min(data["bearish_score"] * 2, 4)
+        return {"score": score, "reason": data["sell_reason"], "data": data}
 
-        score = min(
-            data["bearish_score"] * 2,
-            4
-        )
+    return {"score": 0, "reason": "", "data": data}
 
-        return {
-            "score": score,
-            "reason": data["sell_reason"],
-            "data": data
-        }
 
-    return {
-        "score": 0,
-        "reason": "",
-        "data": data
-    }
+def score_divergence(df, side):
+    # Keep the public helper's existing behavior; callers with both sides can
+    # compute analyze_divergence once and use score_divergence_from_analysis.
+    data = analyze_divergence(df)
+    return score_divergence_from_analysis(data, side)
 
 
 # =========================================================
@@ -4011,15 +3989,11 @@ def evaluate_final_signal(
     # DIVERGENCE
     # =====================================================
 
-    buy_divergence = score_divergence(
-        df_1h,
-        "BUY"
-    )
-
-    sell_divergence = score_divergence(
-        df_1h,
-        "SELL"
-    )
+    # Both sides use the same closed 1H dataframe. Compute the four
+    # divergence detectors once, then derive the side-specific scores.
+    divergence_data = analyze_divergence(df_1h)
+    buy_divergence = score_divergence_from_analysis(divergence_data, "BUY")
+    sell_divergence = score_divergence_from_analysis(divergence_data, "SELL")
 
     # =====================================================
     # PRICE STRUCTURE
