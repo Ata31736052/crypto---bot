@@ -1,0 +1,73 @@
+name: ApexSignal Historical Backtest 180D
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - backtest/historical-180d
+    paths:
+      - "main.py"
+      - "backtest_180d.py"
+      - ".github/workflows/backtest-180d.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apexsignal-backtest-180d
+  cancel-in-progress: false
+
+jobs:
+  historical-backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      PYTHONUNBUFFERED: "1"
+      BACKTEST_DAYS: "180"
+      BACKTEST_FEE_RATE: "0.001"
+      BACKTEST_SYMBOLS: "BTCUSDT,ETHUSDT,BNBUSDT,SOLUSDT,XRPUSDT,ADAUSDT"
+      RUN_ONCE: "0"
+      DRY_RUN: "1"
+      TELEGRAM_TEST_ON_START: "0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            python -m pip install -r requirements.txt
+          else
+            python -m pip install requests pandas numpy
+          fi
+      - name: Verify engine and compile
+        run: |
+          python -m py_compile main.py backtest_180d.py
+          python - <<'PY'
+          import main
+          assert main.DEPLOYMENT_ID == "v63.14.28-early-adx-raw-score-wiring-fix-20261012"
+          assert main.PRO_MIN_SCORE == 90
+          assert main.PRO_SELL_MIN_SCORE == 92
+          assert main.PRO_MIN_1H_ADX == 23.0
+          assert main.PRO_MIN_VOLUME_RATIO == 1.35
+          assert main.run_v63_14_27_raw_score_wiring_self_test() is True
+          assert main.run_v63_14_28_early_adx_raw_score_wiring_self_test() is True
+          print("ENGINE AND REGRESSION PREFLIGHT: PASS")
+          PY
+      - name: Run 180-day historical replay
+        run: python backtest_180d.py
+      - name: Upload backtest report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apexsignal-historical-backtest-180d
+          path: |
+            backtest_report/summary.json
+            backtest_report/summary.md
+            backtest_report/trades.csv
+          if-no-files-found: warn
+          retention-days: 30
