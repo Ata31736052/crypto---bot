@@ -58,13 +58,16 @@ jobs:
           python -m pip install -r requirements.txt
       - name: Compile and verify offline replay
         run: |
-          python -m py_compile main.py historical_backtest.py
+          python -m py_compile main.py historical_backtest.py portfolio_ledger.py
           python - <<'PY'
           from pathlib import Path
           s=Path("historical_backtest.py").read_text()
           assert "main.analyze_one_symbol(" in s
           assert "next 1H candle open" in s
-          print("Backtest source verification: PASS")
+          assert "portfolio_ledger" in s
+          from portfolio_ledger import portfolio_ledger_self_test
+          portfolio_ledger_self_test("backtest-results")
+          print("Backtest source and shared-account verification: PASS")
           PY
       - name: Run historical replay
         run: python historical_backtest.py
