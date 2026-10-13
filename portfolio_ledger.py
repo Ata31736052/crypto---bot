@@ -224,7 +224,7 @@ def portfolio_ledger_self_test(out_dir):
         make_trade("BBBUSDT", "2026-01-01T01:00:00+00:00", "2026-01-01T03:00:00+00:00", -10),
         make_trade("CCCUSDT", "2026-01-01T01:00:00+00:00", "2026-01-01T03:00:00+00:00", 5),
     ]
-    result = portfolio_ledger(candidates, test_dir, initial_cash=1000, risk_pct=1,
+    result = portfolio_ledger(candidates, test_dir, initial_cash=1000, risk_pct=100,
                               max_position_pct=100)
     assert result["candidate_trades"] == 3
     assert result["accepted_trades"] < 3, "shared cash must reject at least one concurrent candidate"
