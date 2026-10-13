@@ -209,27 +209,75 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
 
 
 def portfolio_ledger_self_test(out_dir):
-    """Deterministic checks: shared capital constraint, overlap, files, and equity."""
+    """Deterministic checks for shared capital, release, fees, and mark-to-market drawdown."""
     import tempfile
-    test_dir = Path(tempfile.mkdtemp())
-    def make_trade(symbol, entry_time, exit_time, net_pct, score=95):
+
+    def make_trade(symbol, entry_time, exit_time, net_pct, score=95,
+                   cost_pct=0.0, exit_price=None):
+        entry = 100.0
+        if exit_price is None:
+            exit_price = entry * (1.0 + net_pct / 100.0)
         return {
             "symbol": symbol, "side": "BUY", "entry_time": entry_time,
-            "exit_time": exit_time, "entry": 100.0, "stop_loss": 95.0,
-            "net_pct": net_pct, "cost_pct": 0.3, "score": score,
-            "_path": [{"time": exit_time, "price": 100.0 * (1 + net_pct / 100)}],
+            "exit_time": exit_time, "entry": entry, "stop_loss": 95.0,
+            "net_pct": net_pct, "cost_pct": cost_pct, "score": score,
+            "_path": [{"time": exit_time, "price": exit_price}],
         }
-    candidates = [
-        make_trade("AAAUSDT", "2026-01-01T00:00:00+00:00", "2026-01-01T02:00:00+00:00", 10),
-        make_trade("BBBUSDT", "2026-01-01T01:00:00+00:00", "2026-01-01T03:00:00+00:00", -10),
-        make_trade("CCCUSDT", "2026-01-01T01:00:00+00:00", "2026-01-01T03:00:00+00:00", 5),
-    ]
-    result = portfolio_ledger(candidates, test_dir, initial_cash=1000, risk_pct=100,
-                              max_position_pct=100)
-    assert result["candidate_trades"] == 3
-    assert result["accepted_trades"] < 3, "shared cash must reject at least one concurrent candidate"
-    assert result["final_equity_usdt"] < 1101
-    assert result["max_drawdown_pct"] >= 0
-    assert (test_dir / "portfolio_equity.csv").exists()
-    assert (test_dir / "portfolio_trades.csv").exists()
-    print("PORTFOLIO_LEDGER_SELF_TEST: PASS")
+
+    t0 = "2026-01-01T00:00:00+00:00"
+    t1 = "2026-01-01T01:00:00+00:00"
+    t2 = "2026-01-01T02:00:00+00:00"
+    t3 = "2026-01-01T03:00:00+00:00"
+    t4 = "2026-01-01T04:00:00+00:00"
+
+    # 1) Simultaneous signals use deterministic score priority and cannot overspend cash.
+    with tempfile.TemporaryDirectory() as d:
+        simultaneous = [
+            make_trade("AAAUSDT", t0, t2, 0.0, score=99),
+            make_trade("BBBUSDT", t0, t2, 0.0, score=95),
+            make_trade("CCCUSDT", t0, t2, 0.0, score=94),
+        ]
+        r = portfolio_ledger(simultaneous, d, initial_cash=1000, risk_pct=100,
+                             max_position_pct=100)
+        assert r["accepted_trades"] == 1, "full-cash simultaneous trades must not overlap allocations"
+        assert r["rejected_trades"] == 2
+        rows = pd.read_csv(Path(d) / "portfolio_trades.csv")
+        accepted_symbols = rows.loc[rows["portfolio_status"] == "ACCEPTED", "symbol"].tolist()
+        assert accepted_symbols == ["AAAUSDT"], "higher-score candidate must win timestamp tie"
+
+    # 2) Cash reserved by an open position is released after its exit.
+    with tempfile.TemporaryDirectory() as d:
+        sequential = [
+            make_trade("AAAUSDT", t0, t2, 0.0),
+            make_trade("BBBUSDT", t3, t4, 0.0),
+        ]
+        r = portfolio_ledger(sequential, d, initial_cash=1000, risk_pct=100,
+                             max_position_pct=100)
+        assert r["accepted_trades"] == 2, "capital must become reusable after exit"
+        assert r["rejected_trades"] == 0
+        assert abs(r["final_equity_usdt"] - 1000.0) < 1e-6
+
+    # 3) Net PnL and fees scale with the notional actually allocated, not the candidate's
+    #    theoretical full-account size.
+    with tempfile.TemporaryDirectory() as d_full, tempfile.TemporaryDirectory() as d_half:
+        candidate = [make_trade("AAAUSDT", t0, t2, 0.7, cost_pct=0.3, exit_price=101.0)]
+        full = portfolio_ledger(candidate, d_full, initial_cash=1000, risk_pct=100,
+                                max_position_pct=100)
+        half = portfolio_ledger(candidate, d_half, initial_cash=1000, risk_pct=100,
+                                max_position_pct=50)
+        assert abs(full["net_pnl_usdt"] - 7.0) < 1e-5
+        assert abs(half["net_pnl_usdt"] - 3.5) < 1e-5
+        assert abs(full["net_pnl_usdt"] / half["net_pnl_usdt"] - 2.0) < 1e-5
+
+    # 4) Equity is marked to market and drawdown is measured from the running peak.
+    with tempfile.TemporaryDirectory() as d:
+        losing = [make_trade("AAAUSDT", t0, t2, -5.3, cost_pct=0.3, exit_price=95.0)]
+        r = portfolio_ledger(losing, d, initial_cash=1000, risk_pct=100,
+                             max_position_pct=100)
+        assert abs(r["final_equity_usdt"] - 947.0) < 1e-5
+        assert abs(r["max_drawdown_pct"] - 5.3) < 1e-4
+        curve = pd.read_csv(Path(d) / "portfolio_equity.csv")
+        assert curve["equity_usdt"].min() <= 947.0 + 1e-5
+        assert curve["drawdown_pct"].max() >= 5.3 - 1e-4
+
+    print("PORTFOLIO_LEDGER_SELF_TEST: PASS (simultaneous allocation, capital release, fee scaling, drawdown)")
