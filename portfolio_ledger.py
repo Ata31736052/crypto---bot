@@ -17,6 +17,7 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
     peak = float(initial_cash)
     max_drawdown = 0.0
     max_utilization = 0.0
+    max_gross_exposure_pct_equity = 0.0
 
     for idx, source in enumerate(candidates):
         trade = dict(source)
@@ -148,8 +149,18 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
         drawdown = (peak - equity) / peak * 100 if peak > 0 else 0.0
         max_drawdown = max(max_drawdown, drawdown)
         open_notional = sum(p["notional"] for p in positions.values())
-        utilization = open_notional / equity * 100 if equity > 0 else 0.0
+        # Cash-backed deployment uses unmarked cost basis plus remaining cash.
+        # Dividing cost basis by marked-to-market equity can exceed 100% during
+        # an unrealized loss; that is drawdown, not cash overspending.
+        deployed_capital = cash + open_notional
+        utilization = open_notional / deployed_capital * 100 if deployed_capital > 0 else 0.0
+        gross_exposure_pct_equity = open_notional / equity * 100 if equity > 0 else 0.0
         max_utilization = max(max_utilization, utilization)
+        max_gross_exposure_pct_equity = max(max_gross_exposure_pct_equity, gross_exposure_pct_equity)
+        if cash < -1e-6:
+            raise AssertionError(f"Shared-cash ledger overspent at {now}: cash={cash:.8f}")
+        if utilization > 100.0 + 1e-5:
+            raise AssertionError(f"Cash-backed utilization exceeded 100% at {now}: {utilization:.6f}%")
         equity_rows.append({
             "time": now.isoformat(),
             "cash_usdt": round(cash, 6),
@@ -158,6 +169,7 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
             "equity_usdt": round(equity, 6),
             "drawdown_pct": round(drawdown, 6),
             "capital_utilization_pct": round(utilization, 6),
+            "gross_exposure_pct_equity": round(gross_exposure_pct_equity, 6),
         })
 
     # Defensive close-out for any candidate path that did not include its exit timestamp.
@@ -209,6 +221,7 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
         "accepted_trades": len(accepted),
         "rejected_trades": len(rejected),
         "capital_utilization_max_pct": round(max_utilization, 6),
+        "gross_exposure_max_pct_equity": round(max_gross_exposure_pct_equity, 6),
         "risk_per_trade_pct_of_equity": risk_pct,
         "max_position_pct_of_equity": max_position_pct,
         "execution_model": "one shared cash account; no leverage; position size is min(1% equity risk / stop distance, position cap, free cash); open positions marked to market at historical hourly closes; fees/slippage included",
@@ -304,6 +317,11 @@ def portfolio_ledger_self_test(out_dir):
         expected_drawdown = (1000.0 - expected_equity) / 1000.0 * 100.0
         assert abs(r["final_equity_usdt"] - expected_equity) < 1e-5
         assert abs(r["max_drawdown_pct"] - expected_drawdown) < 1e-4
+        assert r["capital_utilization_max_pct"] <= 100.0 + 1e-5
+        assert r["gross_exposure_max_pct_equity"] > 100.0, (
+            "gross exposure may exceed marked-to-market equity during unrealized losses; "
+            "keep this distinct from cash-backed utilization"
+        )
         curve = pd.read_csv(Path(d) / "portfolio_equity.csv")
         assert curve["equity_usdt"].min() <= expected_equity + 1e-5
         assert curve["drawdown_pct"].max() >= expected_drawdown - 1e-4
