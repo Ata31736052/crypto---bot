@@ -37,8 +37,9 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: historical-backtest-${{ github.sha }}
-  cancel-in-progress: true
+  # Keep repeated fixed-window benchmark runs independent; never cancel a prior sample.
+  group: historical-backtest-${{ github.run_id }}
+  cancel-in-progress: false
 jobs:
   backtest:
     runs-on: ubuntu-latest
