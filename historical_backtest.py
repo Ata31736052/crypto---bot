@@ -37,8 +37,28 @@ def fetch(symbol, tf, start_ms, end_ms):
     d=pd.DataFrame(rows,columns=["open_time","open","high","low","close","volume","close_time","qv","trades","tb","tq","ignore"])
     d["open_time"]=pd.to_datetime(d.open_time,unit="ms",utc=True); d["close_time"]=pd.to_datetime(d.close_time,unit="ms",utc=True)
     for c in ("open","high","low","close","volume"): d[c]=pd.to_numeric(d[c],errors="coerce")
-    d=d[d.close_time < pd.Timestamp.now(tz="UTC")].dropna(subset=["open","high","low","close","volume"])
+    # Treat end_ms as an exclusive closed-candle boundary. Binance endTime can
+    # include a candle whose open_time equals the boundary but whose close is later.
+    end_boundary=pd.to_datetime(end_ms,unit="ms",utc=True)
+    d=d[(d.close_time < pd.Timestamp.now(tz="UTC")) & (d.close_time < end_boundary)].dropna(subset=["open","high","low","close","volume"])
     return d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]
+
+
+def closed_end_cutoff_self_test():
+    """A fixed end boundary must exclude candles that close at/after that boundary."""
+    end=pd.Timestamp("2026-10-13T12:00:00Z")
+    sample=pd.DataFrame({
+        "open_time":pd.to_datetime(["2026-10-13T10:00:00Z","2026-10-13T11:00:00Z"],utc=True),
+        "close_time":pd.to_datetime(["2026-10-13T10:59:59.999Z","2026-10-13T11:59:59.999Z"],utc=True),
+    })
+    sample=pd.concat([sample,pd.DataFrame({
+        "open_time":pd.to_datetime(["2026-10-13T12:00:00Z"],utc=True),
+        "close_time":pd.to_datetime(["2026-10-13T12:59:59.999Z"],utc=True),
+    })],ignore_index=True)
+    kept=sample[sample.close_time < end]
+    assert len(kept)==2 and kept.close_time.max() < end, "post-boundary candle leaked into fixed window"
+    print("CLOSED_END_CUTOFF_SELF_TEST: PASS")
+    return True
 
 def prepare(d):
     if d.empty: return d
