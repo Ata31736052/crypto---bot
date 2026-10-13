@@ -269,7 +269,7 @@ def simulate_self_test():
 
 def run():
     end=pd.Timestamp.now(tz="UTC").floor("h"); start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
-    trades=[]; errors=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
+    trades=[]; engine_candidate_trades={}; errors=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
     print(f"PERIOD {start} -> {end}; symbols={SYMBOLS}; fee/side={FEE_BPS}bps; slippage/side={SLIPPAGE_BPS}bps",flush=True)
     # Fetch BTC context once and rebuild it at each historical decision instant.
     try:
@@ -290,10 +290,12 @@ def run():
             frames={tf:prepare(d) for tf,d in raw.items()}
             validate_warmup(frames, start, sym)
             h1=frames["1h"]
-            idx=max(220,int(h1.open_time.searchsorted(start))); last_exit=idx-1
+            idx=max(220,int(h1.open_time.searchsorted(start)))
+            baseline_last_exit=idx-1
+            engine_last_exit={}
             for i in range(idx,len(h1)-1):
                 c=h1.iloc[i]; close_time=c.close_time
-                if close_time<start or i<=last_exit: continue
+                if close_time<start: continue
                 data={}
                 for tf,df in frames.items():
                     data[tf]=df[df.close_time<=close_time].tail(TIMEFRAME_LIMITS[tf]).copy() if not df.empty else None
@@ -303,9 +305,9 @@ def run():
                     errors.append({"symbol":sym,"time":str(close_time),"error":"BTC historical regime unavailable"})
                     continue
                 diagnostics["evaluated"] += 1
-                # Run the same production candidate pipeline (Trend, Bottom Hunter,
-                # Breakout, plus enabled higher-timeframe candidates) without live
-                # API calls. Only the price/market-data providers are replaced.
+                # Evaluate every closed candle. The baseline and each engine counterfactual
+                # maintain separate exit clocks so one engine's open trade cannot suppress
+                # another engine's candidate stream.
                 original_prepare=main.prepare_symbol_data
                 original_live_price=main.get_live_price
                 try:
@@ -331,22 +333,50 @@ def run():
                     if len(diagnostics["first_no_signal_reasons"]) < 12:
                         diagnostics["first_no_signal_reasons"].append({"symbol":sym,"time":str(close_time),"first_rejection":trace.get("first_rejection"),"final_rejection":trace.get("final_rejection"),"error":scan.get("error") if isinstance(scan,dict) else "invalid scan result"})
                     continue
-                # The live scan can surface multiple qualified timeframes; because
-                # this replay permits one position per symbol, select the strongest
-                # qualified candidate at that decision time.
+
+                # Build independent candidate streams: choose the strongest candidate
+                # within each engine at this timestamp, not one global winner. This avoids
+                # contaminating TREND-vs-REVERSAL results with cross-engine selection bias.
+                by_engine={}
+                for candidate in candidates:
+                    engine_name=str(candidate.get("engine",candidate.get("signal_mode","UNKNOWN"))).upper()
+                    previous=by_engine.get(engine_name)
+                    rank=(float(candidate.get("professional_quality_score",0) or 0),
+                          float(candidate.get("score",0) or 0),
+                          1 if candidate.get("strength")=="STRONG" else 0)
+                    if previous is None or rank>previous[0]:
+                        by_engine[engine_name]=(rank,candidate)
+                for engine_name,(_,engine_candidate) in by_engine.items():
+                    if i <= engine_last_exit.get(engine_name,idx-1):
+                        continue
+                    engine_side=str(engine_candidate.get("signal","NO_SIGNAL")).upper()
+                    engine_trade,engine_exit_i=simulate(
+                        sym,engine_side,c.open_time,i+1,h1,float(c.get("atr",0) or 0),
+                        engine_candidate.get("score",0),engine_candidate.get("strength",""),engine_candidate
+                    )
+                    if engine_trade:
+                        engine_trade["engine"]=engine_name
+                        engine_trade["signal_mode"]=engine_candidate.get("signal_mode","UNKNOWN")
+                        engine_trade["btc_regime"]=btc_regime.get("combined","UNKNOWN")
+                        engine_trade.update(signal_diagnostics(data["1h"],engine_side))
+                        engine_candidate_trades.setdefault(engine_name,[]).append(engine_trade)
+                        engine_last_exit[engine_name]=engine_exit_i
+
+                # Primary baseline remains the production-style single strongest candidate.
+                if i <= baseline_last_exit:
+                    continue
                 result=max(candidates,key=lambda x:(float(x.get("professional_quality_score",0) or 0),float(x.get("score",0) or 0),1 if x.get("strength")=="STRONG" else 0))
                 side=str(result.get("signal","NO_SIGNAL")).upper()
                 diagnostics["signals_before_execution"] += 1
-                # Primary baseline: do not veto production-engine candidates with
-                # experimental anti-chase logic. Keep the metric diagnostic-only.
-                location_diag = signal_diagnostics(data["1h"],side)
+                # Anti-chase remains diagnostic-only and cannot veto the baseline.
+                location_diag=signal_diagnostics(data["1h"],side)
                 trade,exit_i=simulate(sym,side,c.open_time,i+1,h1,float(c.get("atr",0) or 0),result.get("score",0),result.get("strength",""),result)
                 if trade:
                     trade.update(location_diag)
-                    trade["engine"]=result.get("engine",result.get("signal_mode","UNKNOWN"))
+                    trade["engine"]=str(result.get("engine",result.get("signal_mode","UNKNOWN"))).upper()
                     trade["signal_mode"]=result.get("signal_mode","UNKNOWN")
                     trade["btc_regime"]=btc_regime.get("combined","UNKNOWN")
-                    trades.append(trade); last_exit=exit_i
+                    trades.append(trade); baseline_last_exit=exit_i
                     print(f"TRADE {sym} {side} {trade['signal_time']} engine={trade['engine']} net={trade['net_pct']}% {trade['exit_reason']}",flush=True)
         except Exception as exc:
             errors.append({"symbol":sym,"error":str(exc)}); print("ERROR",sym,exc,flush=True)
@@ -361,8 +391,8 @@ def run():
     # Offline-only counterfactuals: replay each engine's candidate stream in its own
     # shared-cash account. These are diagnostic comparisons, not live filters.
     engine_portfolios={}
-    for engine_name in sorted({str(t.get("engine","UNKNOWN")) for t in trades}):
-        engine_trades=[t for t in trades if str(t.get("engine","UNKNOWN"))==engine_name]
+    for engine_name in sorted(engine_candidate_trades):
+        engine_trades=engine_candidate_trades[engine_name]
         engine_out=OUT/"engine-comparison"/engine_name.lower()
         engine_portfolios[engine_name]=portfolio_ledger(
             engine_trades,engine_out,initial_cash=initial_capital,
@@ -373,7 +403,7 @@ def run():
     guarded_trades=[t for t in trades if bool(t.get("entry_guard_allowed",True))]
     guard_portfolio=portfolio_ledger(guarded_trades,OUT/"entry-location-guard",initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
     guard_comparison={"rule":"nearest obstacle in previous 20 closed 1H candles must be at least 0.80 ATR away","baseline_candidate_trades":len(trades),"guard_candidate_trades":len(guarded_trades),"filtered_candidate_trades":len(trades)-len(guarded_trades),"status":"EXPERIMENTAL_COMPARISON_ONLY; not enabled in live engine"}
-    summary={"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"fee and slippage on both entry and exit included in net P/L","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":sum(str(t.get("engine","UNKNOWN"))==k for t in trades),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in trades if str(t.get("engine","UNKNOWN"))==k),4)} for k in sorted({str(t.get("engine","UNKNOWN")) for t in trades})},"diagnostics":diagnostics,"errors":errors}
+    summary={"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"fee and slippage on both entry and exit included in net P/L","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
     (OUT/"summary.json").write_text(json.dumps(summary,indent=2),encoding="utf-8"); print(json.dumps(summary,indent=2),flush=True)
     if not trades: raise SystemExit("No trades produced; do not infer profitability.")
 if __name__=="__main__": run()
