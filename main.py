@@ -5,7 +5,7 @@
 # Confirmation TF: 30M
 # Higher TF Context: 4H + Daily
 # Binance Spot only | No auto-trading
-# Version: 2026-10-10 v63.14.13 | OUTCOME CANDLE-COVERAGE GATE | SCORE-GRADE SEMANTICS | NO THRESHOLD RELAXATION | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
+# Version: 2026-10-12 v63.14.28 | EARLY ADX RAW-SCORE WIRING FIX | CLOSED-CANDLE ONLY | SELL HARDENED | Binance Spot Only
 # =========================================================
 
 import os
@@ -29,12 +29,11 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 RUN_ONCE = os.getenv("RUN_ONCE", "0") == "1"
 TELEGRAM_TEST_ON_START = False
 
-# Temporary safety lock: suppress all Telegram delivery unless explicitly disabled.
-# Keep enabled by default while diagnostics/backtesting are being reviewed.
+# Safe diagnostics mode: scan Binance data, but never deliver Telegram messages.
 DRY_RUN = os.getenv("DRY_RUN", "0").strip().lower() in ("1", "true", "yes", "on")
 
 # Deployment identity: workflow must verify this exact build before execution.
-DEPLOYMENT_ID = "v63.14.15-extended-history-outcome-repair-20261010"
+DEPLOYMENT_ID = "v63.14.28-early-adx-raw-score-wiring-fix-20261012"
 
 
 
@@ -50,6 +49,7 @@ TIMEFRAME_DAILY = "1d"
 # Separate higher-timeframe signals
 ENABLE_4H_SIGNALS = True
 ENABLE_DAILY_SIGNALS = True
+ENABLE_DAILY_BOTTOM_HUNTER = True
 HIGHER_TF_MIN_SCORE = 90
 HIGHER_TF_STRONG_SCORE = 95
 
@@ -83,7 +83,7 @@ PRO_SELL_MIN_1H_ADX = 26.0
 PRO_SELL_MIN_VOLUME_RATIO = 1.50
 PRO_SELL_MIN_30M_CONFIRMATIONS = 6
 PRO_BREAKOUT_MIN_SCORE = 90
-PRO_BOTTOM_MIN_SCORE = 90
+PRO_BOTTOM_MIN_SCORE = 85
 PRO_HIGHER_TF_MIN_SCORE = 90
 PRO_MIN_QUALITY_POINTS = 15
 PRO_BOTTOM_MIN_QUALITY_POINTS = 15
@@ -110,12 +110,19 @@ PRO_MIN_SIDE_SCORE_GAP = 5
 PRO_BOTTOM_MIN_ADX = 23.0
 PRO_BOTTOM_MIN_VOLUME_RATIO = 1.35
 PRO_BOTTOM_MIN_30M_CONFIRMATIONS = 6
+# Controlled 1H early-reversal path: allow 3/6 lower-TF confirmations only
+# when score, volume, ADX floor, and independent reversal momentum all agree.
+PRO_BOTTOM_EARLY_MIN_30M_CONFIRMATIONS = 3
 PRO_BOTTOM_REQUIRE_HTF_ALIGNMENT = 1
 # v63.11: reversal momentum is measured by independent evidence components.
 # Require at least 2 of RSI slope, MACD-histogram slope, and DI direction.
 # This removes the contradictory old logic that first allowed OR, then required
 # RSI AND MACD simultaneously, while keeping ADX and volume/30M/HTF hard gates.
 PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS = 2
+# v63.14.17: narrow early-reversal ADX exception; all other quality gates remain active.
+PRO_BOTTOM_EARLY_ADX_FLOOR = 18.0
+PRO_BOTTOM_EARLY_ADX_MIN_VOLUME = 1.50
+PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE = 95
 BREAKOUT_LOOKBACK = 20
 BREAKOUT_BUFFER_PERCENT = 0.15
 BREAKOUT_MIN_VOLUME_RATIO = 1.25
@@ -3519,6 +3526,18 @@ def format_confirmation_diagnostic(breakdown):
     return f"{timeframe}={format_confirmation_status(actual, required)}"
 
 
+def format_confirmation_checks(checks, failed_only=False):
+    """Format per-component confirmation evidence for diagnostics only."""
+    if not isinstance(checks, dict) or not checks:
+        return "unavailable"
+    items = []
+    for name, passed in checks.items():
+        if failed_only and bool(passed):
+            continue
+        items.append(f"{name}:{'PASS' if passed else 'FAIL'}")
+    return " | ".join(items) if items else "all PASS"
+
+
 def score_30m_confirmation(
     df,
     side,
@@ -3685,6 +3704,40 @@ def score_30m_confirmation(
             confirmations += 1
             reasons.append(f"{timeframe_label} RSI momentum supportive")
 
+    # Diagnostic-only component ledger. These checks mirror the conditions
+    # above; they do not add points, relax a threshold, or alter confirmation.
+    confirmation_checks = {
+        "EMA_price": (row["close"] > row["ema21"]) if side == "BUY" else (row["close"] < row["ema21"]),
+        "EMA9_EMA21": (row["ema9"] > row["ema21"]) if side == "BUY" else (row["ema9"] < row["ema21"]),
+        "MACD_direction": (row["macd"] > row["macd_signal"] and row["macd_hist"] > 0) if side == "BUY" else (row["macd"] < row["macd_signal"] and row["macd_hist"] < 0),
+        "RSI_zone": (row["rsi"] >= 50 and row["rsi"] < 72) if side == "BUY" else (row["rsi"] <= 50 and row["rsi"] > 28),
+        "ADX_DI": adx >= PRO_MIN_30M_ADX and ((side == "BUY" and plus_di > minus_di) or (side == "SELL" and minus_di > plus_di)),
+        "Volume": volume_ratio >= PRO_MIN_VOLUME_RATIO,
+        "VWAP": vwap > 0 and ((side == "BUY" and close > vwap) or (side == "SELL" and close < vwap)),
+        "OBV": (obv_slope > 0) if side == "BUY" else (obv_slope < 0),
+        "MACD_hist_improving": (macd_hist > macd_hist_prev) if side == "BUY" else (macd_hist < macd_hist_prev),
+        "RSI_momentum": (50 <= rsi < 70 and rsi >= safe_float(row.get("rsi_prev"))) if side == "BUY" else (30 < rsi <= 50 and rsi <= safe_float(row.get("rsi_prev"))),
+    }
+    confirmation_metrics = {
+        "close": round(close, 8),
+        "ema9": round(safe_float(row.get("ema9")), 8),
+        "ema21": round(safe_float(row.get("ema21")), 8),
+        "ema9_ema21_pct": round((safe_float(row.get("ema9")) / safe_float(row.get("ema21")) - 1.0) * 100, 4) if safe_float(row.get("ema21")) > 0 else None,
+        "close_ema21_pct": round((close / safe_float(row.get("ema21")) - 1.0) * 100, 4) if safe_float(row.get("ema21")) > 0 else None,
+        "macd": round(safe_float(row.get("macd")), 8),
+        "macd_signal": round(safe_float(row.get("macd_signal")), 8),
+        "macd_hist": round(macd_hist, 8),
+        "macd_hist_prev": round(macd_hist_prev, 8),
+        "rsi": round(rsi, 3),
+        "rsi_prev": round(safe_float(row.get("rsi_prev")), 3),
+        "adx": round(adx, 3),
+        "plus_di": round(plus_di, 3),
+        "minus_di": round(minus_di, 3),
+        "volume_ratio": round(volume_ratio, 3),
+        "close_vwap_pct": round((close / vwap - 1.0) * 100, 4) if vwap > 0 else None,
+        "obv_slope": round(obv_slope, 8),
+    }
+
     # Require independent evidence rather than two easy EMA checks.
     confirmed = confirmations >= PRO_MIN_30M_CONFIRMATIONS
 
@@ -3696,7 +3749,10 @@ def score_30m_confirmation(
         ),
         "confirmations": confirmations,
         "confirmed": confirmed,
-        "reasons": reasons
+        "reasons": reasons,
+        "checks": confirmation_checks,
+        "failed_checks": [name for name, passed in confirmation_checks.items() if not passed],
+        "metrics": confirmation_metrics,
     }
 
 
@@ -5821,6 +5877,8 @@ def _final_gate_reject(signal, reason):
     if isinstance(signal, dict):
         signal["final_telegram_gate_rejections"] = [str(reason)]
         signal["final_telegram_quality_gate"] = False
+        signal["delivery_diagnostic_status"] = "BLOCKED_FINAL_QUALITY_GATE"
+        signal["delivery_diagnostic_reason"] = str(reason)
     return False
 
 
@@ -5849,12 +5907,14 @@ def final_telegram_quality_gate(signal):
 
     side = str(signal.get("signal", "")).upper()
     mode = str(signal.get("signal_mode", "TREND")).upper()
-    raw_score = safe_float(pbreak.get("raw_score", signal.get("score", 0)))
+    # Match the professional gate: eligibility uses the effective, quality-capped
+    # score. Keep the true engine raw score diagnostic-only.
+    effective_score = safe_float(pbreak.get("effective_score", signal.get("score", 0)))
     quality_score = safe_int(pbreak.get("quality_score", signal.get("professional_quality_score", 0)))
     min_score = professional_min_score_for_mode(mode, side)
-    if raw_score + RR_EPSILON < min_score:
+    if effective_score + RR_EPSILON < min_score:
         return _final_gate_reject(
-            signal, f"raw score {raw_score:.1f} < required {min_score} for {mode}/{side}"
+            signal, f"effective score {effective_score:.1f} < required {min_score} for {mode}/{side}"
         )
     if quality_score <= 0:
         return _final_gate_reject(signal, "professional quality score is missing or non-positive")
@@ -5903,23 +5963,17 @@ def send_signal_to_telegram(
     if not validate_signal_quality(
         signal
     ):
-
-        log(
-            f"{signal.get('symbol')} "
-            "failed signal quality"
-        )
-
+        signal["delivery_diagnostic_status"] = "BLOCKED_SIGNAL_QUALITY"
+        signal["delivery_diagnostic_reason"] = "validate_signal_quality returned false"
+        log(f"{signal.get('symbol')} delivery blocked: signal-quality validation failed")
         return False
 
     if not validate_risk_levels(
         signal
     ):
-
-        log(
-            f"{signal.get('symbol')} "
-            "failed risk validation"
-        )
-
+        signal["delivery_diagnostic_status"] = "BLOCKED_RISK_VALIDATION"
+        signal["delivery_diagnostic_reason"] = "validate_risk_levels returned false"
+        log(f"{signal.get('symbol')} delivery blocked: risk-level validation failed")
         return False
 
     message = build_signal_message(
@@ -5927,7 +5981,22 @@ def send_signal_to_telegram(
     )
 
     if not message:
+        signal["delivery_diagnostic_status"] = "BLOCKED_MESSAGE_BUILD"
+        signal["delivery_diagnostic_reason"] = "build_signal_message returned an empty message"
+        log(f"{signal.get('symbol')} delivery blocked: message construction returned empty")
+        return False
 
+    # Dry-run now validates the full delivery path without making a Telegram
+    # request. This distinguishes a qualified signal from a delivery failure.
+    if DRY_RUN:
+        signal["delivery_diagnostic_status"] = "READY_BUT_SUPPRESSED_DRY_RUN"
+        signal["delivery_diagnostic_reason"] = "all quality and risk gates passed; Telegram request intentionally suppressed"
+        log(
+            f"DRY_RUN VALIDATED: {signal.get('symbol')} "
+            f"{signal.get('signal')} Mode={signal.get('signal_mode', 'TREND')} "
+            f"Score={signal.get('score')} | quality=PASS risk=PASS | "
+            "Telegram request suppressed by DRY_RUN"
+        )
         return False
 
     success = send_telegram_message(
@@ -6377,6 +6446,26 @@ def mark_signal_sent(
 # ADD SIGNAL TO HISTORY
 # =========================================================
 
+def _is_hourly_outcome_eligible(signal):
+    """Keep the existing 1H outcome tracker isolated from 4H/1D signals.
+
+    Legacy records with no timeframe metadata remain eligible unless their
+    engine/mode explicitly identifies a non-hourly signal.
+    """
+    if not isinstance(signal, dict):
+        return False
+    mode = str(signal.get("signal_mode", "")).strip().upper()
+    engine = str(signal.get("engine", "")).strip().upper()
+    timeframe = str(signal.get("signal_timeframe", "")).strip().lower()
+    if engine == "REVERSAL_DAILY":
+        return False
+    if mode in ("DAILY_SIGNAL", "4H_SIGNAL"):
+        return False
+    if timeframe in ("1d", "1day", "daily", "d", "4h", "4hour", "4hours", "240m"):
+        return False
+    return True
+
+
 def add_signal_to_history(
     signal,
     history
@@ -6462,11 +6551,37 @@ def add_signal_to_history(
             0
         ),
 
+        # Entry-location metrics are preserved so later outcome analysis can
+        # distinguish an early setup from a stretched/chase entry.
+        "ema9": signal.get("ema9", 0),
+        "ema21": signal.get("ema21", 0),
+        "atr": signal.get("atr", 0),
+        "entry_extension_atr": (
+            ((safe_float(signal.get("price", signal.get("entry", 0))) - safe_float(signal.get("ema9", 0)))
+             if str(signal.get("signal", "")).upper() == "BUY"
+             else (safe_float(signal.get("ema9", 0)) - safe_float(signal.get("price", signal.get("entry", 0)))))
+            / safe_float(signal.get("atr", 0))
+            if safe_float(signal.get("atr", 0)) > 0 and safe_float(signal.get("ema9", 0)) > 0
+            else None
+        ),
+        "ema21_distance_percent": (
+            abs(safe_float(signal.get("price", signal.get("entry", 0))) - safe_float(signal.get("ema21", 0)))
+            / safe_float(signal.get("ema21", 0)) * 100.0
+            if safe_float(signal.get("ema21", 0)) > 0
+            else None
+        ),
+
         "btc_regime": signal.get(
             "btc_regime",
             "UNKNOWN"
         ),
-        
+
+        # Preserve signal provenance so the hourly-only outcome tracker can
+        # exclude non-hourly records on this and future scans.
+        "signal_mode": signal.get("signal_mode", "TREND"),
+        "engine": signal.get("engine", ""),
+        "signal_timeframe": signal.get("signal_timeframe", TIMEFRAME_MAIN),
+        "outcome_tracking_excluded": not _is_hourly_outcome_eligible(signal),
 
         "candle_time": signal.get(
             "candle_time"
@@ -6474,7 +6589,7 @@ def add_signal_to_history(
 
         # Outcome tracker fields. These are filled by future scans and do
         # not affect signal generation or Telegram delivery.
-        "outcome_status": "OPEN",
+        "outcome_status": "EXCLUDED_TIMEFRAME" if not _is_hourly_outcome_eligible(signal) else "OPEN",
         "outcome_created_at": now_iran().isoformat(),
         "horizons": {},
         "first_event": None,
@@ -6493,6 +6608,70 @@ def add_signal_to_history(
         record
     )
 
+    return True
+
+
+def _record_dry_run_signal(signal, history):
+    """Record only fully validated dry-run signals for later outcome measurement.
+
+    These records are explicitly tagged as dry-run and do not mark a signal as
+    sent or mutate the live duplicate-suppression state.
+    """
+    if not isinstance(signal, dict) or not isinstance(history, list):
+        return False
+    if str(signal.get("delivery_diagnostic_status", "")) != "READY_BUT_SUPPRESSED_DRY_RUN":
+        return False
+    symbol = str(signal.get("symbol", "")).upper()
+    side = str(signal.get("signal", "")).upper()
+    timeframe = str(signal.get("signal_timeframe", TIMEFRAME_MAIN)).lower()
+    candle_time = str(signal.get("candle_time", ""))
+    if not symbol or side not in ("BUY", "SELL") or not candle_time:
+        return False
+
+    for record in reversed(history):
+        if not isinstance(record, dict):
+            continue
+        if (
+            str(record.get("symbol", "")).upper() == symbol
+            and str(record.get("signal", "")).upper() == side
+            and str(record.get("signal_timeframe", TIMEFRAME_MAIN)).lower() == timeframe
+            and str(record.get("candle_time", "")) == candle_time
+            and record.get("validation_mode") == "DRY_RUN"
+        ):
+            return False
+
+    if not add_signal_to_history(signal, history):
+        return False
+    record = history[-1]
+    record["validation_mode"] = "DRY_RUN"
+    record["delivery_suppressed"] = True
+    record["delivery_diagnostic_status"] = "READY_BUT_SUPPRESSED_DRY_RUN"
+    return True
+
+
+def run_v63_14_22_dry_run_outcome_recording_self_test():
+    sample = {
+        "symbol": "TESTUSDT", "signal": "BUY", "signal_mode": "TREND",
+        "signal_timeframe": "1h", "candle_time": "2026-10-12T10:00:00+00:00",
+        "entry": 100.0, "price": 104.0, "ema9": 100.0, "ema21": 98.0, "atr": 4.0,
+        "score": 95,
+        "delivery_diagnostic_status": "READY_BUT_SUPPRESSED_DRY_RUN",
+    }
+    history = []
+    assert _record_dry_run_signal(sample, history) is True
+    assert len(history) == 1
+    assert history[0]["validation_mode"] == "DRY_RUN"
+    assert history[0]["delivery_suppressed"] is True
+    assert history[0]["outcome_status"] == "OPEN"
+    assert history[0]["entry_extension_atr"] == 1.0
+    assert history[0]["ema21_distance_percent"] is not None
+    assert _record_dry_run_signal(sample, history) is False
+    assert len(history) == 1
+    rejected = dict(sample, symbol="REJECTED", delivery_diagnostic_status="BLOCKED_SIGNAL_QUALITY")
+    assert _record_dry_run_signal(rejected, history) is False
+    daily = dict(sample, symbol="DAILY", signal_timeframe="1d", candle_time="2026-10-11T00:00:00+00:00")
+    assert _record_dry_run_signal(daily, history) is True
+    assert history[-1]["outcome_status"] == "EXCLUDED_TIMEFRAME"
     return True
 
 
@@ -6572,20 +6751,28 @@ def process_signal(
     )
 
     if not sent:
-
         signal_mode = str(signal.get("signal_mode", "TREND")).upper()
         signal_tf = str(signal.get("signal_timeframe", TIMEFRAME_MAIN)).lower()
         tf_label = "4H" if signal_mode == "4H_SIGNAL" or signal_tf == "4h" else ("DAILY" if signal_mode == "DAILY_SIGNAL" or signal_tf == "1d" else "1H")
+        diagnostic_status = str(signal.get("delivery_diagnostic_status", "DELIVERY_FAILED_OR_UNCLASSIFIED"))
+        diagnostic_reason = str(signal.get("delivery_diagnostic_reason", "no specific delivery diagnostic was recorded"))
+        if DRY_RUN and diagnostic_status == "READY_BUT_SUPPRESSED_DRY_RUN":
+            if _record_dry_run_signal(signal, history):
+                save_signal_history(history)
+                log(
+                    f"DRY_RUN outcome sample recorded: {signal.get('symbol')} "
+                    f"{signal.get('signal')} candle={signal.get('candle_time')}; "
+                    "no Telegram message sent"
+                )
         log(
-            f"Signal not sent: {signal.get('symbol')} "
-            f"TF={tf_label} Mode={signal_mode} "
-            f"Reason=TELEGRAM_OR_QUALITY_VALIDATION"
+            f"Signal not sent: {signal.get('symbol')} TF={tf_label} "
+            f"Mode={signal_mode} Status={diagnostic_status} Reason={diagnostic_reason}"
         )
-
         return {
             "sent": False,
             "duplicate": False,
-            "reason": "TELEGRAM_OR_QUALITY_VALIDATION"
+            "reason": diagnostic_status,
+            "detail": diagnostic_reason
         }
 
     # -----------------------------------------------------
@@ -6938,6 +7125,10 @@ def _update_signal_outcome_record(record, df, now_utc):
     """
     if not isinstance(record, dict):
         return False
+    if record.get("outcome_tracking_excluded") or not _is_hourly_outcome_eligible(record):
+        record["outcome_tracking_excluded"] = True
+        record["outcome_status"] = "EXCLUDED_TIMEFRAME"
+        return False
     df = _normalize_outcome_dataframe(df)
     if df is None:
         return False
@@ -7261,7 +7452,10 @@ def summarize_outcome_history_coverage(history):
     """Count tracked records separately from the FINAL-only performance sample."""
     valid = [
         r for r in (history if isinstance(history, list) else [])
-        if isinstance(r, dict) and str(r.get("signal", "")).upper() in ("BUY", "SELL")
+        if isinstance(r, dict)
+        and str(r.get("signal", "")).upper() in ("BUY", "SELL")
+        and not r.get("outcome_tracking_excluded")
+        and _is_hourly_outcome_eligible(r)
     ]
     finalized = sum(1 for r in valid if str(r.get("outcome_status", "OPEN")).upper() == "FINAL")
     return {"tracked": len(valid), "finalized": finalized, "open": len(valid) - finalized}
@@ -7382,7 +7576,10 @@ def build_outcome_analytics(history):
     """Build descriptive analytics by mode, score band, and direction."""
     finalized = [
         r for r in history
-        if isinstance(r, dict) and str(r.get("outcome_status", "OPEN")).upper() == "FINAL"
+        if isinstance(r, dict)
+        and str(r.get("outcome_status", "OPEN")).upper() == "FINAL"
+        and not r.get("outcome_tracking_excluded")
+        and _is_hourly_outcome_eligible(r)
     ]
     groups = {
         "ALL": finalized,
@@ -7471,6 +7668,44 @@ def _has_complete_outcome_horizons(record):
     return _outcome_horizon_payloads_complete(record)
 
 
+def _outcome_record_needs_historical_repair(record):
+    """Return True for older records that lack a complete, final v57 outcome.
+
+    Older legacy records may have no outcome_status at all. Treating the
+    missing status as OPEN and scanning only the newest 120 records silently
+    excluded those records from historical repair forever.
+    """
+    if not isinstance(record, dict):
+        return False
+    if str(record.get("signal", "")).upper() not in ("BUY", "SELL"):
+        return False
+    version = safe_int(record.get("outcome_engine_version", 0))
+    complete = _has_complete_outcome_horizons(record)
+    final = str(record.get("outcome_status", "OPEN")).upper() == "FINAL"
+    return version < 57 or not complete or not final
+
+
+def run_v63_14_23_legacy_outcome_backfill_self_test():
+    legacy = {
+        "signal": "BUY", "candle_time": "2026-10-01T16:00:00Z",
+        "entry": 100.0, "outcome_status": None,
+    }
+    assert _outcome_record_needs_historical_repair(legacy)
+    complete_final = {
+        "signal": "BUY", "outcome_engine_version": 57, "outcome_status": "FINAL",
+        "horizons": {
+            f"{h}h": {"change_percent": 0.0, "mfe_percent": 0.0,
+                      "mae_percent": 0.0, "tp1_reached": False,
+                      "tp2_reached": False, "sl_reached": False}
+            for h in OUTCOME_HORIZONS_HOURS
+        },
+    }
+    assert not _outcome_record_needs_historical_repair(complete_final)
+    complete_open = dict(complete_final, outcome_status="OPEN")
+    assert _outcome_record_needs_historical_repair(complete_open)
+    return True
+
+
 def update_signal_outcomes(history):
     """Refresh/migrate signal outcomes using closed Binance 1H candles.
 
@@ -7502,16 +7737,19 @@ def update_signal_outcomes(history):
                 continue
             if str(old_record.get("signal", "")).upper() not in ("BUY", "SELL"):
                 continue
-            old_version = safe_int(old_record.get("outcome_engine_version", 0))
-            old_complete = _has_complete_outcome_horizons(old_record)
-            old_final = str(old_record.get("outcome_status", "OPEN")).upper() == "FINAL"
-            if old_final and (old_version < 57 or not old_complete):
+            if _outcome_record_needs_historical_repair(old_record):
                 scan_records.append(old_record)
 
     for record in scan_records:
         if not isinstance(record, dict):
             continue
         if str(record.get("signal", "")).upper() not in ("BUY", "SELL"):
+            continue
+        if record.get("outcome_tracking_excluded") or not _is_hourly_outcome_eligible(record):
+            record["outcome_tracking_excluded"] = True
+            if str(record.get("outcome_status", "")).upper() != "EXCLUDED_TIMEFRAME":
+                record["outcome_status"] = "EXCLUDED_TIMEFRAME"
+                changed += 1
             continue
         version = safe_int(record.get("outcome_engine_version", 0))
         complete_v57 = _has_complete_outcome_horizons(record)
@@ -7701,8 +7939,8 @@ def log_scan_progress(
 # PREPARE ONE SYMBOL
 # =========================================================
 
-def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_context=None):
-    """Separate 1H early-reversal scanner; never claims the exact bottom.
+def score_bottom_hunter(df_primary, df_confirm, btc_regime=None, diagnostic=None, mtf_context=None, signal_timeframe="1h"):
+    """Timeframe-aware early-reversal scanner; never claims the exact bottom.
 
     When ``diagnostic`` is supplied, this function records the stage at which
     a Bottom Hunter setup is filtered out. Qualification logic is unchanged.
@@ -7711,18 +7949,26 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
         if isinstance(diagnostic, dict):
             diagnostic[name] = safe_int(diagnostic.get(name, 0)) + 1
 
-    if df_1h is None or df_30m is None or len(df_1h) < 80 or len(df_30m) < 30:
+    def dreject(reason):
+        if isinstance(diagnostic, dict):
+            reasons = diagnostic.setdefault("rejection_reasons", [])
+            if reason not in reasons:
+                reasons.append(reason)
+
+    if df_primary is None or df_confirm is None or len(df_primary) < 80 or len(df_confirm) < 30:
         dmark("insufficient_data")
+        dreject("INSUFFICIENT_DATA")
         return None
     dmark("data_ready")
 
-    row = df_1h.iloc[-1]
-    prev = df_1h.iloc[-2]
+    row = df_primary.iloc[-1]
+    prev = df_primary.iloc[-2]
     close = safe_float(row.get("close"))
     rsi = safe_float(row.get("rsi"))
     prev_rsi = safe_float(prev.get("rsi"))
     if close <= 0:
         dmark("invalid_price")
+        dreject("INVALID_PRICE")
         return None
 
     ema21 = safe_float(row.get("ema21"))
@@ -7734,10 +7980,11 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
     prev_hist = safe_float(prev.get("macd_hist"))
     vol = safe_float(row.get("volume_ratio"))
 
-    low_n = safe_float(df_1h["low"].iloc[-BOTTOM_LOOKBACK:].min())
-    high_n = safe_float(df_1h["high"].iloc[-BOTTOM_LOOKBACK:].max())
+    low_n = safe_float(df_primary["low"].iloc[-BOTTOM_LOOKBACK:].min())
+    high_n = safe_float(df_primary["high"].iloc[-BOTTOM_LOOKBACK:].max())
     if low_n <= 0 or high_n <= 0:
         dmark("invalid_range")
+        dreject("INVALID_RECENT_RANGE")
         return None
 
     dist_low = (close / low_n - 1) * 100
@@ -7755,7 +8002,7 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
         abs(close / fib786 - 1) * 100 if fib786 > 0 else 999
     )
 
-    divergence = analyze_divergence(df_1h)
+    divergence = analyze_divergence(df_primary)
     bullish_rsi_div = bool(divergence.get("bullish_rsi", False))
     bullish_macd_div = bool(divergence.get("bullish_macd", False))
 
@@ -7770,7 +8017,7 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
 
     if dist_low <= BOTTOM_NEAR_LOW_PERCENT:
         score += 20
-        reasons.append(f"Near {BOTTOM_LOOKBACK}H low ({dist_low:.2f}% above)")
+        reasons.append(f"Near {BOTTOM_LOOKBACK}{'D' if str(signal_timeframe).lower() == '1d' else 'H'} low ({dist_low:.2f}% above)")
     elif dist_low <= 7:
         score += 12
         reasons.append(f"Close to recent low ({dist_low:.2f}% above)")
@@ -7830,15 +8077,15 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
     if safe_float(row.get("close")) > safe_float(row.get("open")):
         score += 6
         reversal = True
-        reasons.append("Bullish 1H candle")
+        reasons.append(f"Bullish {'Daily' if str(signal_timeframe).lower() == '1d' else '1H'} candle")
 
     if close > safe_float(prev.get("close")):
         score += 4
         reversal = True
         reasons.append("Price reclaimed previous close")
 
-    c = df_30m.iloc[-1]
-    cp = df_30m.iloc[-2]
+    c = df_confirm.iloc[-1]
+    cp = df_confirm.iloc[-2]
     cr = safe_float(c.get("rsi"))
     cm = safe_float(c.get("macd"))
     cs = safe_float(c.get("macd_signal"))
@@ -7854,10 +8101,10 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
     if confirm >= 5:
         score += min(confirm, 10)
         reversal = True
-        reasons.append("30M reversal confirmation")
-        dmark("confirm_30m")
+        reasons.append(f"{'4H' if str(signal_timeframe).lower() == '1d' else '30M'} reversal confirmation")
+        dmark("confirm_4h" if str(signal_timeframe).lower() == "1d" else "confirm_30m")
     else:
-        dmark("no_confirm_30m")
+        dmark("no_confirm_4h" if str(signal_timeframe).lower() == "1d" else "no_confirm_30m")
 
     if reversal:
         dmark("reversal_evidence")
@@ -7882,6 +8129,7 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
     if "BEARISH" in btc and ("STRONG" in btc or "SEVERE" in btc or btc == "BEARISH"):
         dmark("btc_blocked")
         dmark("final_rejected")
+        dreject("BTC_REGIME_BLOCKED")
         return None
     dmark("btc_allowed")
     if btc and "BEARISH" not in btc:
@@ -7897,6 +8145,32 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
     reasons.extend(mtf_reasons)
 
     raw_score = max(0, min(100, int(round(score))))
+
+    # Per-symbol measurements make live Daily Bottom Hunter rejections
+    # actionable; aggregate counters alone cannot distinguish a score issue
+    # from a distance-to-low or confirmation issue.
+    if isinstance(diagnostic, dict):
+        diagnostic["metrics"] = {
+            "signal_timeframe": str(signal_timeframe).lower(),
+            "close": round(close, 10),
+            "recent_low": round(low_n, 10),
+            "distance_from_low_pct": round(dist_low, 3),
+            "near_low_acceptance_pct": 7.0,
+            "preferred_near_low_pct": BOTTOM_NEAR_LOW_PERCENT,
+            "lookback_candles": BOTTOM_LOOKBACK,
+            "rsi": round(rsi, 2),
+            "rsi_min": BOTTOM_RSI_MIN,
+            "rsi_max": BOTTOM_RSI_MAX,
+            "adx": round(adx, 2),
+            "volume_ratio": round(vol, 3),
+            "atr_percent": round(atr_percent, 3),
+            "confirmation_points": confirm,
+            "confirmation_required": 5,
+            "raw_score": raw_score,
+            "effective_score": None,
+            "minimum_setup_score": BOTTOM_MIN_SCORE,
+            "reversal_evidence": bool(reversal),
+        }
 
     # Quality caps: a reversal setup can accumulate many confirmations while
     # still lacking trend strength or real participation. Keep the signal
@@ -7918,6 +8192,10 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
 
     # Apply the strictest applicable cap.
     score = min(raw_score, 95, *(cap for _, cap in quality_caps)) if quality_caps else min(raw_score, 95)
+
+    if isinstance(diagnostic, dict) and isinstance(diagnostic.get("metrics"), dict):
+        diagnostic["metrics"]["effective_score"] = score
+        diagnostic["metrics"]["quality_caps"] = [label for label, _ in quality_caps]
 
     for label, cap in quality_caps:
         if raw_score > cap:
@@ -7941,6 +8219,15 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
     else:
         dmark("score_fail")
 
+    # Record every failed final condition explicitly. RSI-zone status remains
+    # contextual information; it is not automatically treated as the rejection cause.
+    if dist_low > 7:
+        dreject("NOT_NEAR_RECENT_LOW")
+    if not reversal:
+        dreject("NO_REVERSAL_EVIDENCE")
+    if score < BOTTOM_MIN_SCORE:
+        dreject("SCORE_BELOW_MINIMUM")
+
     if not (dist_low <= 7 and reversal and score >= BOTTOM_MIN_SCORE):
         dmark("final_rejected")
         return None
@@ -7952,6 +8239,7 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
         "raw_score": raw_score,
         "signal": "BUY",
         "signal_mode": "BOTTOM_HUNTER",
+        "signal_timeframe": str(signal_timeframe).lower(),
         "strength": "EARLY REVERSAL",
         "price": close,
         "rsi": rsi,
@@ -7973,9 +8261,38 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
         "mtf_adjustment": mtf_adjustment,
         "reasons": reasons,
         "candle_time": str(row.get("open_time")),
+        "bottom_primary_timeframe": str(signal_timeframe).lower(),
         "bottom_warning": "Early reversal setup; exact bottom is not confirmed."
     }
 
+
+
+def bottom_hunter_rejection_summary(diagnostic):
+    """Return the recorded Bottom Hunter rejection cause(s), not an RSI guess."""
+    if not isinstance(diagnostic, dict):
+        return {"primary": "NO_DIAGNOSTIC", "all": []}
+    reasons = diagnostic.get("rejection_reasons", [])
+    if not isinstance(reasons, list):
+        reasons = []
+    reasons = [str(reason) for reason in reasons if str(reason)]
+    if reasons:
+        return {"primary": reasons[0], "all": reasons}
+    if safe_int(diagnostic.get("final_passed", 0)) > 0:
+        return {"primary": "REVERSAL_CANDIDATE", "all": []}
+    # Legacy/partial diagnostics may not include the explicit list.
+    if safe_int(diagnostic.get("insufficient_data", 0)) > 0:
+        primary = "INSUFFICIENT_DATA"
+    elif safe_int(diagnostic.get("btc_blocked", 0)) > 0:
+        primary = "BTC_REGIME_BLOCKED"
+    elif safe_int(diagnostic.get("failed_near_low", 0)) > 0:
+        primary = "NOT_NEAR_RECENT_LOW"
+    elif safe_int(diagnostic.get("failed_reversal", 0)) > 0:
+        primary = "NO_REVERSAL_EVIDENCE"
+    elif safe_int(diagnostic.get("score_fail", 0)) > 0:
+        primary = "SCORE_BELOW_MINIMUM"
+    else:
+        primary = "NO_REVERSAL_CANDIDATE"
+    return {"primary": primary, "all": [primary]}
 
 
 # =========================================================
@@ -8006,6 +8323,19 @@ def summarize_engine_trace(trace):
         htf[tf] = {'stage': stage, 'reason': reason}
         stage_counts[stage] = stage_counts.get(stage, 0) + 1
     result['higher_tf'] = htf
+
+    # Daily Bottom Hunter is a separate 1D setup + 4H confirmation path.
+    # Keep its outcome visible instead of hiding it in generic reversal/HTF stats.
+    daily = trace.get('daily_bottom_hunter') if isinstance(trace.get('daily_bottom_hunter'), dict) else {}
+    daily_diag = daily.get('diagnostic') if isinstance(daily.get('diagnostic'), dict) else {}
+    daily_stage = str(daily.get('stage') or ('CANDIDATE' if daily.get('candidate') else 'NO_CANDIDATE'))
+    daily_reason = str(daily.get('reason') or 'NO_DAILY_BOTTOM_DIAGNOSTIC')
+    daily_rejections = daily_diag.get('rejection_reasons') or []
+    if daily_stage == 'NO_CANDIDATE' and daily_rejections:
+        daily_reason = ' | '.join(str(x) for x in daily_rejections[:6])
+    result['daily_bottom_hunter'] = {'stage': daily_stage, 'reason': daily_reason}
+    stage_counts[daily_stage] = stage_counts.get(daily_stage, 0) + 1
+
     result['stage_counts'] = stage_counts
     return result
 
@@ -8270,6 +8600,41 @@ def build_breakout_signal(symbol, data, breakout, btc_regime=None):
         "candle_time": str(data["1h"].iloc[-1].get("open_time")),
     }
 
+def early_entry_rejection(side, mode, close, ema9, atr, rsi, recent_closes=None):
+    """Reject BUY entries that are already stretched from the start of the move.
+
+    Uses ATR-normalized extension so the rule adapts to volatility. This is a
+    location/timing guard, not a prediction that price must rise after entry.
+    """
+    side = str(side or "").upper()
+    if side != "BUY":
+        return None
+    close = safe_float(close, 0.0)
+    ema9 = safe_float(ema9, 0.0)
+    atr = safe_float(atr, 0.0)
+    rsi = safe_float(rsi, 0.0)
+    if close <= 0 or ema9 <= 0 or atr <= 0:
+        return None
+
+    extension_atr = (close - ema9) / atr
+    if extension_atr > 1.25:
+        return f"BUY late entry: close is {extension_atr:.2f} ATR above EMA9 (>1.25 ATR)"
+
+    if rsi >= MAX_LATE_ENTRY_RSI_BUY and extension_atr > 0.65:
+        return f"BUY momentum overheated: RSI {rsi:.1f} (limit {MAX_LATE_ENTRY_RSI_BUY:.1f}) with {extension_atr:.2f} ATR EMA9 extension"
+
+    # A sharp 3-candle run with hot RSI is often a chase entry, not the start
+    # of a move. Do not use this alone: require both price extension and heat.
+    closes = recent_closes or []
+    if len(closes) >= 4:
+        base = safe_float(closes[-4], 0.0)
+        if base > 0:
+            run_atr = (close - base) / atr
+            if run_atr >= 2.5 and rsi >= 65.0:
+                return f"BUY late impulse: 3-candle run {run_atr:.2f} ATR with RSI {rsi:.1f}"
+    return None
+
+
 def professional_signal_quality_gate(signal, data, btc_regime=None):
     """Final trade-quality gate.
 
@@ -8303,7 +8668,12 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         confirm_df = data.get("1h")
         confirmation_tf_label = "1H"
         context_frames = (dfd,)
-    elif mode == "DAILY_SIGNAL" or signal_tf == "1d":
+    elif mode == "DAILY_SIGNAL" or (signal_tf == "1d" and mode != "BOTTOM_HUNTER"):
+        df1 = dfd
+        confirm_df = df4
+        confirmation_tf_label = "4H"
+        context_frames = (df4,)
+    elif mode == "BOTTOM_HUNTER" and signal_tf == "1d":
         df1 = dfd
         confirm_df = df4
         confirmation_tf_label = "4H"
@@ -8327,18 +8697,31 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     confirm = {}
     confirmations = 0
 
+    # Keep the gate's existing behavior: the effective score (including Bottom
+    # Hunter quality caps) decides eligibility. The engine's pre-cap raw score
+    # is captured separately for diagnostics and must never replace this gate score.
     raw_score = safe_float(signal.get("score"))
+    engine_raw_score = safe_float(signal.get("raw_score", raw_score))
     min_score = professional_min_score_for_mode(mode, side)
     if raw_score < min_score:
         # Diagnostic-only root fix: record the score failure but continue evaluating
         # all independent gates. The signal still fails closed because `reject`
         # remains non-empty; this does not lower or bypass the score threshold.
-        reject.append(f"score {raw_score:.0f} < {min_score}")
+        reject.append(f"effective score {raw_score:.0f} < {min_score}")
 
     close = safe_float(r1.get("close"))
     ema9 = safe_float(r1.get("ema9")); ema21 = safe_float(r1.get("ema21")); ema50 = safe_float(r1.get("ema50")); ema200 = safe_float(r1.get("ema200"))
     adx = safe_float(r1.get("adx")); plus_di = safe_float(r1.get("plus_di")); minus_di = safe_float(r1.get("minus_di"))
     rsi = safe_float(r1.get("rsi")); volume = safe_float(r1.get("volume_ratio")); atrp = safe_float(r1.get("atr_percent"))
+
+    # v63.14.21 EARLY-ENTRY GUARD: high scores must not rescue a BUY that is
+    # already stretched far above its fast trend anchor or has become overheated.
+    early_reject = early_entry_rejection(
+        side, mode, close, ema9, safe_float(r1.get("atr")), rsi,
+        recent_closes=[safe_float(x) for x in df1["close"].tail(4).tolist()]
+    )
+    if early_reject:
+        reject.append(early_reject)
     dist21 = safe_float(r1.get("distance_ema21"))
     vwap = safe_float(r1.get("rolling_vwap")); obv_slope = safe_float(r1.get("obv_slope"))
     bb_width = safe_float(r1.get("bb_width_pct")); bb_pos = safe_float(r1.get("bb_position"))
@@ -8377,11 +8760,10 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         reversal_energy = (plus_di > minus_di) if side == "BUY" else (minus_di > plus_di)
         momentum_components = int(rsi_improving) + int(macd_hist_improving) + int(reversal_energy)
         momentum_improving = momentum_components >= PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS
-        # v63.11 ROOT FIX: reversal momentum uses 2-of-3 independent evidence
-        # rather than the contradictory old AND rule for RSI+MACD. ADX remains
-        # hard, so this does not turn weak bounces into signals.
-        if adx < PRO_BOTTOM_MIN_ADX:
-            reject.append(f"reversal ADX too weak ({adx:.1f} < {PRO_BOTTOM_MIN_ADX:.1f})")
+        # v63.14.17: sub-23 ADX is allowed only with exceptional score, volume and momentum.
+        adx_ok = bottom_hunter_adx_gate_pass(adx, volume, engine_raw_score, momentum_components)
+        if not adx_ok:
+            reject.append(f"reversal ADX too weak ({adx:.1f}; standard>={PRO_BOTTOM_MIN_ADX:.1f}, early exception requires ADX>={PRO_BOTTOM_EARLY_ADX_FLOOR:.1f}, volume>={PRO_BOTTOM_EARLY_ADX_MIN_VOLUME:.2f}x, raw_score>={PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE}, momentum>={PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS}/3)")
         elif not momentum_improving:
             reject.append(f"reversal momentum insufficient ({momentum_components}/3 < {PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS}/3)")
         else:
@@ -8465,9 +8847,9 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     elif bb_width > 0:
         quality += 1
 
-    # Trend/breakout require the standard 30M directional confirmation.
-    # Bottom Hunter already has a dedicated 30M reversal test in its own
-    # engine, so here it is a quality boost rather than a second hard gate.
+    # Trend/breakout require standard 30M confirmation. Bottom Hunter normally
+    # requires 6/6 here too, but a separate, evidence-heavy 1H early-reversal
+    # exception permits 3/6 only with strong score, volume, ADX and momentum.
     # v50: initialize these locals before the confirmation call so a malformed
     # confirmation result or future branch change can never raise an
     # UnboundLocalError such as the LINK failure seen in Run #75.
@@ -8478,18 +8860,35 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         confirm = {}
     confirmations = safe_int(confirm.get("confirmations", 0))
     required_confirmations = PRO_SELL_MIN_30M_CONFIRMATIONS if side == "SELL" and mode != "BOTTOM_HUNTER" else PRO_MIN_30M_CONFIRMATIONS
-    if mode in ("4H_SIGNAL", "DAILY_SIGNAL"):
-        # HTF setup gets a directional lower-timeframe confirmation, but does
-        # not inherit the main 1H/30M gate as if it were a 1H signal.
+    bottom_confirmation_ok = False
+    bottom_confirmation_required = PRO_BOTTOM_MIN_30M_CONFIRMATIONS
+    bottom_confirmation_path = "STANDARD"
+    if mode == "BOTTOM_HUNTER":
+        bottom_confirmation_ok, bottom_confirmation_required, bottom_confirmation_path = bottom_hunter_confirmation_gate_pass(
+            side, signal_tf, confirmations, bool(confirm.get("confirmed")),
+            adx, volume, engine_raw_score, momentum_components
+        )
+    if mode in ("4H_SIGNAL", "DAILY_SIGNAL") or (mode == "BOTTOM_HUNTER" and signal_tf == "1d"):
+        # Higher-timeframe setup uses its own confirmation path; it never
+        # receives the 1H-only early-confirmation exception.
         if not confirm.get("confirmed"):
             reject.append(f"HTF confirmation insufficient ({confirmations})")
         else:
             quality += 3
-    elif (not confirm.get("confirmed") or
-          (mode == "BOTTOM_HUNTER" and confirmations < PRO_BOTTOM_MIN_30M_CONFIRMATIONS) or
-          (mode != "BOTTOM_HUNTER" and side == "SELL" and confirmations < required_confirmations)):
+    elif (
+        (mode == "BOTTOM_HUNTER" and not bottom_confirmation_ok)
+        or (mode != "BOTTOM_HUNTER" and not confirm.get("confirmed"))
+        or (mode != "BOTTOM_HUNTER" and side == "SELL" and confirmations < required_confirmations)
+    ):
         if mode == "BOTTOM_HUNTER":
-            reject.append(f"30M reversal confirmation insufficient (actual={confirmations}; required>={PRO_BOTTOM_MIN_30M_CONFIRMATIONS})")
+            path_label = bottom_confirmation_path
+            if signal_tf == "1h" and side == "BUY" and PRO_BOTTOM_EARLY_MIN_30M_CONFIRMATIONS <= confirmations < PRO_BOTTOM_MIN_30M_CONFIRMATIONS:
+                blockers = bottom_hunter_early_confirmation_blockers(
+                    side, signal_tf, confirmations, adx, volume, engine_raw_score, momentum_components
+                )
+                if blockers:
+                    path_label = "EARLY_BLOCKED[" + "; ".join(blockers) + "]"
+            reject.append(f"30M reversal confirmation insufficient (actual={confirmations}; required>={bottom_confirmation_required}; path={path_label})")
         else:
             reject.append(f"30M confirmation insufficient (actual={confirmations}; required>={required_confirmations})")
     else:
@@ -8573,7 +8972,7 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         macd_hist_improving_ok = (safe_float(r1.get("macd_hist")) >= safe_float(r1.get("macd_hist_prev"))) if side == "BUY" else (safe_float(r1.get("macd_hist")) <= safe_float(r1.get("macd_hist_prev")))
         momentum_count = int(reversal_energy_ok) + int(rsi_improving_ok) + int(macd_hist_improving_ok)
         reversal_ok = momentum_count >= PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS
-        adx_ok = adx >= PRO_BOTTOM_MIN_ADX and reversal_ok
+        adx_ok = bottom_hunter_adx_gate_pass(adx, volume, raw_score, momentum_count) and reversal_ok
         ledger["reversal_momentum"] = _diag_item(2 if reversal_ok else 0, 2, "PASS" if reversal_ok else "FAIL", momentum_count, f">={PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS}/3")
         ledger["ADX_DI"] = _diag_item(2 if adx_ok else 0, 2, "PASS" if adx_ok else "FAIL", round(adx,2), f">={PRO_BOTTOM_MIN_ADX:.1f} + 2/3 momentum")
     else:
@@ -8603,10 +9002,11 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         ledger["EMA200_distance"] = _diag_item(ema200_earned, 1, ema200_status, round(ema200_dist_diag,2), f"<={PRO_EMA200_EXTENDED_DISTANCE:.2f}%")
     bb_ok = (not ((side == "BUY" and bb_pos > 0.985) or (side == "SELL" and bb_pos < 0.015))) if mode != "BREAKOUT" else bb_width > 0
     ledger["Bollinger_location"] = _diag_item(1 if bb_ok else 0, 1, "PASS" if bb_ok else "FAIL")
-    conf_required = PRO_BOTTOM_MIN_30M_CONFIRMATIONS if mode == "BOTTOM_HUNTER" else required_confirmations
-    conf_ok = bool(confirm.get("confirmed")) and confirmations >= conf_required
-    if mode in ("4H_SIGNAL", "DAILY_SIGNAL"):
-        conf_ok = bool(confirm.get("confirmed"))
+    conf_required = bottom_confirmation_required if mode == "BOTTOM_HUNTER" else required_confirmations
+    conf_ok = bottom_confirmation_ok if mode == "BOTTOM_HUNTER" and signal_tf != "1d" else (bool(confirm.get("confirmed")) and confirmations >= conf_required)
+    if mode in ("4H_SIGNAL", "DAILY_SIGNAL") or (mode == "BOTTOM_HUNTER" and signal_tf == "1d"):
+        conf_required = PRO_BOTTOM_MIN_30M_CONFIRMATIONS if mode == "BOTTOM_HUNTER" else required_confirmations
+        conf_ok = bool(confirm.get("confirmed")) and (mode != "BOTTOM_HUNTER" or confirmations >= PRO_BOTTOM_MIN_30M_CONFIRMATIONS)
     confirmation_ledger_key = f"{confirmation_tf_label}_confirmation"
     ledger[confirmation_ledger_key] = _diag_item(3 if conf_ok else 0, 3, "PASS" if conf_ok else "FAIL", confirmations, f">={conf_required}")
     ledger["HTF_alignment"] = _diag_item(3 if htf_align >= 2 else (2 if htf_align == 1 else 0), 3, "PASS" if htf_align >= required_htf else "FAIL", htf_align, f">={required_htf}")
@@ -8630,9 +9030,11 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
 
     # v63.5 diagnostic breakdown: evidence only; does NOT weaken the gate.
     signal["professional_quality_breakdown"] = {
-        "mode": mode, "side": side, "raw_score": round(raw_score, 1),
+        "mode": mode, "side": side,
+        "raw_score": round(engine_raw_score, 1),
+        "effective_score": round(raw_score, 1),
         "quality_points": int(quality), "quality_score": int(quality_score),
-        "grade": quality_grade, "grade_basis": "raw_score_and_quality_points",
+        "grade": quality_grade, "grade_basis": "effective_score_and_quality_points",
         "quality_score_basis": "capped_index_55_plus_3x_quality_points",
         "min_quality_points": int(min_quality_points),
         "required_grade": "A+", "adx": round(adx, 2),
@@ -8640,6 +9042,10 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         "confirmation_timeframe": confirmation_tf_label,
         "confirmations_lower_tf": int(confirmations),
         "required_lower_tf": int(conf_required),
+        "confirmation_path": bottom_confirmation_path if mode == "BOTTOM_HUNTER" else "STANDARD",
+        "confirmation_checks": dict(confirm.get("checks", {}) or {}),
+        "confirmation_failed_checks": list(confirm.get("failed_checks", []) or []),
+        "confirmation_metrics": dict(confirm.get("metrics", {}) or {}),
         # Legacy aliases retained for compatibility; new logs use the fields above.
         "confirmations_30m": int(confirmations),
         "required_30m": int(required_confirmations), "htf_alignment": int(htf_align),
@@ -8814,10 +9220,16 @@ def analyze_one_symbol(symbol, btc_regime):
                     trend_signal = None
 
         bottom_signal = score_bottom_hunter(df_1h, df_30m, btc_regime, diagnostic=bottom_diagnostic, mtf_context=mtf_context)
+        reversal_rejection = bottom_hunter_rejection_summary(bottom_diagnostic)
         trace["reversal"] = {
             "candidate": bool(bottom_signal),
             "diagnostic": dict(bottom_diagnostic),
-            "reason": "REVERSAL_CANDIDATE" if bottom_signal else ("RSI_OUTSIDE" if bottom_diagnostic and safe_int(bottom_diagnostic.get("rsi_zone", 0)) == 0 else "NO_REVERSAL_CANDIDATE")
+            "reason": "REVERSAL_CANDIDATE" if bottom_signal else reversal_rejection["primary"],
+            "rejection_reasons": [] if bottom_signal else reversal_rejection["all"],
+            "rsi_zone_status": (
+                "IN_ZONE" if safe_int(bottom_diagnostic.get("rsi_zone", 0)) > 0
+                else "OUTSIDE_OR_NOT_REACHED"
+            ),
         }
         if not bottom_signal and trace["first_rejection"] is None:
             trace["first_rejection"] = "REVERSAL:" + str(trace["reversal"].get("reason"))
@@ -8844,7 +9256,7 @@ def analyze_one_symbol(symbol, btc_regime):
                     bottom_diagnostic["professional_rejected"] = safe_int(bottom_diagnostic.get("professional_rejected", 0)) + 1
                     pbreak = bottom_signal.get("professional_quality_breakdown", {})
                     if isinstance(pbreak, dict):
-                        raw_score_diag = safe_float(pbreak.get("raw_score", 0)); pscore = safe_int(pbreak.get("quality_score", 0)); pquality = safe_int(pbreak.get("quality_points", 0))
+                        raw_score_diag = safe_float(pbreak.get("raw_score", 0)); effective_score_diag = safe_float(pbreak.get("effective_score", bottom_signal.get("score", 0))); pscore = safe_int(pbreak.get("quality_score", 0)); pquality = safe_int(pbreak.get("quality_points", 0))
                         pbucket = (pscore // 5) * 5; qbucket = (pquality // 2) * 2
                         skey = f"professional_score_{pbucket}_{pbucket+4}"
                         qkey = f"professional_quality_points_{qbucket}_{qbucket+1}"
@@ -8852,8 +9264,8 @@ def analyze_one_symbol(symbol, btc_regime):
                         bottom_diagnostic[qkey] = safe_int(bottom_diagnostic.get(qkey, 0)) + 1
                         pname = str(bottom_signal.get("symbol") or symbol or "UNKNOWN")
                         log(
-                            f"  Professional detail {pname}: raw_score={raw_score_diag:.1f}, quality_index={pscore}/100 (capped), quality_points={pquality}, "
-                            f"grade={pbreak.get('grade', '')} [grade_basis=raw_score+quality_points], ADX={pbreak.get('adx', 0)}, "
+                            f"  Professional detail {pname}: raw_score={raw_score_diag:.1f}, effective_score={effective_score_diag:.1f}, quality_index={pscore}/100 (capped), quality_points={pquality}, "
+                            f"grade={pbreak.get('grade', '')} [grade_basis=effective_score+quality_points], ADX={pbreak.get('adx', 0)}, "
                             f"volume={pbreak.get('volume_ratio', 0)}x, "
                             f"{format_confirmation_diagnostic(pbreak)}, "
                             f"HTF={pbreak.get('htf_alignment', 0)}/{pbreak.get('required_htf_alignment', 0)}, "
@@ -8865,6 +9277,15 @@ def analyze_one_symbol(symbol, btc_regime):
                         preasons = pbreak.get("reject_reasons", []) or []
                         if preasons:
                             log(f"    Reject reasons: {' | '.join(str(x) for x in preasons[:12])}")
+                        confirmation_checks = pbreak.get("confirmation_checks", {}) or {}
+                        if confirmation_checks:
+                            log("    Confirmation components: " + format_confirmation_checks(confirmation_checks))
+                            failed_confirmation_checks = pbreak.get("confirmation_failed_checks", []) or []
+                            if failed_confirmation_checks:
+                                log("    Missing confirmation evidence: " + ", ".join(str(x) for x in failed_confirmation_checks))
+                            confirmation_metrics = pbreak.get("confirmation_metrics", {}) or {}
+                            if confirmation_metrics:
+                                log("    Confirmation values: " + " | ".join(f"{k}={v}" for k, v in confirmation_metrics.items()))
                         ledger_out = pbreak.get("component_ledger", {}) or {}
                         if isinstance(ledger_out, dict):
                             parts = []
@@ -8874,7 +9295,7 @@ def analyze_one_symbol(symbol, btc_regime):
                             if parts:
                                 log("    Components: " + " | ".join(parts))
                         detail_line = (
-                            f"{pname} raw_score={raw_score_diag:.1f} quality_score={pscore} qp={pquality} grade={pbreak.get('grade','')} "
+                            f"{pname} raw_score={raw_score_diag:.1f} effective_score={effective_score_diag:.1f} quality_score={pscore} qp={pquality} grade={pbreak.get('grade','')} "
                             f"ADX={pbreak.get('adx',0)} Vol={pbreak.get('volume_ratio',0)}x "
                             f"{format_confirmation_diagnostic(pbreak)} "
                             f"HTF={pbreak.get('htf_alignment',0)}/{pbreak.get('required_htf_alignment',0)} "
@@ -8897,6 +9318,55 @@ def analyze_one_symbol(symbol, btc_regime):
                     else:
                         bottom_diagnostic["professional_passed"] = safe_int(bottom_diagnostic.get("professional_passed", 0)) + 1
                         bottom_signal["professional_quality_score"] = quality_score
+
+        # Daily Bottom Hunter: daily reversal setup confirmed on 4H candles.
+        # It uses the existing professional and risk gates; no thresholds are relaxed.
+        daily_bottom_signal_to_return = None
+        daily_bottom_diagnostic = {}
+        if ENABLE_DAILY_BOTTOM_HUNTER and data.get("1d") is not None and data.get("4h") is not None:
+            daily_bottom_signal = score_bottom_hunter(
+                data.get("1d"), data.get("4h"), btc_regime,
+                diagnostic=daily_bottom_diagnostic, mtf_context=mtf_context,
+                signal_timeframe="1d"
+            )
+            trace["daily_bottom_hunter"] = {
+                "candidate": bool(daily_bottom_signal),
+                "diagnostic": dict(daily_bottom_diagnostic),
+                "reason": "DAILY_BOTTOM_CANDIDATE" if daily_bottom_signal else "NO_DAILY_BOTTOM_CANDIDATE"
+            }
+            if daily_bottom_signal:
+                daily_bottom_signal["symbol"] = symbol
+                daily_bottom_signal["engine"] = "REVERSAL_DAILY"
+                daily_bottom_signal = attach_trade_levels(daily_bottom_signal)
+                if validate_risk_levels(daily_bottom_signal):
+                    daily_passed, daily_reasons, daily_quality_score = professional_signal_quality_gate(
+                        daily_bottom_signal, data, btc_regime
+                    )
+                    if daily_passed and _validate_selected_engine_signal(daily_bottom_signal)[0]:
+                        daily_bottom_signal["professional_quality_score"] = daily_quality_score
+                        daily_bottom_signal_to_return = daily_bottom_signal
+                        trace["daily_bottom_hunter"].update({"stage": "ACCEPTED", "reason": "PASSED_RISK_AND_PROFESSIONAL_GATES"})
+                    else:
+                        p = daily_bottom_signal.get("professional_quality_breakdown", {})
+                        daily_rejects = (p.get("reject_reasons", []) if isinstance(p, dict) else []) or daily_reasons or ["DAILY_BOTTOM_GATE_REJECT"]
+                        trace["daily_bottom_hunter"].update({"stage": "PROFESSIONAL_REJECT", "reason": " | ".join(str(x) for x in daily_rejects[:6])})
+                else:
+                    trace["daily_bottom_hunter"].update({
+                        "stage": "RISK_REJECT",
+                        "reason": str(daily_bottom_signal.get("risk_reject_reason") or "DAILY_BOTTOM_RISK_REJECT")
+                    })
+        elif ENABLE_DAILY_BOTTOM_HUNTER:
+            missing_tf = []
+            if data.get("1d") is None or len(data.get("1d", [])) < 80:
+                missing_tf.append("1D")
+            if data.get("4h") is None or len(data.get("4h", [])) < 30:
+                missing_tf.append("4H")
+            trace["daily_bottom_hunter"] = {
+                "candidate": False,
+                "stage": "DATA_REJECT",
+                "reason": "MISSING_OR_INSUFFICIENT_" + "_AND_".join(missing_tf or ["TIMEFRAME_DATA"]),
+                "diagnostic": {"missing_timeframes": missing_tf}
+            }
 
         breakout = score_breakout_1h(df_1h, df_30m, "BUY")
         breakout_sell = score_breakout_1h(df_1h, df_30m, "SELL")
@@ -8953,6 +9423,8 @@ def analyze_one_symbol(symbol, btc_regime):
             _log_selected_engine_diagnostic(selected)
 
         higher_signals = []
+        if daily_bottom_signal_to_return:
+            higher_signals.append(daily_bottom_signal_to_return)
         if ENABLE_4H_SIGNALS:
             sig_4h = analyze_higher_timeframe_signal(symbol, data, "4h", btc_regime)
             htf_trace = (data.get("_higher_tf_diagnostic", {}) or {}).get("4h", {})
@@ -9082,7 +9554,17 @@ def run_v63_14_3_outcome_boundary_self_test():
         },
     }
     assert _has_complete_outcome_horizons(complete_v57)
-    assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
+    assert DEPLOYMENT_ID.startswith("v63.14.")
+
+    # v63.14.21: reject stretched BUY entries, but do not reject early/neutral
+    # starts or apply the BUY timing rule to SELL signals.
+    assert early_entry_rejection("BUY", "TREND", 108.0, 100.0, 8.0, 60.0) is None
+    assert "late entry" in early_entry_rejection("BUY", "TREND", 111.0, 100.0, 8.0, 60.0)
+    assert "overheated" in early_entry_rejection("BUY", "TREND", 106.0, 100.0, 8.0, 72.0)
+    assert "overheated" in early_entry_rejection("BUY", "TREND", 106.0, 100.0, 8.0, 68.0)
+    assert early_entry_rejection("SELL", "TREND", 120.0, 100.0, 8.0, 80.0) is None
+    assert "late impulse" in early_entry_rejection("BUY", "BREAKOUT", 125.0, 120.0, 10.0, 68.0, [100, 108, 118, 125])
+
 
     # Low score must not suppress other rejection reasons in diagnostics.
     row = {
@@ -9106,11 +9588,11 @@ def run_v63_14_3_outcome_boundary_self_test():
         test_signal, {"1h": frame1, "30m": frame30, "4h": frame4h, "1d": framed},
         {"combined": "UNKNOWN"})
     assert passed is False
-    assert any(reason.startswith("score 75 < 90") for reason in reject_reasons)
+    assert any(reason.startswith("effective score 75 < 85") for reason in reject_reasons)
     assert any("reversal ADX too weak" in reason for reason in reject_reasons)
     assert any("reversal volume below professional minimum" in reason for reason in reject_reasons)
     assert any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
-    assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
+    assert DEPLOYMENT_ID.startswith("v63.14.")
     return True
 
 
@@ -9134,7 +9616,10 @@ def run_v63_14_8_confirmation_diagnostic_self_test():
     assert format_confirmation_diagnostic({
         "confirmations_30m": 3, "required_30m": 6,
     }) == "30M=3 (required >= 6)"
-    assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
+    assert format_confirmation_checks({"EMA_price": True, "MACD_direction": False}) == "EMA_price:PASS | MACD_direction:FAIL"
+    assert format_confirmation_checks({"EMA_price": True, "MACD_direction": False}, failed_only=True) == "MACD_direction:FAIL"
+    assert format_confirmation_checks({"EMA_price": True}, failed_only=True) == "all PASS"
+    assert DEPLOYMENT_ID.startswith("v63.14.")
     return True
 
 
@@ -9207,7 +9692,7 @@ def run_v63_14_7_final_gate_consistency_self_test():
     assert PRO_MIN_1H_ADX == 23.0
     assert PRO_MIN_VOLUME_RATIO == 1.35
     assert PRO_BOTTOM_MIN_30M_CONFIRMATIONS == 6
-    assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
+    assert DEPLOYMENT_ID.startswith("v63.14.")
     return True
 
 
@@ -9222,7 +9707,7 @@ def run_v63_14_2_bottom_rsi_self_test():
     assert BOTTOM_RSI_MIN <= 23 <= BOTTOM_RSI_MAX
     assert not (BOTTOM_RSI_MIN <= 19 <= BOTTOM_RSI_MAX)
     assert not (BOTTOM_RSI_MIN <= 45 <= BOTTOM_RSI_MAX)
-    assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
+    assert DEPLOYMENT_ID.startswith("v63.14.")
     return True
 
 
@@ -9252,15 +9737,312 @@ def run_v63_14_diagnostic_trace_self_test():
         "first_rejection": "TREND:NO_1H_TREND_CANDIDATE",
         "final_rejection": ["score 82 < 90"],
         "trend": {"candidate": False},
-        "reversal": {"candidate": False, "reason": "RSI_OUTSIDE"},
+        "reversal": {"candidate": False, "reason": "SCORE_BELOW_MINIMUM"},
         "breakout": {"candidate": False, "reason": "NO_BREAKOUT_CANDIDATE"},
     }
     assert trace["first_rejection"] != trace["final_rejection"][0]
-    assert trace["reversal"]["reason"] == "RSI_OUTSIDE"
+    assert trace["reversal"]["reason"] == "SCORE_BELOW_MINIMUM"
     assert trace["breakout"]["reason"] == "NO_BREAKOUT_CANDIDATE"
     assert PRO_MIN_SCORE == 90
     assert PRO_MIN_1H_ADX >= 23.0
     assert PRO_MIN_VOLUME_RATIO >= 1.35
+    return True
+
+
+def bottom_hunter_adx_gate_pass(adx, volume_ratio, raw_score, momentum_components):
+    """Standard ADX gate plus a narrow, evidence-heavy early-reversal exception."""
+    adx = safe_float(adx, 0.0)
+    volume_ratio = safe_float(volume_ratio, 0.0)
+    raw_score = safe_float(raw_score, 0.0)
+    momentum_components = safe_int(momentum_components, 0)
+    if adx >= PRO_BOTTOM_MIN_ADX:
+        return True
+    return (adx >= PRO_BOTTOM_EARLY_ADX_FLOOR
+            and volume_ratio >= PRO_BOTTOM_EARLY_ADX_MIN_VOLUME
+            and raw_score >= PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE
+            and momentum_components >= PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS)
+
+
+def run_v63_14_20_daily_bottom_hunter_self_test():
+    assert ENABLE_DAILY_SIGNALS is True
+    assert ENABLE_DAILY_BOTTOM_HUNTER is True
+    assert "signal_timeframe" in score_bottom_hunter.__code__.co_varnames
+
+    # Verify that a Daily Bottom Hunter is evaluated on 1D data and uses 4H
+    # confirmation, rather than accidentally reusing the 1H/30M path.
+    row_1h = {
+        "close": 100.0, "open": 99.0, "high": 101.0, "low": 98.0,
+        "ema9": 101.0, "ema21": 102.0, "ema50": 103.0, "ema200": 110.0,
+        "rsi": 40.0, "rsi_prev": 41.0, "macd": -1.0, "macd_signal": 0.0,
+        "macd_hist": -1.0, "macd_hist_prev": -0.5, "atr": 1.0,
+        "atr_percent": 1.0, "volume_ratio": 0.5, "body_ratio": 0.2,
+        "adx": 10.0, "plus_di": 10.0, "minus_di": 20.0,
+        "rolling_vwap": 110.0, "obv_slope": -1.0, "bb_width_pct": 2.0,
+        "bb_position": 0.5, "volume_zscore": -1.0, "di_spread": -10.0,
+        "rsi_slope": -1.0, "distance_ema21": 2.0,
+    }
+    row_daily = dict(row_1h, adx=31.0, volume_ratio=1.6)
+    frame1 = pd.DataFrame([dict(row_1h) for _ in range(60)])
+    frame30 = pd.DataFrame([dict(row_1h) for _ in range(35)])
+    frame4h = pd.DataFrame([dict(row_1h) for _ in range(60)])
+    framed = pd.DataFrame([dict(row_daily) for _ in range(80)])
+    test_signal = {"symbol": "TEST", "signal": "BUY", "signal_mode": "BOTTOM_HUNTER",
+                   "signal_timeframe": "1d", "score": 75,
+                   "rr_tp1": TP1_RR, "rr_tp2": TP2_RR, "reasons": []}
+    professional_signal_quality_gate(
+        test_signal, {"1h": frame1, "30m": frame30, "4h": frame4h, "1d": framed},
+        {"combined": "UNKNOWN"})
+    breakdown = test_signal.get("professional_quality_breakdown", {})
+    assert breakdown.get("confirmation_timeframe") == "4H"
+    assert breakdown.get("adx") == 31.0
+
+    daily_probe = {}
+    score_bottom_hunter(framed, frame4h, {"combined": "UNKNOWN"},
+                        diagnostic=daily_probe, signal_timeframe="1d")
+    probe_metrics = daily_probe.get("metrics", {})
+    assert probe_metrics.get("signal_timeframe") == "1d"
+    assert probe_metrics.get("lookback_candles") == BOTTOM_LOOKBACK
+    assert probe_metrics.get("minimum_setup_score") == BOTTOM_MIN_SCORE
+    assert probe_metrics.get("confirmation_required") == 5
+    assert "effective_score" in probe_metrics
+
+    # Regression guard: 1H Bottom Hunter remains tracked, while 1D and 4H
+    # signals must never enter the hourly outcome sample.
+    hourly = {"signal": "BUY", "signal_mode": "BOTTOM_HUNTER", "signal_timeframe": "1h"}
+    daily = {"signal": "BUY", "signal_mode": "BOTTOM_HUNTER", "engine": "REVERSAL_DAILY", "signal_timeframe": "1d"}
+    four_hour = {"signal": "BUY", "signal_mode": "4H_SIGNAL", "signal_timeframe": "4h"}
+    assert _is_hourly_outcome_eligible(hourly)
+    assert not _is_hourly_outcome_eligible(daily)
+    assert not _is_hourly_outcome_eligible(four_hour)
+
+    sample_history = []
+    assert add_signal_to_history(dict(hourly, symbol="TEST1", entry=100), sample_history)
+    assert add_signal_to_history(dict(daily, symbol="TEST2", entry=100), sample_history)
+    assert add_signal_to_history(dict(four_hour, symbol="TEST3", entry=100), sample_history)
+    assert sample_history[0]["outcome_status"] == "OPEN"
+    assert sample_history[1]["outcome_status"] == "EXCLUDED_TIMEFRAME"
+    assert sample_history[2]["outcome_status"] == "EXCLUDED_TIMEFRAME"
+    coverage = summarize_outcome_history_coverage(sample_history)
+    assert coverage == {"tracked": 1, "finalized": 0, "open": 1}
+
+    analytics_history = [
+        dict(sample_history[0], outcome_status="FINAL", score=95, horizons={}),
+        dict(sample_history[1], outcome_status="FINAL", score=99, horizons={}),
+        dict(sample_history[2], outcome_status="FINAL", score=98, horizons={}),
+    ]
+    analytics = build_outcome_analytics(analytics_history)
+    assert analytics["ALL"]["signals"] == 1
+    assert analytics["BOTTOM_HUNTER"]["signals"] == 1
+    assert analytics["SCORE_90_PLUS"]["signals"] == 1
+
+    # Daily Bottom Hunter rejections must be visible in the persisted summary.
+    daily_summary = summarize_engine_trace({
+        "trend": {}, "reversal": {}, "breakout": {},
+        "daily_bottom_hunter": {
+            "candidate": False,
+            "reason": "NO_DAILY_BOTTOM_CANDIDATE",
+            "diagnostic": {"rejection_reasons": ["NOT_NEAR_RECENT_LOW"]},
+        },
+    })
+    assert daily_summary["daily_bottom_hunter"]["stage"] == "NO_CANDIDATE"
+    assert daily_summary["daily_bottom_hunter"]["reason"] == "NOT_NEAR_RECENT_LOW"
+    assert daily_summary["stage_counts"]["NO_CANDIDATE"] >= 1
+    return True
+
+
+def run_v63_14_19_raw_effective_score_self_test():
+    sample = {"score": 75, "raw_score": 92}
+    effective = safe_float(sample.get("score"))
+    engine_raw = safe_float(sample.get("raw_score", effective))
+    assert effective == 75 and engine_raw == 92
+    # Eligibility must follow the effective score; raw score cannot bypass caps.
+    assert effective < 85 and engine_raw >= 85
+    assert PRO_BOTTOM_MIN_SCORE == 85
+    assert PRO_MIN_SCORE == 90 and PRO_SELL_MIN_SCORE == 92
+    return True
+
+
+def run_v63_14_18_bottom_score_calibration_self_test():
+    assert PRO_BOTTOM_MIN_SCORE == 85
+    assert professional_min_score_for_mode("BOTTOM_HUNTER", "BUY") == 85
+    assert professional_min_score_for_mode("BOTTOM_HUNTER", "SELL") == 85
+    assert PRO_MIN_SCORE == 90 and PRO_SELL_MIN_SCORE == 92
+    return True
+
+
+def bottom_hunter_confirmation_gate_pass(side, signal_timeframe, confirmations,
+                                             base_confirmed, adx, volume_ratio,
+                                             raw_score, momentum_components):
+    """Standard 6/6 confirmation, or a tightly gated 1H early-reversal path."""
+    side = str(side or "").upper()
+    signal_timeframe = str(signal_timeframe or "").lower()
+    confirmations = safe_int(confirmations, 0)
+    adx = safe_float(adx, 0.0)
+    volume_ratio = safe_float(volume_ratio, 0.0)
+    raw_score = safe_float(raw_score, 0.0)
+    momentum_components = safe_int(momentum_components, 0)
+
+    if base_confirmed and confirmations >= PRO_BOTTOM_MIN_30M_CONFIRMATIONS:
+        return True, PRO_BOTTOM_MIN_30M_CONFIRMATIONS, "STANDARD"
+
+    early_ok = (
+        side == "BUY"
+        and signal_timeframe == "1h"
+        and confirmations >= PRO_BOTTOM_EARLY_MIN_30M_CONFIRMATIONS
+        and adx >= PRO_BOTTOM_EARLY_ADX_FLOOR
+        and volume_ratio >= PRO_BOTTOM_EARLY_ADX_MIN_VOLUME
+        and raw_score >= PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE
+        and momentum_components >= PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS
+    )
+    if early_ok:
+        return True, PRO_BOTTOM_EARLY_MIN_30M_CONFIRMATIONS, "EARLY_REVERSAL"
+
+    return False, PRO_BOTTOM_MIN_30M_CONFIRMATIONS, "STANDARD"
+
+
+def bottom_hunter_early_confirmation_blockers(side, signal_timeframe, confirmations,
+                                                   adx, volume_ratio, raw_score,
+                                                   momentum_components):
+    """Explain why a 3-5/6 1H BUY setup cannot use the strict early path."""
+    blockers = []
+    side = str(side or "").upper()
+    signal_timeframe = str(signal_timeframe or "").lower()
+    confirmations = safe_int(confirmations, 0)
+    adx = safe_float(adx, 0.0)
+    volume_ratio = safe_float(volume_ratio, 0.0)
+    raw_score = safe_float(raw_score, 0.0)
+    momentum_components = safe_int(momentum_components, 0)
+
+    if side != "BUY":
+        blockers.append("side!=BUY")
+    if signal_timeframe != "1h":
+        blockers.append("timeframe!=1h")
+    if confirmations < PRO_BOTTOM_EARLY_MIN_30M_CONFIRMATIONS:
+        blockers.append(f"confirmations<{PRO_BOTTOM_EARLY_MIN_30M_CONFIRMATIONS}")
+    if adx < PRO_BOTTOM_EARLY_ADX_FLOOR:
+        blockers.append(f"ADX<{PRO_BOTTOM_EARLY_ADX_FLOOR:.1f}")
+    if volume_ratio < PRO_BOTTOM_EARLY_ADX_MIN_VOLUME:
+        blockers.append(f"volume<{PRO_BOTTOM_EARLY_ADX_MIN_VOLUME:.2f}x")
+    if raw_score < PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE:
+        blockers.append(f"raw_score<{PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE}")
+    if momentum_components < PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS:
+        blockers.append(f"momentum<{PRO_BOTTOM_MIN_MOMENTUM_COMPONENTS}/3")
+    return blockers
+
+
+def run_v63_14_27_raw_score_wiring_self_test():
+    """Regression: early-path eligibility/diagnostics use pre-cap engine score,
+    while the final quality gate still uses the effective score.
+    """
+    import inspect
+    source = inspect.getsource(professional_signal_quality_gate)
+    assert 'raw_score = safe_float(signal.get("score"))' in source
+    assert 'engine_raw_score = safe_float(signal.get("raw_score", raw_score))' in source
+    assert 'adx, volume, engine_raw_score, momentum_components' in source
+    assert 'side, signal_tf, confirmations, adx, volume, engine_raw_score, momentum_components' in source
+    # Reproduce the Run #49 mismatch: a score cap must not be misreported as
+    # an engine raw-score failure by the early-path blocker diagnostic.
+    effective_score = 82
+    engine_raw_score = 100
+    blockers = bottom_hunter_early_confirmation_blockers(
+        "BUY", "1h", 3, 21.23, 0.66, engine_raw_score, 2
+    )
+    assert effective_score < PRO_BOTTOM_MIN_SCORE
+    assert engine_raw_score >= PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE
+    assert "raw_score<95" not in blockers
+    assert "volume<1.50x" in blockers
+    # Correcting diagnostics must not bypass the effective-score eligibility gate.
+    assert effective_score < professional_min_score_for_mode("BOTTOM_HUNTER", "BUY")
+    return True
+
+
+def run_v63_14_28_early_adx_raw_score_wiring_self_test():
+    """The ADX exception uses engine raw score; final eligibility keeps effective score."""
+    import inspect
+    source = inspect.getsource(professional_signal_quality_gate)
+    assert "adx_ok = bottom_hunter_adx_gate_pass(adx, volume, engine_raw_score, momentum_components)" in source
+    effective_score, engine_raw_score = 88, 95
+    adx, volume, momentum = 19.5, 1.50, 2
+    assert effective_score >= PRO_BOTTOM_MIN_SCORE
+    assert effective_score < PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE
+    assert engine_raw_score >= PRO_BOTTOM_EARLY_ADX_MIN_RAW_SCORE
+    assert bottom_hunter_adx_gate_pass(adx, volume, engine_raw_score, momentum)
+    assert not bottom_hunter_adx_gate_pass(adx, volume, effective_score, momentum)
+    assert not bottom_hunter_adx_gate_pass(adx, 1.49, engine_raw_score, momentum)
+    return True
+
+
+def run_v63_14_26_early_path_blocker_self_test():
+    blockers = bottom_hunter_early_confirmation_blockers(
+        "BUY", "1h", 3, 21.23, 0.66, 100, 2
+    )
+    assert "volume<1.50x" in blockers
+    assert bottom_hunter_early_confirmation_blockers(
+        "BUY", "1h", 3, 20, 1.50, 95, 2
+    ) == []
+    assert "raw_score<95" in bottom_hunter_early_confirmation_blockers(
+        "BUY", "1h", 3, 20, 1.50, 94, 2
+    )
+    assert "ADX<18.0" in bottom_hunter_early_confirmation_blockers(
+        "BUY", "1h", 3, 17.9, 1.50, 95, 2
+    )
+    assert "momentum<2/3" in bottom_hunter_early_confirmation_blockers(
+        "BUY", "1h", 3, 20, 1.50, 95, 1
+    )
+    assert "side!=BUY" in bottom_hunter_early_confirmation_blockers(
+        "SELL", "1h", 3, 20, 1.50, 95, 2
+    )
+    assert "timeframe!=1h" in bottom_hunter_early_confirmation_blockers(
+        "BUY", "1d", 3, 20, 1.50, 95, 2
+    )
+    return True
+
+
+def run_v63_14_25_early_confirmation_exception_self_test():
+    passed = bottom_hunter_confirmation_gate_pass("BUY", "1h", 3, False, 20.0, 1.50, 95, 2)
+    assert passed == (True, 3, "EARLY_REVERSAL")
+    assert not bottom_hunter_confirmation_gate_pass("BUY", "1h", 2, False, 20.0, 1.50, 95, 2)[0]
+    assert not bottom_hunter_confirmation_gate_pass("BUY", "1h", 3, False, 20.0, 1.49, 95, 2)[0]
+    assert not bottom_hunter_confirmation_gate_pass("BUY", "1h", 3, False, 20.0, 1.50, 94.9, 2)[0]
+    assert not bottom_hunter_confirmation_gate_pass("BUY", "1h", 3, False, 17.9, 1.50, 95, 2)[0]
+    assert not bottom_hunter_confirmation_gate_pass("BUY", "1d", 3, False, 20.0, 1.50, 95, 2)[0]
+    assert bottom_hunter_confirmation_gate_pass("BUY", "1h", 6, True, 23.0, 1.35, 85, 0) == (True, 6, "STANDARD")
+    assert PRO_BOTTOM_MIN_30M_CONFIRMATIONS == 6
+    assert PRO_BOTTOM_EARLY_MIN_30M_CONFIRMATIONS == 3
+    return True
+
+
+def run_v63_14_17_early_reversal_gate_self_test():
+    assert bottom_hunter_adx_gate_pass(23.0, 1.0, 90, 0)
+    assert bottom_hunter_adx_gate_pass(20.0, 1.50, 95, 2)
+    assert not bottom_hunter_adx_gate_pass(17.9, 2.0, 100, 3)
+    assert not bottom_hunter_adx_gate_pass(20.0, 1.49, 100, 3)
+    assert not bottom_hunter_adx_gate_pass(20.0, 1.50, 94.9, 3)
+    assert not bottom_hunter_adx_gate_pass(20.0, 1.50, 95, 1)
+    assert PRO_BOTTOM_MIN_ADX == 23.0
+    return True
+
+
+def run_v63_14_16_bottom_rejection_diagnostic_self_test():
+    outside_rsi_only = {"rsi_outside": 1, "score_fail": 1}
+    summary = bottom_hunter_rejection_summary(outside_rsi_only)
+    assert summary["primary"] == "SCORE_BELOW_MINIMUM"
+    assert summary["primary"] != "RSI_OUTSIDE"
+
+    multiple_failures = {
+        "rejection_reasons": ["NOT_NEAR_RECENT_LOW", "SCORE_BELOW_MINIMUM"]
+    }
+    summary = bottom_hunter_rejection_summary(multiple_failures)
+    assert summary["primary"] == "NOT_NEAR_RECENT_LOW"
+    assert summary["all"] == ["NOT_NEAR_RECENT_LOW", "SCORE_BELOW_MINIMUM"]
+
+    btc_blocked = {"rejection_reasons": ["BTC_REGIME_BLOCKED"]}
+    assert bottom_hunter_rejection_summary(btc_blocked)["primary"] == "BTC_REGIME_BLOCKED"
+    assert PRO_BOTTOM_MIN_SCORE == 85
+    assert PRO_BOTTOM_MIN_ADX == 23.0
+    assert PRO_BOTTOM_MIN_VOLUME_RATIO == 1.35
+    assert DEPLOYMENT_ID.startswith("v63.14.")
+    assert run_v63_14_17_early_reversal_gate_self_test() is True
     return True
 
 
@@ -9802,7 +10584,7 @@ def scan_market():
     try:
         diag_path = "professional_diagnostics.txt"
         with open(diag_path, "w", encoding="utf-8") as fh:
-            fh.write("Crypto Signal Bot v63.5 Professional Diagnostics\n")
+            fh.write(f"Crypto Signal Bot {DEPLOYMENT_ID} Professional Diagnostics\n")
             fh.write(f"DEPLOYMENT_ID: {DEPLOYMENT_ID}\n")
             fh.write(f"Professional pass: {safe_int(bd.get('professional_passed'))}\n")
             fh.write(f"Professional reject: {safe_int(bd.get('professional_rejected'))}\n")
@@ -9843,6 +10625,7 @@ def scan_market():
                 for engine in ('trend','reversal','breakout'):
                     fh.write(f"  {engine.upper()}: {tr.get(engine) or {}}\n")
                 fh.write(f"  HIGHER_TF: {tr.get('higher_tf') or {}}\n")
+                fh.write(f"  DAILY_BOTTOM_HUNTER: {tr.get('daily_bottom_hunter') or {}}\n")
                 fh.write(f"  STAGE_SUMMARY: {summarize_engine_trace(tr)}\n")
                 fh.write("\n")
         log(f"Symbol diagnostics file: {symbol_diag_path}")
@@ -10773,6 +11556,7 @@ def run_system_test():
 
 def start_bot():
     print(f"DEPLOYMENT_ID: {DEPLOYMENT_ID}", flush=True)
+    print(f"DRY_RUN: {DRY_RUN} (Telegram delivery disabled when true)", flush=True)
 
     print_startup_info()
 
@@ -10893,6 +11677,8 @@ if __name__ == "__main__":
     assert run_v63_9_diagnostic_integrity_self_test() is True
     assert run_v63_12_root_fix3_self_test() is True
     assert run_v63_14_diagnostic_trace_self_test() is True
+    assert run_v63_14_16_bottom_rejection_diagnostic_self_test() is True
+    assert run_v63_14_19_raw_effective_score_self_test() is True
     assert run_v63_14_1_root_fix_self_test() is True
     assert run_v63_14_2_bottom_rsi_self_test() is True
     assert run_v63_14_3_outcome_boundary_self_test() is True
@@ -10902,6 +11688,8 @@ if __name__ == "__main__":
     assert run_v63_14_10_score_grade_diagnostic_self_test() is True
     assert run_v63_14_11_analytics_scope_self_test() is True
     assert run_v63_14_14_finalization_metrics_self_test() is True
+    assert run_v63_14_27_raw_score_wiring_self_test() is True
+    assert run_v63_14_28_early_adx_raw_score_wiring_self_test() is True
 
     try:
 
