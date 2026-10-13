@@ -84,10 +84,15 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
 
             risk_budget = equity_before_entry * max(0.0, float(risk_pct)) / 100.0
             risk_sized_notional = risk_budget / risk_fraction
+            # Reserve enough shared cash to cover configured round-trip costs.
+            # net_pct includes entry+exit costs; cost_pct is the fee reserve ratio.
+            cost_pct = max(0.0, float(trade.get("cost_pct", 0) or 0))
+            fee_reserve_factor = 1.0 + cost_pct / 100.0
+            cash_limited_notional = cash / fee_reserve_factor
             notional = min(
                 risk_sized_notional,
                 equity_before_entry * max(0.0, float(max_position_pct)) / 100.0,
-                cash,
+                cash_limited_notional,
             )
             if notional < 1.0:
                 trade["portfolio_status"] = "REJECTED"
@@ -241,6 +246,7 @@ def portfolio_ledger_self_test(out_dir):
                              max_position_pct=100)
         assert r["accepted_trades"] == 1, "full-cash simultaneous trades must not overlap allocations"
         assert r["rejected_trades"] == 2
+        assert r["capital_utilization_max_pct"] <= 100.0 + 1e-5, "fee reserve must keep utilization within account equity"
         rows = pd.read_csv(Path(d) / "portfolio_trades.csv")
         accepted_symbols = rows.loc[rows["portfolio_status"] == "ACCEPTED", "symbol"].tolist()
         assert accepted_symbols == ["AAAUSDT"], "higher-score candidate must win timestamp tie"
@@ -265,9 +271,10 @@ def portfolio_ledger_self_test(out_dir):
                                 max_position_pct=100)
         half = portfolio_ledger(candidate, d_half, initial_cash=1000, risk_pct=100,
                                 max_position_pct=50)
-        assert abs(full["net_pnl_usdt"] - 7.0) < 1e-5
+        assert full["capital_utilization_max_pct"] <= 100.0 + 1e-5, "fees must not cause >100% utilization"
+        assert full["net_pnl_usdt"] < 7.0, "reserved fees must reduce allocated notional"
         assert abs(half["net_pnl_usdt"] - 3.5) < 1e-5
-        assert abs(full["net_pnl_usdt"] / half["net_pnl_usdt"] - 2.0) < 1e-5
+        assert abs(full["net_pnl_usdt"] / half["net_pnl_usdt"] - 1.994) < 0.01
 
     # 4) Equity is marked to market and drawdown is measured from the running peak.
     with tempfile.TemporaryDirectory() as d:
