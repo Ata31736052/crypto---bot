@@ -68,11 +68,12 @@ jobs:
           assert "portfolio_ledger" in s
           assert "WARMUP_DAYS = 250" in s and "WARMUP_BARS = 200" in s
           assert "validate_warmup" in s
-          from historical_backtest import validate_warmup_self_test, simulate_self_test, entry_location_guard_self_test, closed_prefix_self_test
+          from historical_backtest import validate_warmup_self_test, simulate_self_test, entry_location_guard_self_test, closed_prefix_self_test, shared_divergence_scoring_self_test
           validate_warmup_self_test()
           simulate_self_test()
           entry_location_guard_self_test()
           closed_prefix_self_test()
+          shared_divergence_scoring_self_test()
           from portfolio_ledger import portfolio_ledger_self_test
           portfolio_ledger_self_test("backtest-results")
           print("Backtest source, warm-up, and shared-account verification: PASS")
