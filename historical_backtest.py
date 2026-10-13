@@ -221,6 +221,31 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
         path.append({"time":str(candle.close_time),"price":float(exitp if k==xi else candle.close)})
     return {"symbol":symbol,"side":side,"signal_time":str(signal_time),"entry_time":str(row.open_time),"entry":entry,"stop_loss":sl,"tp1":tp1,"tp2":tp2,"exit_time":str(h1.iloc[xi].close_time),"exit":exitp,"exit_reason":reason,"gross_pct":round(gross,4),"cost_pct":round(costs,4),"net_pct":round(gross-costs,4),"bars_held":xi-entry_i,"score":score,"strength":strength,"_path":path},xi
 
+
+def closed_prefix_index_self_test():
+    """Prefix indexing must exactly match the old closed-candle mask/tail semantics."""
+    times = pd.date_range("2026-01-01T00:00:00Z", periods=12, freq="1h")
+    frame = pd.DataFrame({"close_time": times, "value": range(len(times))})
+    cutoffs = [
+        times[0] - pd.Timedelta(seconds=1),
+        times[0],
+        times[4] + pd.Timedelta(minutes=30),
+        times[7],
+        times[-1],
+        times[-1] + pd.Timedelta(hours=1),
+    ]
+    for cutoff in cutoffs:
+        for limit in (1, 3, 20):
+            expected = frame[frame["close_time"] <= cutoff].tail(limit)
+            end_idx = int(frame["close_time"].searchsorted(cutoff, side="right"))
+            actual = frame.iloc[max(0, end_idx - limit):end_idx]
+            assert actual.reset_index(drop=True).equals(expected.reset_index(drop=True)), (
+                f"prefix index mismatch cutoff={cutoff} limit={limit}"
+            )
+    print("CLOSED_PREFIX_INDEX_SELF_TEST: PASS")
+    return True
+
+
 def historical_btc_regime(frames, decision_time):
     """Rebuild the engine's combined BTC 1H + Daily regime using only closed candles."""
     latest = {}
