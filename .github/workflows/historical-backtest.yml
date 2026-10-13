@@ -66,9 +66,13 @@ jobs:
           assert "main.analyze_one_symbol(" in s
           assert "next 1H candle open" in s
           assert "portfolio_ledger" in s
+          assert "WARMUP_DAYS = 250" in s and "WARMUP_BARS = 200" in s
+          assert "validate_warmup" in s
+          from historical_backtest import validate_warmup_self_test
+          validate_warmup_self_test()
           from portfolio_ledger import portfolio_ledger_self_test
           portfolio_ledger_self_test("backtest-results")
-          print("Backtest source and shared-account verification: PASS")
+          print("Backtest source, warm-up, and shared-account verification: PASS")
           PY
       - name: Run historical replay
         run: python historical_backtest.py
