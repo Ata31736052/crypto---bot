@@ -1,0 +1,95 @@
+name: Historical Binance Backtest | 180D | Offline Signals
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'main.py'
+      - 'historical_backtest.py'
+      - 'portfolio_ledger.py'
+      - '.github/workflows/historical-backtest.yml'
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Historical period (30-365 days)"
+        required: true
+        default: "180"
+        type: string
+      symbols:
+        description: "Comma-separated Binance Spot USDT symbols"
+        required: true
+        default: "ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT"
+        type: string
+      fee_bps:
+        description: "Fee in basis points per side (10 = 0.10%)"
+        required: true
+        default: "10"
+        type: string
+      slippage_bps:
+        description: "Slippage in basis points per side"
+        required: true
+        default: "5"
+        type: string
+      end_time:
+        description: "Fixed UTC end timestamp (ISO-8601, e.g. 2026-10-13T12:00:00Z); blank uses current UTC hour"
+        required: false
+        default: ""
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: historical-backtest-${{ github.sha }}
+  cancel-in-progress: true
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      BACKTEST_DAYS: ${{ github.event.inputs.days || '180' }}
+      BACKTEST_SYMBOLS: ${{ github.event.inputs.symbols || 'ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT' }}
+      BACKTEST_FEE_BPS: ${{ github.event.inputs.fee_bps || '10' }}
+      BACKTEST_SLIPPAGE_BPS: ${{ github.event.inputs.slippage_bps || '5' }}
+      BACKTEST_END_TIME: ${{ github.event.inputs.end_time || '2026-10-13T13:00:00Z' }}
+      PYTHONUNBUFFERED: "1"
+      TELEGRAM_TOKEN: ""
+      TELEGRAM_CHAT_ID: ""
+      DRY_RUN: "1"
+      RUN_ONCE: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      - name: Compile and verify offline replay
+        run: |
+          python -m py_compile main.py historical_backtest.py portfolio_ledger.py
+          python - <<'PY'
+          from pathlib import Path
+          s=Path("historical_backtest.py").read_text()
+          assert "main.analyze_one_symbol(" in s
+          assert "next 1H candle open" in s
+          assert "portfolio_ledger" in s
+          assert "WARMUP_DAYS = 250" in s and "WARMUP_BARS = 200" in s
+          assert "validate_warmup" in s
+          from historical_backtest import validate_warmup_self_test, simulate_self_test, entry_location_guard_self_test, closed_prefix_self_test
+          validate_warmup_self_test()
+          simulate_self_test()
+          entry_location_guard_self_test()
+          closed_prefix_self_test()
+          from portfolio_ledger import portfolio_ledger_self_test
+          portfolio_ledger_self_test("backtest-results")
+          print("Backtest source, warm-up, and shared-account verification: PASS")
+          PY
+      - name: Run historical replay
+        run: python historical_backtest.py
+      - name: Upload backtest results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apexsignal-historical-backtest
+          path: backtest-results/
+          if-no-files-found: warn
+          retention-days: 30
