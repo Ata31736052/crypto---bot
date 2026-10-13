@@ -126,6 +126,7 @@ jobs:
               ('v63.14.10 score-grade diagnostic', main.run_v63_14_10_score_grade_diagnostic_self_test),
               ('v63.14.11 analytics scope', main.run_v63_14_11_analytics_scope_self_test),
               ('v63.14.13 outcome candle coverage', main.run_v63_14_14_finalization_metrics_self_test),
+              ('shared divergence analysis reuse', main.run_divergence_reuse_self_test),
           ]
           for label, test in tests:
               assert test() is True, f'{label} failed'
