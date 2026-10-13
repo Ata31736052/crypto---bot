@@ -21,6 +21,13 @@ TIMEFRAME_LIMITS = {"1h": main.KLINE_LIMIT_MAIN, "30m": main.KLINE_LIMIT_CONFIRM
                     "4h": main.KLINE_LIMIT_4H, "1d": main.KLINE_LIMIT_DAILY}
 SESSION = requests.Session()
 
+def filter_closed_before_end(d, end_ms):
+    """Exclude candles not fully closed before the exclusive UTC end boundary."""
+    if d is None or d.empty:
+        return d
+    boundary=pd.to_datetime(end_ms,unit="ms",utc=True)
+    return d[d["close_time"] < boundary]
+
 def fetch(symbol, tf, start_ms, end_ms):
     rows=[]; cursor=start_ms
     while cursor < end_ms:
@@ -39,8 +46,8 @@ def fetch(symbol, tf, start_ms, end_ms):
     for c in ("open","high","low","close","volume"): d[c]=pd.to_numeric(d[c],errors="coerce")
     # Treat end_ms as an exclusive closed-candle boundary. Binance endTime can
     # include a candle whose open_time equals the boundary but whose close is later.
-    end_boundary=pd.to_datetime(end_ms,unit="ms",utc=True)
-    d=d[(d.close_time < pd.Timestamp.now(tz="UTC")) & (d.close_time < end_boundary)].dropna(subset=["open","high","low","close","volume"])
+    d=d[d.close_time < pd.Timestamp.now(tz="UTC")]
+    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])
     return d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]
 
 
@@ -55,7 +62,7 @@ def closed_end_cutoff_self_test():
         "open_time":pd.to_datetime(["2026-10-13T12:00:00Z"],utc=True),
         "close_time":pd.to_datetime(["2026-10-13T12:59:59.999Z"],utc=True),
     })],ignore_index=True)
-    kept=sample[sample.close_time < end]
+    kept=filter_closed_before_end(sample,int(end.timestamp()*1000))
     assert len(kept)==2 and kept.close_time.max() < end, "post-boundary candle leaked into fixed window"
     print("CLOSED_END_CUTOFF_SELF_TEST: PASS")
     return True
