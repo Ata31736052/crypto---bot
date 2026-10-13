@@ -197,7 +197,8 @@ report={
           "Wall time includes Python startup; signal_engine stage is the primary optimization metric.",
           "No signal thresholds, strategy rules, Telegram delivery, or orders are changed."]
 }
-progress_path.write_text(json.dumps({"status":"BENCHMARK_COMPARISON_COMPLETE","completed_unix":time.time()},indent=2),encoding="utf-8")\nreport["signal_engine_median_improvement_pct"]=round(
+progress_path.write_text(json.dumps({"status":"BENCHMARK_COMPARISON_COMPLETE","completed_unix":time.time()},indent=2),encoding="utf-8")
+report["signal_engine_median_improvement_pct"]=round(
     (1-report["timings"]["candidate_B"]["signal_engine"]["median"]/
      report["timings"]["baseline_A"]["signal_engine"]["median"])*100,2
 ) if report["timings"]["baseline_A"]["signal_engine"]["median"] else None
