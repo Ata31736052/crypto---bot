@@ -8928,6 +8928,19 @@ def analyze_one_symbol(symbol, btc_regime):
         if not bottom_signal and trace["first_rejection"] is None:
             trace["first_rejection"] = "REVERSAL:" + str(trace["reversal"].get("reason"))
         if bottom_signal:
+            # Apply the same execution-location guard to Bottom Hunter as Trend.
+            # Previously reversal candidates could bypass the guard and buy directly
+            # under recent resistance, even when the diagnostic marked them rejected.
+            location_ok, location_reason = entry_location_guard(
+                df_1h, bottom_signal.get("signal"), lookback=20,
+                min_room_atr=PRO_MAX_RESISTANCE_ROOM_ATR
+            )
+            if not location_ok:
+                bottom_diagnostic["entry_location_rejected"] = safe_int(bottom_diagnostic.get("entry_location_rejected", 0)) + 1
+                bottom_diagnostic["entry_location_reject_reason"] = location_reason
+                trace["reversal"]["entry_location_rejection"] = location_reason
+                bottom_signal = None
+        if bottom_signal:
             bottom_signal["symbol"] = symbol
             bottom_signal["engine"] = "REVERSAL"
             bottom_signal = attach_trade_levels(bottom_signal)
@@ -9020,6 +9033,16 @@ def analyze_one_symbol(symbol, btc_regime):
             trace["first_rejection"] = "BREAKOUT:NO_BREAKOUT_CANDIDATE"
         breakout_signal = build_breakout_signal(symbol, data, breakout, btc_regime)
         if breakout_signal:
+            # A breakout should normally clear the level; still verify the actual
+            # 1H execution context so it cannot slip through on an unconfirmed setup.
+            location_ok, location_reason = entry_location_guard(
+                df_1h, breakout_signal.get("signal"), lookback=20,
+                min_room_atr=PRO_MAX_RESISTANCE_ROOM_ATR
+            )
+            if not location_ok:
+                trace["breakout"]["entry_location_rejection"] = location_reason
+                breakout_signal = None
+        if breakout_signal:
             breakout_signal = attach_trade_levels(breakout_signal)
             if not validate_risk_levels(breakout_signal):
                 risk_reason = str(breakout_signal.get("risk_reject_reason") or "RISK_LEVELS_INVALID")
@@ -9064,6 +9087,16 @@ def analyze_one_symbol(symbol, btc_regime):
             htf_trace = (data.get("_higher_tf_diagnostic", {}) or {}).get("4h", {})
             trace["higher_tf"]["4h"] = dict(htf_trace) if isinstance(htf_trace, dict) else {"stage": "NO_CANDIDATE", "reason": "NO_TRACE"}
             if sig_4h:
+                # Higher-timeframe signals still execute at the next 1H open;
+                # validate available room on that execution timeframe as well.
+                location_ok, location_reason = entry_location_guard(
+                    df_1h, sig_4h.get("signal"), lookback=20,
+                    min_room_atr=PRO_MAX_RESISTANCE_ROOM_ATR
+                )
+                if not location_ok:
+                    trace["higher_tf"]["4h"].update({"stage": "ENTRY_LOCATION_REJECT", "reason": location_reason})
+                    sig_4h = None
+            if sig_4h:
                 sig_4h = attach_trade_levels(sig_4h)
                 if not validate_risk_levels(sig_4h):
                     reason = str(sig_4h.get("risk_reject_reason") or "RISK_LEVELS_INVALID")
@@ -9081,6 +9114,15 @@ def analyze_one_symbol(symbol, btc_regime):
             sig_1d = analyze_higher_timeframe_signal(symbol, data, "1d", btc_regime)
             htf_trace = (data.get("_higher_tf_diagnostic", {}) or {}).get("1d", {})
             trace["higher_tf"]["1d"] = dict(htf_trace) if isinstance(htf_trace, dict) else {"stage": "NO_CANDIDATE", "reason": "NO_TRACE"}
+            if sig_1d:
+                # Daily setups must not bypass the 1H execution-location guard.
+                location_ok, location_reason = entry_location_guard(
+                    df_1h, sig_1d.get("signal"), lookback=20,
+                    min_room_atr=PRO_MAX_RESISTANCE_ROOM_ATR
+                )
+                if not location_ok:
+                    trace["higher_tf"]["1d"].update({"stage": "ENTRY_LOCATION_REJECT", "reason": location_reason})
+                    sig_1d = None
             if sig_1d:
                 sig_1d = attach_trade_levels(sig_1d)
                 if not validate_risk_levels(sig_1d):
