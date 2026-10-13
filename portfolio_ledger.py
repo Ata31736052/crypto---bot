@@ -310,6 +310,11 @@ def portfolio_ledger_self_test(out_dir):
     # 5) Equity is marked to market and drawdown is measured from the running peak.
     with tempfile.TemporaryDirectory() as d:
         losing = [make_trade("AAAUSDT", t0, t2, -5.3, cost_pct=0.3, exit_price=95.0)]
+        # Include a pre-exit mark so the equity curve captures the open loss.
+        losing[0]["_path"] = [
+            {"time": t1, "price": 95.0},
+            {"time": t2, "price": 95.0},
+        ]
         r = portfolio_ledger(losing, d, initial_cash=1000, risk_pct=100,
                              max_position_pct=100)
         expected_notional = 1000.0 / 1.003
