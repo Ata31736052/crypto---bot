@@ -8927,10 +8927,9 @@ def analyze_one_symbol(symbol, btc_regime):
         }
         if not bottom_signal and trace["first_rejection"] is None:
             trace["first_rejection"] = "REVERSAL:" + str(trace["reversal"].get("reason"))
-        if bottom_signal:
-            # Reversal entries are intentionally not blanket-blocked by the trend location guard.
-            # Historical baseline showed that the same proximity rule can reject profitable
-            # reversal trades; keep the diagnostic available, but do not use it as a hard veto here.
+        # Reversal entries are intentionally not blanket-blocked by the trend location guard.
+        # Historical baseline showed that the same proximity rule can reject profitable
+        # reversal trades; keep the diagnostic available, but do not use it as a hard veto here.
         if bottom_signal:
             bottom_signal["symbol"] = symbol
             bottom_signal["engine"] = "REVERSAL"
