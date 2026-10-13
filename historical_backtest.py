@@ -124,6 +124,7 @@ def signal_diagnostics(df, side):
     if side == "BUY":
         levels = [level for level in swing_highs if level > close]
         if not levels:
+            room_atr = float("nan")
             allowed, reason = True, "ENTRY_LOCATION_NO_CONFIRMED_RESISTANCE"
         else:
             room_atr = (min(levels) - close) / atr
@@ -132,11 +133,15 @@ def signal_diagnostics(df, side):
     else:
         levels = [level for level in swing_lows if level < close]
         if not levels:
+            room_atr = float("nan")
             allowed, reason = True, "ENTRY_LOCATION_NO_CONFIRMED_SUPPORT"
         else:
             room_atr = (close - max(levels)) / atr
             allowed = room_atr >= 0.80
             reason = f"ENTRY_LOCATION_SWING_ROOM_{room_atr:.2f}_ATR"
+    # Keep the reported diagnostic metric identical to the actual confirmed-swing
+    # guard. The raw 20-candle high/low estimate above is intentionally replaced.
+    out["room_to_obstacle_atr"] = room_atr
     out["entry_guard_allowed"] = bool(allowed)
     out["entry_guard_reason"] = reason
     return out
@@ -166,14 +171,18 @@ def entry_location_guard_self_test():
     rows.loc[1+7, "high"] = 100.5
     d = signal_diagnostics(rows, "BUY")
     assert d["entry_guard_allowed"] is True and "2.00_ATR" in d["entry_guard_reason"], d
-    # Confirmed swing only 0.5 ATR away is rejected.
+    assert abs(d["room_to_obstacle_atr"] - 2.0) < 1e-9, d
+    # Confirmed swing only 0.5 ATR away is rejected and diagnostic distance agrees.
     d = signal_diagnostics(frame_with_levels("BUY", 101.0), "BUY")
     assert d["entry_guard_allowed"] is False and "0.50_ATR" in d["entry_guard_reason"], d
+    assert abs(d["room_to_obstacle_atr"] - 0.5) < 1e-9, d
     # Same directional rule applies to confirmed support for SELL.
     d = signal_diagnostics(frame_with_levels("SELL", 96.0), "SELL")
     assert d["entry_guard_allowed"] is True and "2.00_ATR" in d["entry_guard_reason"], d
+    assert abs(d["room_to_obstacle_atr"] - 2.0) < 1e-9, d
     d = signal_diagnostics(frame_with_levels("SELL", 99.0), "SELL")
     assert d["entry_guard_allowed"] is False and "0.50_ATR" in d["entry_guard_reason"], d
+    assert abs(d["room_to_obstacle_atr"] - 0.5) < 1e-9, d
     print("ENTRY_LOCATION_SWING_GUARD_SELF_TEST: PASS")
     return True
 
