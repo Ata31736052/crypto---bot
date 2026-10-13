@@ -230,6 +230,28 @@ def closed_prefix(df, decision_time, limit=None):
     return df.iloc[begin:stop]
 
 
+def shared_divergence_scoring_self_test():
+    """Shared analysis must preserve legacy BUY/SELL score payloads exactly."""
+    data = {
+        "bullish_score": 3,
+        "bearish_score": 1,
+        "buy_reason": "RSI bullish divergence, MACD bullish divergence",
+        "sell_reason": "RSI bearish divergence",
+    }
+    for side in ("BUY", "SELL", "NO_SIGNAL"):
+        # Legacy score_divergence behavior after analyze_divergence has returned.
+        if side == "BUY":
+            expected = {"score": min(data["bullish_score"] * 2, 4), "reason": data["buy_reason"], "data": data}
+        elif side == "SELL":
+            expected = {"score": min(data["bearish_score"] * 2, 4), "reason": data["sell_reason"], "data": data}
+        else:
+            expected = {"score": 0, "reason": "", "data": data}
+        actual = main.score_divergence_from_analysis(data, side)
+        assert actual == expected, f"shared divergence score mismatch for {side}"
+    print("SHARED_DIVERGENCE_SCORING_SELF_TEST: PASS")
+    return True
+
+
 def closed_prefix_self_test():
     """Binary-search prefix must match the old closed-candle mask/tail exactly."""
     times = pd.date_range("2026-01-01T00:00:00Z", periods=12, freq="1h")
