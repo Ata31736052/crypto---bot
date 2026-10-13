@@ -64,9 +64,29 @@ def signal_diagnostics(df, side):
     hi=float(highs.max()) if highs.notna().any() else close
     lo=float(lows.min()) if lows.notna().any() else close
     out["range_position_20"]=((close-lo)/(hi-lo)) if hi>lo else 0.5
-    allowed,reason=main.entry_location_guard(df,side)
-    out["entry_guard_allowed"]=bool(allowed)
-    out["entry_guard_reason"]=reason
+    # Backtest-only location diagnostic. Keep it local so the replay can
+    # compare candidate engine versions even when main.py has no public guard.
+    prior = df.iloc[-21:-1]
+    if side == "BUY":
+        levels = pd.to_numeric(prior["high"], errors="coerce")
+        levels = levels[levels > close]
+        if levels.empty:
+            allowed, reason = True, "ENTRY_LOCATION_LEVEL_CLEARED_RESISTANCE"
+        else:
+            room_atr = (float(levels.min()) - close) / atr
+            allowed = room_atr >= 0.80
+            reason = f"ENTRY_LOCATION_ROOM_{room_atr:.2f}_ATR"
+    else:
+        levels = pd.to_numeric(prior["low"], errors="coerce")
+        levels = levels[levels < close]
+        if levels.empty:
+            allowed, reason = True, "ENTRY_LOCATION_LEVEL_CLEARED_SUPPORT"
+        else:
+            room_atr = (close - float(levels.max())) / atr
+            allowed = room_atr >= 0.80
+            reason = f"ENTRY_LOCATION_ROOM_{room_atr:.2f}_ATR"
+    out["entry_guard_allowed"] = bool(allowed)
+    out["entry_guard_reason"] = reason
     return out
 
 
