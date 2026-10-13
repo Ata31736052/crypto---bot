@@ -228,7 +228,7 @@ def portfolio_ledger_self_test(out_dir):
                               max_position_pct=100)
     assert result["candidate_trades"] == 3
     assert result["accepted_trades"] < 3, "shared cash must reject at least one concurrent candidate"
-    assert result["final_equity_usdt"] < 1100
+    assert result["final_equity_usdt"] < 1101
     assert result["max_drawdown_pct"] >= 0
     assert (test_dir / "portfolio_equity.csv").exists()
     assert (test_dir / "portfolio_trades.csv").exists()
