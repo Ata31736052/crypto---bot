@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Closed-candle historical replay of the repository signal engine. No orders or Telegram."""
-import json, os, time
+import json, os, time, cProfile, pstats, io
 from pathlib import Path
 import pandas as pd
 import requests
@@ -280,6 +280,10 @@ def run():
     end=pd.Timestamp.now(tz="UTC").floor("h"); start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
     trades=[]; engine_candidate_trades={}; errors=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
     perf={"stage_seconds":{},"counters":{"candle_steps":0,"timeframe_index_lookups":0,"rows_materialized":0,"btc_regime_lookups":0,"engine_calls":0}}
+    # ENGINE_INTERNAL_PROFILE: profile exactly one real production-engine invocation.
+    # This is offline-only instrumentation; no signal, score, or trade decision is changed.
+    profile_enabled=os.getenv("BACKTEST_PROFILE_ENGINE","1").strip().lower() not in ("0","false","no","off")
+    engine_profile={"enabled":profile_enabled,"profiled_calls":0,"profiled_symbol":None,"profiled_time":None,"top_cumulative":[],"top_self_time":[]}
     def stage_done(name, started):
         perf["stage_seconds"][name]=perf["stage_seconds"].get(name,0.0)+(time.perf_counter()-started)
     print(f"PERIOD {start} -> {end}; symbols={SYMBOLS}; fee/side={FEE_BPS}bps; slippage/side={SLIPPAGE_BPS}bps",flush=True)
@@ -347,7 +351,37 @@ def run():
                         "price":_price,"fetched_at":_time,"request_latency_seconds":0.0,"source":"historical closed candle"
                     }
                     t_engine=time.perf_counter()
-                    scan=main.analyze_one_symbol(sym,btc_regime)
+                    if profile_enabled and engine_profile["profiled_calls"] == 0:
+                        profiler=cProfile.Profile()
+                        profiler.enable()
+                        scan=main.analyze_one_symbol(sym,btc_regime)
+                        profiler.disable()
+                        engine_profile["profiled_calls"]=1
+                        engine_profile["profiled_symbol"]=sym
+                        engine_profile["profiled_time"]=str(close_time)
+                        stats=pstats.Stats(profiler)
+                        def profile_rows(sort_key, limit=40):
+                            stats.sort_stats(sort_key)
+                            rows=[]
+                            for (filename,line_no,func_name),(primitive,total,ttotal,ctotal,callers) in list(stats.stats.items()):
+                                rows.append({"function":func_name,"file":filename,"line":line_no,
+                                             "calls":int(total),"primitive_calls":int(primitive),
+                                             "self_seconds":round(float(ttotal),6),
+                                             "cumulative_seconds":round(float(ctotal),6)})
+                            rows.sort(key=lambda row: row["cumulative_seconds" if sort_key=="cumulative" else "self_seconds"],reverse=True)
+                            return rows[:limit]
+                        engine_profile["top_cumulative"]=profile_rows("cumulative")
+                        engine_profile["top_self_time"]=profile_rows("tottime")
+                        (OUT/"engine-profile.txt").write_text(
+                            "PROFILED FIRST ENGINE CALL\\n"+stats.sort_stats("cumulative").stream.getvalue()
+                            if False else "", encoding="utf-8")
+                        buf=io.StringIO()
+                        stats.stream=buf
+                        stats.sort_stats("cumulative").print_stats(60)
+                        (OUT/"engine-profile.txt").write_text(buf.getvalue(),encoding="utf-8")
+                        (OUT/"engine-profile.json").write_text(json.dumps(engine_profile,indent=2),encoding="utf-8")
+                    else:
+                        scan=main.analyze_one_symbol(sym,btc_regime)
                     stage_done("signal_engine", t_engine)
                     perf["counters"]["engine_calls"] += 1
                 except Exception as exc:
@@ -436,6 +470,7 @@ def run():
     guard_portfolio=portfolio_ledger(guarded_trades,OUT/"entry-location-guard",initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
     guard_comparison={"rule":"nearest obstacle in previous 20 closed 1H candles must be at least 0.80 ATR away","baseline_candidate_trades":len(trades),"guard_candidate_trades":len(guarded_trades),"filtered_candidate_trades":len(trades)-len(guarded_trades),"status":"EXPERIMENTAL_COMPARISON_ONLY; not enabled in live engine"}
     perf["stage_seconds"]={k:round(v,4) for k,v in perf["stage_seconds"].items()}
+    (OUT/"engine-profile.json").write_text(json.dumps(engine_profile,indent=2),encoding="utf-8")
     perf["total_instrumented_seconds"]=round(sum(perf["stage_seconds"].values()),4)
     summary={"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"fee and slippage on both entry and exit included in net P/L","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
     (OUT/"summary.json").write_text(json.dumps(summary,indent=2),encoding="utf-8"); print(json.dumps(summary,indent=2),flush=True)
