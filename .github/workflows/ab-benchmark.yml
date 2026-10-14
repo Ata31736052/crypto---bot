@@ -1,5 +1,13 @@
 name: Controlled A-B Performance Benchmark
 on:
+  push:
+    branches: [backtest/divergence-reuse-ab-20261013-run]
+    paths:
+      - 'main.py'
+      - 'historical_backtest.py'
+      - 'portfolio_ledger.py'
+      - 'scripts/ab_benchmark.py'
+      - '.github/workflows/ab-benchmark.yml'
   pull_request:
     branches: [main, backtest/main-engine-baseline-180d]
     paths:
@@ -19,7 +27,7 @@ jobs:
     timeout-minutes: 180
     env:
       AB_BASE_SHA: 007edcd8e5aa9edd17b94fd4018b899d78efe77c
-      AB_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+      AB_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       AB_REPEATS: "3"
       BACKTEST_DAYS: "180"
       BACKTEST_SYMBOLS: "ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT"
@@ -35,7 +43,7 @@ jobs:
       - name: Checkout benchmark harness
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
