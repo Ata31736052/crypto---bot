@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, backtest/main-engine-baseline-180d]
   pull_request:
-    branches: [main]
+    branches: [main, backtest/main-engine-baseline-180d]
   workflow_dispatch:
 
 permissions:
