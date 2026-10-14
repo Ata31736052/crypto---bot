@@ -126,9 +126,8 @@ for label in ("A", "B"):
         sig = "def fetch(symbol, tf, start_ms, end_ms):"
         if sig not in source: raise SystemExit("Cannot safely patch baseline fetch signature")
         source = source.replace(sig, "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False):", 1)
-        old_filter = '    d=d[d.close_time < pd.Timestamp.now(tz="UTC")]\n    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])'
-        new_filter = '''    d=d[d.close_time < pd.Timestamp.now(tz="UTC")]
-    boundary=pd.to_datetime(end_ms,unit="ms",utc=True)
+        old_filter = '    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])'
+        new_filter = '''    boundary=pd.to_datetime(end_ms,unit="ms",utc=True)
     d=d[(d.close_time < boundary) | ((tf == "1h") & include_boundary_open & (d.open_time == boundary))]
     d=d.dropna(subset=["open","high","low","close","volume"])'''
         if old_filter not in source: raise SystemExit("Cannot safely normalize baseline end-boundary policy")
