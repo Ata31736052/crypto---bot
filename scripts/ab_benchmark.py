@@ -126,12 +126,22 @@ for label in ("A", "B"):
         sig = "def fetch(symbol, tf, start_ms, end_ms):"
         if sig not in source: raise SystemExit("Cannot safely patch baseline fetch signature")
         source = source.replace(sig, "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False):", 1)
-        old_filter = '    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])'
+        old_filters = (
+            '    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])',
+            '    d=d[d.close_time < pd.Timestamp.now(tz="UTC")].dropna(subset=["open","high","low","close","volume"])',
+        )
         new_filter = '''    boundary=pd.to_datetime(end_ms,unit="ms",utc=True)
     d=d[(d.close_time < boundary) | ((tf == "1h") & include_boundary_open & (d.open_time == boundary))]
     d=d.dropna(subset=["open","high","low","close","volume"])'''
-        if old_filter not in source: raise SystemExit("Cannot safely normalize baseline end-boundary policy")
-        source = source.replace(old_filter, new_filter, 1)
+        matched_filters = [line for line in old_filters if line in source]
+        if len(matched_filters) != 1:
+            raise SystemExit(
+                "Cannot safely normalize baseline end-boundary policy: "
+                f"expected exactly one known filter, found {len(matched_filters)}"
+            )
+        source = source.replace(matched_filters[0], new_filter, 1)
+        if new_filter not in source:
+            raise SystemExit("Baseline boundary normalization postcondition failed")
         source = source.replace('fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000))', 'fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000),include_boundary_open=(tf=="1h"))')
         source = source.replace('fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000))', 'fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000),include_boundary_open=(tf=="1h"))')
     return_line = '    return d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]'
