@@ -33,6 +33,23 @@ def filter_closed_before_end(d, end_ms, include_boundary_open=False):
         return d[(d["close_time"] < boundary) | (d["open_time"] == boundary)]
     return d[d["close_time"] < boundary]
 
+def validate_finite_ohlcv(frame, context="OHLCV"):
+    """Fail closed if any OHLCV row contains missing, malformed, or non-finite numeric data."""
+    if frame is None or frame.empty:
+        return True
+    columns = ("open", "high", "low", "close", "volume")
+    missing = [column for column in columns if column not in frame.columns]
+    if missing:
+        raise RuntimeError(f"{context} is missing columns: {', '.join(missing)}")
+    for column in columns:
+        values = pd.to_numeric(frame[column], errors="coerce")
+        if values.isna().any():
+            raise RuntimeError(f"{context} contains missing or invalid {column} values")
+        if not all(math.isfinite(float(value)) for value in values):
+            raise RuntimeError(f"{context} contains non-finite {column} values")
+    return True
+
+
 def validate_boundary_execution_candle(frame, end_time):
     """Require the exact next-hour candle used only to execute the final in-window signal."""
     boundary = pd.Timestamp(end_time)
@@ -92,7 +109,9 @@ def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False):
     # Treat end_ms as an exclusive closed-candle boundary. Binance endTime can
     # include a candle whose open_time equals the boundary but whose close is later.
     d=d[d.close_time < pd.Timestamp.now(tz="UTC")]
-    d=filter_closed_before_end(d,end_ms,include_boundary_open=include_boundary_open).dropna(subset=["open","high","low","close","volume"])
+    d=filter_closed_before_end(d,end_ms,include_boundary_open=include_boundary_open)
+    validate_finite_ohlcv(d, f"{symbol} {tf}")
+    d=d.dropna(subset=["open","high","low","close","volume"])
     return d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]
 
 
@@ -182,6 +201,31 @@ def boundary_execution_candle_self_test():
         else:
             raise AssertionError("replay accepted missing/misplaced boundary candle")
     print("BOUNDARY_EXECUTION_CANDLE_SELF_TEST: PASS")
+    return True
+
+
+def finite_ohlcv_self_test():
+    """Reject NaN and both infinities in every OHLCV field on any row."""
+    frame = pd.DataFrame({
+        "open": [100.0, 101.0], "high": [102.0, 103.0],
+        "low": [99.0, 100.0], "close": [101.0, 102.0],
+        "volume": [10.0, 12.0],
+    })
+    assert validate_finite_ohlcv(frame, "self-test") is True
+    for row_index in range(len(frame)):
+        for column in ("open", "high", "low", "close", "volume"):
+            for bad in (float("nan"), float("inf"), float("-inf")):
+                malformed = frame.copy()
+                malformed.loc[row_index, column] = bad
+                try:
+                    validate_finite_ohlcv(malformed, "self-test")
+                except RuntimeError:
+                    pass
+                else:
+                    raise AssertionError(
+                        f"non-finite {column} at row {row_index} ({bad}) was not rejected"
+                    )
+    print("FINITE_OHLCV_SELF_TEST: PASS")
     return True
 
 
