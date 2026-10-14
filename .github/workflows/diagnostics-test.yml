@@ -2,9 +2,9 @@ name: Crypto Bot Diagnostics Tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, backtest/main-engine-baseline-180d, backtest/divergence-reuse-ab-20261013-run]
   pull_request:
-    branches: [main]
+    branches: [main, backtest/main-engine-baseline-180d]
   workflow_dispatch:
 
 permissions:
@@ -46,6 +46,7 @@ jobs:
           checks = {
               'deployment identity exists': 'DEPLOYMENT_ID =' in source,
               'outcome coverage self-test exists': 'def run_v63_14_14_finalization_metrics_self_test():' in source,
+              'shared divergence self-test exists': 'def run_divergence_reuse_self_test():' in source,
               'missing hourly candles fail closed': 'def _outcome_window_has_complete_candles(' in source,
               'score gate unchanged': re.search(r'^PRO_MIN_SCORE\s*=\s*90\s*$', source, re.M) is not None,
               'ADX gate unchanged': re.search(r'^PRO_MIN_1H_ADX\s*=\s*23\.0\s*$', source, re.M) is not None,
@@ -84,6 +85,7 @@ jobs:
               ('v63.14.9 engine rejection trace', main.run_v63_14_9_engine_rejection_trace_self_test),
               ('v63.14.11 analytics scope', main.run_v63_14_11_analytics_scope_self_test),
               ('v63.14.14 outcome candle coverage', main.run_v63_14_14_finalization_metrics_self_test),
+              ('shared divergence analysis reuse', main.run_divergence_reuse_self_test),
           ]
           for label, test in tests:
               assert test() is True, f'{label} failed'
