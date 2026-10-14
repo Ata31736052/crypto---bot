@@ -12,6 +12,7 @@ from statistics import median
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUT = ROOT / "ab-benchmark-results"
+progress_path = OUT / "progress.json"
 CACHE = OUT / "http-cache"
 WORK = pathlib.Path(os.getenv("RUNNER_TEMP", "/tmp")) / "apexsignal-ab-worktrees"
 OUT.mkdir(exist_ok=True); CACHE.mkdir(exist_ok=True); WORK.mkdir(exist_ok=True)
