@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Closed-candle historical replay of the repository signal engine. No orders or Telegram."""
-import json, os, time, cProfile, pstats, io, resource
+import json, os, time, cProfile, pstats, io, resource, math
 from pathlib import Path
 import pandas as pd
 import requests
@@ -50,11 +50,27 @@ def validate_boundary_execution_candle(frame, end_time):
     if pd.isna(candle["close_time"]) or candle["close_time"] <= boundary:
         raise RuntimeError("Boundary execution candle has an invalid close_time")
     for column in ("open", "high", "low", "close", "volume"):
-        if column not in frame or pd.isna(candle[column]) or not pd.notna(float(candle[column])):
+        try:
+            value = float(candle[column])
+        except (KeyError, TypeError, ValueError, OverflowError):
             raise RuntimeError(f"Boundary execution candle has invalid {column}")
-    if float(candle["open"]) <= 0 or float(candle["high"]) <= 0 or float(candle["low"]) <= 0 or float(candle["close"]) <= 0 or float(candle["volume"]) < 0:
+        if not math.isfinite(value):
+            raise RuntimeError(f"Boundary execution candle has non-finite {column}")
+    if any(float(candle[column]) <= 0 for column in ("open", "high", "low", "close")) or float(candle["volume"]) < 0:
         raise RuntimeError("Boundary execution candle has non-positive price or negative volume")
     return True
+
+
+def replay_signal_indices(frame, start_index, end_time):
+    """Validate replay boundary and return signal indices; boundary row is execution-only."""
+    validate_boundary_execution_candle(frame, end_time)
+    boundary = pd.Timestamp(end_time).tz_convert("UTC")
+    boundary_index = int(frame["open_time"].searchsorted(boundary))
+    if boundary_index != len(frame) - 1 or frame.iloc[boundary_index]["open_time"] != boundary:
+        raise RuntimeError("Boundary execution candle must be the final replay row")
+    if boundary_index < 1 or frame.iloc[boundary_index - 1]["close_time"] >= boundary:
+        raise RuntimeError("No valid closed signal candle immediately before execution boundary")
+    return range(max(0, int(start_index)), boundary_index)
 
 
 def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False):
@@ -139,6 +155,32 @@ def boundary_execution_candle_self_test():
         pass
     else:
         raise AssertionError("invalid boundary price was not rejected")
+    # Infinity must be rejected for every OHLCV field, not merely NaN.
+    for column in ("open", "high", "low", "close", "volume"):
+        for bad in (float("inf"), float("-inf")):
+            malformed = frame.copy()
+            malformed.loc[1, column] = bad
+            try:
+                validate_boundary_execution_candle(malformed, end)
+            except RuntimeError:
+                pass
+            else:
+                raise AssertionError(f"non-finite {column} value {bad} was not rejected")
+    # Integration-style replay regression: the last closed bar is evaluated,
+    # the boundary row supplies next-bar open, and it is never a signal index.
+    signal_indices = list(replay_signal_indices(frame, 0, end))
+    boundary_index = len(frame) - 1
+    assert signal_indices == [0], f"unexpected signal indices: {signal_indices}"
+    assert boundary_index not in signal_indices, "boundary execution candle was evaluated as a signal"
+    execution_price = float(frame.iloc[boundary_index]["open"])
+    assert execution_price == 101.0, "boundary-open execution price was not used"
+    for invalid in (frame.iloc[:-1].copy(), frame.assign(open_time=[frame.iloc[0]["open_time"], end + pd.Timedelta(hours=1)])):
+        try:
+            replay_signal_indices(invalid, 0, end)
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError("replay accepted missing/misplaced boundary candle")
     print("BOUNDARY_EXECUTION_CANDLE_SELF_TEST: PASS")
     return True
 
@@ -455,7 +497,7 @@ def run():
             idx=max(220,int(h1.open_time.searchsorted(start)))
             baseline_last_exit=idx-1
             engine_last_exit={}
-            for i in range(idx,len(h1)-1):
+            for i in replay_signal_indices(h1, idx, end):
                 t_step=time.perf_counter()
                 c=h1.iloc[i]; close_time=c.close_time
                 if close_time<start: continue
