@@ -33,6 +33,30 @@ def filter_closed_before_end(d, end_ms, include_boundary_open=False):
         return d[(d["close_time"] < boundary) | (d["open_time"] == boundary)]
     return d[d["close_time"] < boundary]
 
+def validate_boundary_execution_candle(frame, end_time):
+    """Require the exact next-hour candle used only to execute the final in-window signal."""
+    boundary = pd.Timestamp(end_time)
+    if boundary.tzinfo is None:
+        raise ValueError("end_time must be timezone-aware")
+    boundary = boundary.tz_convert("UTC")
+    if frame is None or frame.empty:
+        raise RuntimeError("Missing boundary-open execution candle")
+    if "open_time" not in frame or "close_time" not in frame:
+        raise RuntimeError("Boundary execution candle is missing timestamp columns")
+    matches = frame[frame["open_time"] == boundary]
+    if len(matches) != 1:
+        raise RuntimeError("Expected exactly one boundary-open execution candle")
+    candle = matches.iloc[0]
+    if pd.isna(candle["close_time"]) or candle["close_time"] <= boundary:
+        raise RuntimeError("Boundary execution candle has an invalid close_time")
+    for column in ("open", "high", "low", "close", "volume"):
+        if column not in frame or pd.isna(candle[column]) or not pd.notna(float(candle[column])):
+            raise RuntimeError(f"Boundary execution candle has invalid {column}")
+    if float(candle["open"]) <= 0 or float(candle["high"]) <= 0 or float(candle["low"]) <= 0 or float(candle["close"]) <= 0 or float(candle["volume"]) < 0:
+        raise RuntimeError("Boundary execution candle has non-positive price or negative volume")
+    return True
+
+
 def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False):
     rows=[]; cursor=start_ms
     while cursor < end_ms:
@@ -75,6 +99,49 @@ def closed_end_cutoff_self_test():
     assert with_execution_bar.iloc[-1].close_time > end, "test execution candle must close after the signal window"
     print("CLOSED_END_CUTOFF_SELF_TEST: PASS")
     return True
+
+def boundary_execution_candle_self_test():
+    """Cover present, missing, duplicated, and malformed boundary execution bars."""
+    end = pd.Timestamp("2026-10-13T12:00:00Z")
+    frame = pd.DataFrame({
+        "open_time": pd.to_datetime(["2026-10-13T11:00:00Z", "2026-10-13T12:00:00Z"], utc=True),
+        "close_time": pd.to_datetime(["2026-10-13T11:59:59.999Z", "2026-10-13T12:59:59.999Z"], utc=True),
+        "open": [100.0, 101.0], "high": [102.0, 103.0],
+        "low": [99.0, 100.0], "close": [101.0, 102.0], "volume": [10.0, 12.0],
+    })
+    assert validate_boundary_execution_candle(frame, end) is True
+    # The execution candle must be distinct from the final in-window signal candle.
+    assert frame.iloc[-1]["open_time"] == end
+    assert frame.iloc[-2]["close_time"] < end
+    for invalid, message in (
+        (frame.iloc[:-1].copy(), "missing boundary bar"),
+        (pd.concat([frame, frame.iloc[-1:]], ignore_index=True), "duplicate boundary bar"),
+    ):
+        try:
+            validate_boundary_execution_candle(invalid, end)
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError(f"{message} was not rejected")
+    malformed = frame.copy()
+    malformed.loc[1, "close_time"] = end
+    try:
+        validate_boundary_execution_candle(malformed, end)
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("invalid boundary close_time was not rejected")
+    malformed = frame.copy()
+    malformed.loc[1, "open"] = float("nan")
+    try:
+        validate_boundary_execution_candle(malformed, end)
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("invalid boundary price was not rejected")
+    print("BOUNDARY_EXECUTION_CANDLE_SELF_TEST: PASS")
+    return True
+
 
 def prepare(d):
     if d.empty: return d
@@ -384,6 +451,7 @@ def run():
             stage_done("prepare_symbol_history", t_prepare)
             validate_warmup(frames, start, sym)
             h1=frames["1h"]
+            validate_boundary_execution_candle(h1, end)
             idx=max(220,int(h1.open_time.searchsorted(start)))
             baseline_last_exit=idx-1
             engine_last_exit={}
