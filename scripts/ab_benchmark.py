@@ -109,24 +109,24 @@ def _ab_record_input(symbol, tf, frame):
     if not path:
         raise RuntimeError("AB_INPUT_MANIFEST is required for controlled A/B")
     cols = ["open_time", "close_time", "open", "high", "low", "close", "volume"]
-    canonical = frame[cols].to_csv(index=False, date_format="%Y-%m-%dT%H:%M:%S.%f%z", float_format="%.12g") if not frame.empty else "EMPTY\\n"
+    canonical = frame[cols].to_csv(index=False, date_format="%Y-%m-%dT%H:%M:%S.%f%z", float_format="%.12g") if not frame.empty else "EMPTY\n"
     record = {"symbol": symbol, "timeframe": tf, "rows": int(len(frame)),
               "sha256": hashlib.sha256(canonical.encode()).hexdigest(),
               "first_open": str(frame.iloc[0]["open_time"]) if len(frame) else None,
               "last_open": str(frame.iloc[-1]["open_time"]) if len(frame) else None}
     with open(path, "a", encoding="utf-8") as handle:
-        handle.write(json.dumps(record, sort_keys=True) + "\\n")
+        handle.write(json.dumps(record, sort_keys=True) + "\n")
 '''
 for label in ("A", "B"):
     source_path = WORK / label / "historical_backtest.py"
     source = source_path.read_text(encoding="utf-8")
     if "def _ab_record_input(" not in source:
-        source = source.replace("def fetch(", MANIFEST_HELPER + "\\ndef fetch(", 1)
+        source = source.replace("def fetch(", MANIFEST_HELPER + "\ndef fetch(", 1)
     if label == "A":
         sig = "def fetch(symbol, tf, start_ms, end_ms):"
         if sig not in source: raise SystemExit("Cannot safely patch baseline fetch signature")
         source = source.replace(sig, "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False):", 1)
-        old_filter = '    d=d[d.close_time < pd.Timestamp.now(tz="UTC")]\\n    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])'
+        old_filter = '    d=d[d.close_time < pd.Timestamp.now(tz="UTC")]\n    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])'
         new_filter = '''    d=d[d.close_time < pd.Timestamp.now(tz="UTC")]
     boundary=pd.to_datetime(end_ms,unit="ms",utc=True)
     d=d[(d.close_time < boundary) | ((tf == "1h") & include_boundary_open & (d.open_time == boundary))]
