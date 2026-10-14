@@ -64,8 +64,24 @@ jobs:
           if failed:
               raise SystemExit('Source verification failed: ' + ', '.join(failed))
           PY
-          python -m py_compile main.py
-          echo "Python compile: PASS"
+          python -m py_compile main.py historical_backtest.py portfolio_ledger.py
+          echo "Python compile (main + historical backtest + portfolio ledger): PASS"
+      - name: Run deterministic historical backtest boundary tests (no network, no Telegram)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import historical_backtest as backtest
+          tests = [
+              ("closed end cutoff", backtest.closed_end_cutoff_self_test),
+              ("boundary execution candle validation", backtest.boundary_execution_candle_self_test),
+              ("historical exit ambiguity", backtest.simulate_self_test),
+          ]
+          for label, test in tests:
+              assert test() is True, f"{label} failed"
+              print(f"PASS: {label}")
+          print("ALL HISTORICAL BACKTEST BOUNDARY TESTS: PASS")
+          PY
       - name: Run regression tests (no market scan, no Telegram)
         shell: bash
         run: |
