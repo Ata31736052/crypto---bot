@@ -2,7 +2,7 @@ name: Crypto Bot Diagnostics Tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, backtest/main-engine-baseline-180d]
   pull_request:
     branches: [main]
   workflow_dispatch:
