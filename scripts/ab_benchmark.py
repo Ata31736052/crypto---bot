@@ -100,6 +100,48 @@ if legacy_end in baseline_source:
     baseline_file.write_text(baseline_source.replace(legacy_end, fixed_end, 1), encoding="utf-8")
 elif 'BACKTEST_END_TIME' not in baseline_source:
     raise SystemExit("Cannot safely anchor baseline: expected legacy end-time expression was not found")
+# Benchmark-only source shims: align the baseline end-boundary policy and fingerprint raw OHLCV frames before prepare().
+MANIFEST_HELPER = r'''
+import hashlib, json, os
+
+def _ab_record_input(symbol, tf, frame):
+    path = os.getenv("AB_INPUT_MANIFEST")
+    if not path:
+        raise RuntimeError("AB_INPUT_MANIFEST is required for controlled A/B")
+    cols = ["open_time", "close_time", "open", "high", "low", "close", "volume"]
+    canonical = frame[cols].to_csv(index=False, date_format="%Y-%m-%dT%H:%M:%S.%f%z", float_format="%.12g") if not frame.empty else "EMPTY\\n"
+    record = {"symbol": symbol, "timeframe": tf, "rows": int(len(frame)),
+              "sha256": hashlib.sha256(canonical.encode()).hexdigest(),
+              "first_open": str(frame.iloc[0]["open_time"]) if len(frame) else None,
+              "last_open": str(frame.iloc[-1]["open_time"]) if len(frame) else None}
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, sort_keys=True) + "\\n")
+'''
+for label in ("A", "B"):
+    source_path = WORK / label / "historical_backtest.py"
+    source = source_path.read_text(encoding="utf-8")
+    if "def _ab_record_input(" not in source:
+        source = source.replace("def fetch(", MANIFEST_HELPER + "\\ndef fetch(", 1)
+    if label == "A":
+        sig = "def fetch(symbol, tf, start_ms, end_ms):"
+        if sig not in source: raise SystemExit("Cannot safely patch baseline fetch signature")
+        source = source.replace(sig, "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False):", 1)
+        old_filter = '    d=d[d.close_time < pd.Timestamp.now(tz="UTC")]\\n    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])'
+        new_filter = '''    d=d[d.close_time < pd.Timestamp.now(tz="UTC")]
+    boundary=pd.to_datetime(end_ms,unit="ms",utc=True)
+    d=d[(d.close_time < boundary) | ((tf == "1h") & include_boundary_open & (d.open_time == boundary))]
+    d=d.dropna(subset=["open","high","low","close","volume"])'''
+        if old_filter not in source: raise SystemExit("Cannot safely normalize baseline end-boundary policy")
+        source = source.replace(old_filter, new_filter, 1)
+        source = source.replace('fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000))', 'fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000),include_boundary_open=(tf=="1h"))')
+        source = source.replace('fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000))', 'fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000),include_boundary_open=(tf=="1h"))')
+    return_line = '    return d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]'
+    replacement = '''    d=d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]
+    _ab_record_input(symbol, tf, d)
+    return d'''
+    if return_line not in source: raise SystemExit(f"Cannot instrument {label} fetch return")
+    source = source.replace(return_line, replacement, 1)
+    source_path.write_text(source, encoding="utf-8")
 # Verify both revisions can run the exact same harness entrypoint.
 for label in ("A","B"):
     path=WORK/label
@@ -118,8 +160,12 @@ def one(label, phase, ordinal):
     started_unix=time.time()
     timeout_seconds=int(os.getenv("AB_SINGLE_RUN_TIMEOUT_SECONDS","2700"))
     print(f"START {run_id}; per-run timeout={timeout_seconds}s; log={log_path}",flush=True)
+    manifest_path = OUT / f"{run_id}-input-manifest.jsonl"
+    manifest_path.unlink(missing_ok=True)
+    run_env = ENV.copy()
+    run_env["AB_INPUT_MANIFEST"] = str(manifest_path)
     with log_path.open("w",encoding="utf-8") as log_file:
-        proc=subprocess.Popen([sys.executable,"-u","historical_backtest.py"],cwd=path,env=ENV,
+        proc=subprocess.Popen([sys.executable,"-u","historical_backtest.py"],cwd=path,env=run_env,
                               stdout=log_file,stderr=subprocess.STDOUT,text=True)
         while proc.poll() is None:
             elapsed=time.perf_counter()-started
@@ -152,6 +198,15 @@ def one(label, phase, ordinal):
     if not summary_path.exists() or not trades_path.exists():
         raise SystemExit(f"{label} run did not produce summary.json and trades.csv; inspect {log_path}")
     summary=json.loads(summary_path.read_text())
+    if not manifest_path.is_file():
+        raise SystemExit(f"{run_id} missing raw input manifest; refusing to compare")
+    manifest=[json.loads(line) for line in manifest_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    expected_manifest_count=2+4*len(ENV["BACKTEST_SYMBOLS"].split(","))
+    if len(manifest) != expected_manifest_count:
+        raise SystemExit(f"{run_id} manifest count {len(manifest)} != expected {expected_manifest_count}; refusing to compare")
+    manifest.sort(key=lambda x:(x["symbol"],x["timeframe"]))
+    manifest_sha256=hashlib.sha256(json.dumps(manifest,sort_keys=True,separators=(",",":")).encode()).hexdigest()
+    shutil.copy2(manifest_path, OUT/f"{run_id}-input-manifest.jsonl")
     if summary.get("status") != "COMPLETED" or summary.get("errors"):
         raise SystemExit(f"{label} backtest has errors; refusing to compare; inspect {log_path}")
     # Store full outputs per sample to compare and inspect after the workflow.
@@ -164,6 +219,7 @@ def one(label, phase, ordinal):
             "total_instrumented_seconds":summary["performance"]["total_instrumented_seconds"],
             "engine_calls":summary["performance"]["counters"].get("engine_calls"),
             "trade_sha256":hashlib.sha256(trades_path.read_bytes()).hexdigest(),
+            "input_manifest_sha256":manifest_sha256,"input_manifest_rows":len(manifest),
             "summary":summary}
 # Warm the exact response cache; warm-up runs are deliberately not timed samples.
 print("WARMUP A",flush=True); one("A","warmup",1)
@@ -180,6 +236,13 @@ for label, ordinal in sequence:
 baseline=[s for s in samples if s["label"]=="A"]
 candidate=[s for s in samples if s["label"]=="B"]
 trade_hashes={s["trade_sha256"] for s in samples}
+input_manifest_hashes={s["input_manifest_sha256"] for s in samples}
+if len(input_manifest_hashes) != 1:
+    (OUT/"input-mismatch.json").write_text(json.dumps({
+        "status":"INPUT_MISMATCH_ABORTED_BEFORE_TIMING_COMPARISON",
+        "manifests":[{"label":s["label"],"phase":s["phase"],"ordinal":s["ordinal"],
+                     "sha256":s["input_manifest_sha256"],"rows":s["input_manifest_rows"]} for s in samples]},indent=2))
+    raise SystemExit("INPUT MISMATCH: raw OHLCV manifests differ; do not compare timings")
 def comparable(s):
     x=s["summary"]
     return {"period_start":x["period_start"],"period_end":x["period_end"],
@@ -214,7 +277,11 @@ report={
                            "instrumented_total":stats(candidate,"total_instrumented_seconds")}},
  "samples":[{k:v for k,v in s.items() if k!="summary"} for s in samples],
  "trade_sha256":next(iter(trade_hashes)),
- "notes":["Same GitHub-hosted runner and Python environment for all samples.",
+ "input_manifest_sha256":next(iter(input_manifest_hashes)),
+ "input_manifest_rows":samples[0]["input_manifest_rows"],
+ "notes":["Raw OHLCV manifests are fingerprinted before indicator preparation and must match across all samples.",
+          "Baseline is benchmark-shimmed to the candidate's exclusive end boundary, retaining the boundary-open execution candle only for 1H.",
+          "Same GitHub-hosted runner and Python environment for all samples.",
           "Exact Binance kline HTTP responses are cached and replayed to both revisions.",
           "Wall time includes Python startup; signal_engine stage is the primary optimization metric.",
           "No signal thresholds, strategy rules, Telegram delivery, or orders are changed."]
