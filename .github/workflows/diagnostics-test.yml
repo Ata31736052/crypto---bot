@@ -48,6 +48,7 @@ jobs:
               'outcome coverage self-test exists': 'def run_v63_14_14_finalization_metrics_self_test():' in source,
               'shared divergence self-test exists': 'def run_divergence_reuse_self_test():' in source,
               'missing hourly candles fail closed': 'def _outcome_window_has_complete_candles(' in source,
+              'finite OHLCV validation exists': 'def validate_finite_ohlcv(' in Path('historical_backtest.py').read_text(encoding='utf-8'),
               'score gate unchanged': re.search(r'^PRO_MIN_SCORE\s*=\s*90\s*$', source, re.M) is not None,
               'ADX gate unchanged': re.search(r'^PRO_MIN_1H_ADX\s*=\s*23\.0\s*$', source, re.M) is not None,
               'volume gate unchanged': re.search(r'^PRO_MIN_VOLUME_RATIO\s*=\s*1\.35\s*$', source, re.M) is not None,
@@ -75,6 +76,7 @@ jobs:
           tests = [
               ("closed end cutoff", backtest.closed_end_cutoff_self_test),
               ("boundary execution candle validation", backtest.boundary_execution_candle_self_test),
+              ("finite OHLCV validation", backtest.finite_ohlcv_self_test),
               ("historical exit ambiguity", backtest.simulate_self_test),
           ]
           for label, test in tests:
