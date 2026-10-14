@@ -138,7 +138,7 @@ def one(label, phase, ordinal):
                 progress.update({"status":"TIMED_OUT","returncode":proc.returncode})
                 progress_path.write_text(json.dumps(progress,indent=2),encoding="utf-8")
                 raise SystemExit(f"TIMEOUT: {run_id} exceeded {timeout_seconds}s; inspect {log_path}")
-            time.sleep(min(60,max(1,timeout_seconds-elapsed)))
+            time.sleep(min(5,max(1,timeout_seconds-elapsed)))
     wall=time.perf_counter()-started
     progress={"current_run":run_id,"elapsed_seconds":round(wall,1),
               "returncode":proc.returncode,"status":"COMPLETED" if proc.returncode==0 else "FAILED"}
