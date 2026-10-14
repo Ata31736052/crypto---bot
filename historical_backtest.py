@@ -21,14 +21,19 @@ TIMEFRAME_LIMITS = {"1h": main.KLINE_LIMIT_MAIN, "30m": main.KLINE_LIMIT_CONFIRM
                     "4h": main.KLINE_LIMIT_4H, "1d": main.KLINE_LIMIT_DAILY}
 SESSION = requests.Session()
 
-def filter_closed_before_end(d, end_ms):
-    """Exclude candles not fully closed before the exclusive UTC end boundary."""
+def filter_closed_before_end(d, end_ms, include_boundary_open=False):
+    """Keep only closed candles before end; optionally retain the exact boundary-open 1H execution bar."""
     if d is None or d.empty:
         return d
     boundary=pd.to_datetime(end_ms,unit="ms",utc=True)
+    if include_boundary_open:
+        # The candle opening exactly at the exclusive end is execution-only:
+        # it supplies the next-bar open for a signal on the final in-window candle.
+        # The replay loop must never evaluate it as a signal candle.
+        return d[(d["close_time"] < boundary) | (d["open_time"] == boundary)]
     return d[d["close_time"] < boundary]
 
-def fetch(symbol, tf, start_ms, end_ms):
+def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False):
     rows=[]; cursor=start_ms
     while cursor < end_ms:
         r=SESSION.get(f"{BASE}/api/v3/klines",params={"symbol":symbol,"interval":tf,"startTime":cursor,"endTime":end_ms,"limit":1000},timeout=30)
@@ -47,7 +52,7 @@ def fetch(symbol, tf, start_ms, end_ms):
     # Treat end_ms as an exclusive closed-candle boundary. Binance endTime can
     # include a candle whose open_time equals the boundary but whose close is later.
     d=d[d.close_time < pd.Timestamp.now(tz="UTC")]
-    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])
+    d=filter_closed_before_end(d,end_ms,include_boundary_open=include_boundary_open).dropna(subset=["open","high","low","close","volume"])
     return d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]
 
 
@@ -62,8 +67,12 @@ def closed_end_cutoff_self_test():
         "open_time":pd.to_datetime(["2026-10-13T12:00:00Z"],utc=True),
         "close_time":pd.to_datetime(["2026-10-13T12:59:59.999Z"],utc=True),
     })],ignore_index=True)
-    kept=filter_closed_before_end(sample,int(end.timestamp()*1000))
-    assert len(kept)==2 and kept.close_time.max() < end, "post-boundary candle leaked into fixed window"
+    end_ms=int(end.timestamp()*1000)
+    kept=filter_closed_before_end(sample,end_ms)
+    assert len(kept)==2 and kept.close_time.max() < end, "post-boundary candle leaked into signal window"
+    with_execution_bar=filter_closed_before_end(sample,end_ms,include_boundary_open=True)
+    assert len(with_execution_bar)==3 and with_execution_bar.iloc[-1].open_time==end, "boundary-open execution candle was not retained"
+    assert with_execution_bar.iloc[-1].close_time > end, "test execution candle must close after the signal window"
     print("CLOSED_END_CUTOFF_SELF_TEST: PASS")
     return True
 
@@ -354,7 +363,7 @@ def run():
     print(f"PERIOD {start} -> {end}; symbols={SYMBOLS}; fee/side={FEE_BPS}bps; slippage/side={SLIPPAGE_BPS}bps",flush=True)
     # Fetch BTC context once and rebuild it at each historical decision instant.
     try:
-        btc_raw={tf:fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000)) for tf in ("1h","1d")}
+        btc_raw={tf:fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000),include_boundary_open=(tf=="1h")) for tf in ("1h","1d")}
         t_prepare=time.perf_counter()
         btc_frames={tf:prepare(df) for tf,df in btc_raw.items()}
         stage_done("prepare_btc_history", t_prepare)
@@ -368,7 +377,7 @@ def run():
     for sym in SYMBOLS:
         try:
             print("FETCH",sym,flush=True)
-            raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000)) for tf in ("1h","30m","4h","1d")}
+            raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000),include_boundary_open=(tf=="1h")) for tf in ("1h","30m","4h","1d")}
             if len(raw["1h"])<250 or len(raw["30m"])<50: raise RuntimeError("Insufficient historical candles")
             t_prepare=time.perf_counter()
             frames={tf:prepare(d) for tf,d in raw.items()}
