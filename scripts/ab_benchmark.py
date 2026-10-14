@@ -215,7 +215,8 @@ def one(label, phase, ordinal):
         raise SystemExit(f"{run_id} manifest count {len(manifest)} != expected {expected_manifest_count}; refusing to compare")
     manifest.sort(key=lambda x:(x["symbol"],x["timeframe"]))
     manifest_sha256=hashlib.sha256(json.dumps(manifest,sort_keys=True,separators=(",",":")).encode()).hexdigest()
-    shutil.copy2(manifest_path, OUT/f"{run_id}-input-manifest.jsonl")
+    # manifest_path already lives at its archival destination under OUT.
+    # Do not copy a file onto itself (shutil raises SameFileError).
     if summary.get("status") != "COMPLETED" or summary.get("errors"):
         raise SystemExit(f"{label} backtest has errors; refusing to compare; inspect {log_path}")
     # Store full outputs per sample to compare and inspect after the workflow.
