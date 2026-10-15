@@ -185,15 +185,24 @@ def boundary_execution_candle_self_test():
                 pass
             else:
                 raise AssertionError(f"non-finite {column} value {bad} was not rejected")
-    # Integration-style replay regression: the last closed bar is evaluated,
-    # the boundary row supplies next-bar open, and it is never a signal index.
-    signal_indices = list(replay_signal_indices(frame, 0, end))
-    boundary_index = len(frame) - 1
+    # Integration-style filter -> replay regression: without the opt-in, the
+    # boundary row is excluded; with it, that row is retained for execution only.
+    end_ms = int(end.timestamp() * 1000)
+    signal_only = filter_closed_before_end(frame, end_ms)
+    assert len(signal_only) == 1 and signal_only.iloc[-1]["close_time"] < end, (
+        "default filter leaked the boundary execution candle into the signal window"
+    )
+    filtered = filter_closed_before_end(frame, end_ms, include_boundary_open=True)
+    assert len(filtered) == 2 and filtered.iloc[-1]["open_time"] == end, (
+        "filter did not retain the boundary-open execution candle"
+    )
+    signal_indices = list(replay_signal_indices(filtered, 0, end))
+    boundary_index = len(filtered) - 1
     assert signal_indices == [0], f"unexpected signal indices: {signal_indices}"
     assert boundary_index not in signal_indices, "boundary execution candle was evaluated as a signal"
-    execution_price = float(frame.iloc[boundary_index]["open"])
+    execution_price = float(filtered.iloc[boundary_index]["open"])
     assert execution_price == 101.0, "boundary-open execution price was not used"
-    for invalid in (frame.iloc[:-1].copy(), frame.assign(open_time=[frame.iloc[0]["open_time"], end + pd.Timedelta(hours=1)])):
+    for invalid in (filtered.iloc[:-1].copy(), filtered.assign(open_time=[filtered.iloc[0]["open_time"], end + pd.Timedelta(hours=1)])):
         try:
             replay_signal_indices(invalid, 0, end)
         except RuntimeError:
