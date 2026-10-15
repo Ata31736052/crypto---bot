@@ -90,7 +90,7 @@ def replay_signal_indices(frame, start_index, end_time):
     return range(max(0, int(start_index)), boundary_index)
 
 
-def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False):
+def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, now=None):
     rows=[]; cursor=start_ms
     while cursor < end_ms:
         r=SESSION.get(f"{BASE}/api/v3/klines",params={"symbol":symbol,"interval":tf,"startTime":cursor,"endTime":end_ms,"limit":1000},timeout=30)
@@ -108,7 +108,18 @@ def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False):
     for c in ("open","high","low","close","volume"): d[c]=pd.to_numeric(d[c],errors="coerce")
     # Treat end_ms as an exclusive closed-candle boundary. Binance endTime can
     # include a candle whose open_time equals the boundary but whose close is later.
-    d=d[d.close_time < pd.Timestamp.now(tz="UTC")]
+    # The boundary-open bar is execution-only and may still be forming at "now";
+    # preserve its open price when explicitly requested, without admitting other open bars.
+    clock = pd.Timestamp.now(tz="UTC") if now is None else pd.Timestamp(now)
+    if clock.tzinfo is None:
+        clock = clock.tz_localize("UTC")
+    else:
+        clock = clock.tz_convert("UTC")
+    boundary = pd.to_datetime(end_ms, unit="ms", utc=True)
+    closed_or_execution = d.close_time < clock
+    if include_boundary_open:
+        closed_or_execution = closed_or_execution | (d.open_time == boundary)
+    d=d[closed_or_execution]
     d=filter_closed_before_end(d,end_ms,include_boundary_open=include_boundary_open)
     validate_finite_ohlcv(d, f"{symbol} {tf}")
     d=d.dropna(subset=["open","high","low","close","volume"])
@@ -134,6 +145,54 @@ def closed_end_cutoff_self_test():
     assert with_execution_bar.iloc[-1].close_time > end, "test execution candle must close after the signal window"
     print("CLOSED_END_CUTOFF_SELF_TEST: PASS")
     return True
+
+def fetch_clock_boundary_self_test():
+    """A fixed end boundary retains its execution-open even while that candle is forming."""
+    end = pd.Timestamp("2026-10-13T12:00:00Z")
+    end_ms = int(end.timestamp() * 1000)
+    rows = []
+    for open_time, close_time, price in (
+        (end - pd.Timedelta(hours=1), end - pd.Timedelta(milliseconds=1), 100.0),
+        (end, end + pd.Timedelta(hours=1) - pd.Timedelta(milliseconds=1), 101.0),
+        (end + pd.Timedelta(hours=1), end + pd.Timedelta(hours=2) - pd.Timedelta(milliseconds=1), 102.0),
+    ):
+        rows.append([
+            int(open_time.timestamp() * 1000), str(price), str(price + 1), str(price - 1),
+            str(price), "10", int(close_time.timestamp() * 1000), "1000", 10, "5", "500", "0",
+        ])
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+        def json(self):
+            return rows
+
+    class FakeSession:
+        def get(self, *args, **kwargs):
+            return FakeResponse()
+
+    original_session = SESSION
+    try:
+        globals()["SESSION"] = FakeSession()
+        # The execution candle is not closed at this clock time, but its open is known.
+        now = end + pd.Timedelta(minutes=30)
+        with_execution = fetch(
+            "ETHUSDT", "1h", end_ms - 2 * MS["1h"], end_ms,
+            include_boundary_open=True, now=now,
+        )
+        assert len(with_execution) == 2, "forming boundary execution candle was dropped or a future candle leaked"
+        assert with_execution.iloc[-1]["open_time"] == end
+        assert float(with_execution.iloc[-1]["open"]) == 101.0
+        without_execution = fetch(
+            "ETHUSDT", "1h", end_ms - 2 * MS["1h"], end_ms,
+            include_boundary_open=False, now=now,
+        )
+        assert len(without_execution) == 1 and without_execution.iloc[-1]["open_time"] == end - pd.Timedelta(hours=1)
+    finally:
+        globals()["SESSION"] = original_session
+    print("FETCH_CLOCK_BOUNDARY_SELF_TEST: PASS")
+    return True
+
 
 def boundary_execution_candle_self_test():
     """Cover present, missing, duplicated, and malformed boundary execution bars."""
