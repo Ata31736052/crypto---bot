@@ -200,8 +200,25 @@ def boundary_execution_candle_self_test():
     boundary_index = len(filtered) - 1
     assert signal_indices == [0], f"unexpected signal indices: {signal_indices}"
     assert boundary_index not in signal_indices, "boundary execution candle was evaluated as a signal"
-    execution_price = float(filtered.iloc[boundary_index]["open"])
-    assert execution_price == 101.0, "boundary-open execution price was not used"
+    # Exercise the actual execution function using the replay's next-bar index.
+    # This proves the boundary-open candle's OPEN is consumed as the entry price,
+    # rather than merely checking that the dataframe contains the expected value.
+    signal_index = signal_indices[0]
+    trade, _ = simulate(
+        "TESTUSDT", "BUY", filtered.iloc[signal_index]["close_time"],
+        signal_index + 1, filtered, 1.0, 95, "STRONG",
+        {"entry": 100.0, "stop_loss": 98.0},
+    )
+    assert trade is not None, "simulate did not produce a trade from the boundary execution candle"
+    assert trade["entry"] == 101.0, (
+        f"simulate did not consume boundary candle OPEN; actual entry={trade['entry']}"
+    )
+    assert pd.Timestamp(trade["entry_time"]) == end, (
+        "simulate entry timestamp did not match the boundary-open execution candle"
+    )
+    assert signal_index + 1 == boundary_index, (
+        "replay's next-bar execution index did not point at the boundary candle"
+    )
     for invalid in (filtered.iloc[:-1].copy(), filtered.assign(open_time=[filtered.iloc[0]["open_time"], end + pd.Timedelta(hours=1)])):
         try:
             replay_signal_indices(invalid, 0, end)
