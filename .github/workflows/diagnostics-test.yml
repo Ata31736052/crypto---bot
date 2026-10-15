@@ -75,6 +75,7 @@ jobs:
           import historical_backtest as backtest
           tests = [
               ("closed end cutoff", backtest.closed_end_cutoff_self_test),
+              ("fetch clock and boundary execution candle", backtest.fetch_clock_boundary_self_test),
               ("boundary execution candle validation", backtest.boundary_execution_candle_self_test),
               ("finite OHLCV validation", backtest.finite_ohlcv_self_test),
               ("historical exit ambiguity", backtest.simulate_self_test),
