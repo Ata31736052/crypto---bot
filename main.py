@@ -3791,24 +3791,12 @@ def score_btc_regime(
 # DIVERGENCE SCORE
 # =========================================================
 
-def score_divergence(
-    df,
-    side
-):
-
-    data = analyze_divergence(
-        df
-    )
-
+def _score_divergence_from_analysis(data, side):
+    """Score one direction from an already-computed divergence result."""
     side = str(side).upper()
 
     if side == "BUY":
-
-        score = min(
-            data["bullish_score"] * 2,
-            4
-        )
-
+        score = min(data["bullish_score"] * 2, 4)
         return {
             "score": score,
             "reason": data["buy_reason"],
@@ -3816,23 +3804,66 @@ def score_divergence(
         }
 
     if side == "SELL":
-
-        score = min(
-            data["bearish_score"] * 2,
-            4
-        )
-
+        score = min(data["bearish_score"] * 2, 4)
         return {
             "score": score,
             "reason": data["sell_reason"],
             "data": data
         }
 
-    return {
-        "score": 0,
-        "reason": "",
-        "data": data
+    return {"score": 0, "reason": "", "data": data}
+
+
+def score_divergence(df, side):
+    # Keep the original one-side API for any independent callers.
+    return _score_divergence_from_analysis(analyze_divergence(df), side)
+
+
+def score_divergence_both_sides(df, analyzer=None):
+    """Analyze the same frame once, then score BUY and SELL from that result.
+
+    The optional analyzer exists for a deterministic call-count self-test.
+    Production callers omit it and use analyze_divergence directly.
+    """
+    analyze = analyzer or analyze_divergence
+    data = analyze(df)
+    return (
+        _score_divergence_from_analysis(data, "BUY"),
+        _score_divergence_from_analysis(data, "SELL"),
+    )
+
+
+def run_divergence_reuse_self_test():
+    sample = {
+        "bullish_score": 2,
+        "bearish_score": 1,
+        "buy_reason": "sample bullish divergence",
+        "sell_reason": "sample bearish divergence",
     }
+    calls = []
+
+    def fake_analyzer(frame):
+        calls.append(frame)
+        return dict(sample)
+
+    marker = object()
+    buy, sell = score_divergence_both_sides(marker, analyzer=fake_analyzer)
+    assert len(calls) == 1, f"expected one divergence analysis, got {len(calls)}"
+    assert calls[0] is marker
+    assert buy == {
+        "score": 4,
+        "reason": "sample bullish divergence",
+        "data": sample,
+    }
+    assert sell == {
+        "score": 2,
+        "reason": "sample bearish divergence",
+        "data": sample,
+    }
+    # The public single-side API must retain the same scoring semantics.
+    assert _score_divergence_from_analysis(sample, "BUY") == buy
+    assert _score_divergence_from_analysis(sample, "SELL") == sell
+    return True
 
 
 # =========================================================
@@ -4011,15 +4042,9 @@ def evaluate_final_signal(
     # DIVERGENCE
     # =====================================================
 
-    buy_divergence = score_divergence(
-        df_1h,
-        "BUY"
-    )
-
-    sell_divergence = score_divergence(
-        df_1h,
-        "SELL"
-    )
+    # Both directions consume the same closed 1H frame; calculate
+    # divergence once and preserve the existing BUY/SELL scoring rules.
+    buy_divergence, sell_divergence = score_divergence_both_sides(df_1h)
 
     # =====================================================
     # PRICE STRUCTURE

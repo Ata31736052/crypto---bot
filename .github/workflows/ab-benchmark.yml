@@ -1,0 +1,86 @@
+name: Controlled A-B Performance Benchmark
+on:
+  push:
+    branches: [backtest/divergence-reuse-ab-20261013-run]
+    paths:
+      - 'main.py'
+      - 'historical_backtest.py'
+      - 'portfolio_ledger.py'
+      - 'scripts/ab_benchmark.py'
+      - '.github/workflows/ab-benchmark.yml'
+  pull_request:
+    branches: [main, backtest/main-engine-baseline-180d]
+    paths:
+      - 'main.py'
+      - 'historical_backtest.py'
+      - 'portfolio_ledger.py'
+      - 'scripts/ab_benchmark.py'
+      - '.github/workflows/ab-benchmark.yml'
+permissions:
+  contents: read
+concurrency:
+  group: controlled-ab-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: false
+jobs:
+  ab-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      AB_BASE_SHA: 6dd8090de95878f5ec013577c73eb99d4ceb59cd
+      AB_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      AB_REPEATS: "3"
+      BACKTEST_DAYS: "180"
+      BACKTEST_SYMBOLS: "ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT"
+      BACKTEST_FEE_BPS: "10"
+      BACKTEST_SLIPPAGE_BPS: "5"
+      BACKTEST_END_TIME: "2026-10-12T00:00:00Z"
+      PYTHONUNBUFFERED: "1"
+      TELEGRAM_TOKEN: ""
+      TELEGRAM_CHAT_ID: ""
+      DRY_RUN: "1"
+      RUN_ONCE: "0"
+    steps:
+      - name: Checkout benchmark harness
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install one shared dependency environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      - name: Verify fixed inputs and revisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AB_BASE_SHA"
+          test -n "$AB_CANDIDATE_SHA"
+          test "$AB_BASE_SHA" != "$AB_CANDIDATE_SHA"
+          python - <<'PY'
+          import os, pandas, requests
+          print("Python shared environment:", os.sys.version)
+          print("pandas:", pandas.__version__)
+          print("requests:", requests.__version__)
+          print("Baseline:", os.environ["AB_BASE_SHA"])
+          print("Candidate:", os.environ["AB_CANDIDATE_SHA"])
+          print("Fixed window:", os.environ["BACKTEST_END_TIME"], "days=", os.environ["BACKTEST_DAYS"])
+          PY
+      - name: Run alternating A/B benchmark and exact output checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/ab_benchmark.py
+          python scripts/ab_benchmark.py
+      - name: Upload A/B timing and output evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: controlled-ab-benchmark
+          path: |
+            ab-benchmark-results/
+          if-no-files-found: warn
+          retention-days: 30
