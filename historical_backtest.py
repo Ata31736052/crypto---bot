@@ -283,8 +283,10 @@ def boundary_execution_candle_self_test():
         {"entry": 100.0, "stop_loss": 98.0},
     )
     assert trade is not None, "simulate did not produce a trade from the boundary execution candle"
-    assert trade["entry"] == 101.0, (
-        f"simulate did not consume boundary candle OPEN; actual entry={trade['entry']}"
+    expected_boundary_fill=101.0*(1.0+max(0.0,SLIPPAGE_BPS)/10000.0)
+    assert abs(trade["raw_entry"]-101.0) < 1e-9, "simulate did not consume boundary candle OPEN"
+    assert abs(trade["entry"]-expected_boundary_fill) < 1e-9, (
+        f"boundary entry did not apply adverse slippage; actual entry={trade['entry']}"
     )
     assert trade["exit_reason"] == "TP1", f"post-boundary closed candle did not drive exit: {trade['exit_reason']}"
     assert pd.Timestamp(trade["exit_time"]) == pd.Timestamp("2026-10-13T13:59:59.999Z"), (
@@ -515,12 +517,15 @@ def last_closed_index(h1, clock):
 
 
 def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=None,evaluation_time=None):
-    row=h1.iloc[entry_i]; entry=float(row.open)
-    if entry<=0 or atr<=0:return None,entry_i
-    # Reuse the production engine's validated stop distance, re-anchored to
-    # the next candle's executable open. This preserves structural Bottom Hunter
-    # stops and the 4H/Daily stop multiplier instead of forcing every engine
-    # to use the generic 1H ATR stop.
+    row=h1.iloc[entry_i]
+    raw_entry=float(row.open)
+    if raw_entry<=0 or atr<=0:return None,entry_i
+    side=str(side).upper()
+    if side not in ("BUY","SELL"): return None,entry_i
+    slip_fraction=max(0.0,SLIPPAGE_BPS)/10000.0
+    # Adverse slippage is applied to actual fills: BUY enters above open; SELL below.
+    entry=raw_entry*(1.0+slip_fraction if side=="BUY" else 1.0-slip_fraction)
+    # Preserve structural stop distance and RR, re-anchored to the actual fill.
     engine_entry=float((signal_obj or {}).get("entry",0) or (signal_obj or {}).get("price",0) or 0)
     engine_stop=float((signal_obj or {}).get("stop_loss",0) or 0)
     risk=abs(engine_entry-engine_stop) if engine_entry>0 and engine_stop>0 else 0.0
@@ -536,31 +541,39 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
         clock = clock.tz_convert("UTC")
     last_closed_i = last_closed_index(h1, clock)
     end_i=min(last_closed_i,entry_i+72)
-    # Never inspect the high/low/close of a still-forming execution candle.
-    # If the complete 72h horizon is not available, keep an untriggered trade
-    # censored rather than fabricating a time exit from partial history.
     if end_i < entry_i:
         return None, entry_i
-    exitp=float(h1.iloc[end_i].close); reason="TIME_EXIT_72H"; xi=end_i
-    # Conservative OHLC ambiguity policy: SL wins over targets; if both targets
-    # are touched in one candle, credit only TP1 because intrabar order is unknown.
+    raw_exit=float(h1.iloc[end_i].close); reason="TIME_EXIT_72H"; xi=end_i
+    # Conservative OHLC ambiguity policy: SL wins; TP1 wins when targets overlap.
     for j in range(entry_i,end_i+1):
         c=h1.iloc[j]; hi,lo=float(c.high),float(c.low)
         slhit=(lo<=sl if side=="BUY" else hi>=sl)
         t2=(hi>=tp2 if side=="BUY" else lo<=tp2)
         t1=(hi>=tp1 if side=="BUY" else lo<=tp1)
-        if slhit: exitp,reason,xi=sl,"SL",j; break
-        if t1: exitp,reason,xi=tp1,"TP1",j; break
-        if t2: exitp,reason,xi=tp2,"TP2",j; break
+        if slhit: raw_exit,reason,xi=sl,"SL",j; break
+        if t1: raw_exit,reason,xi=tp1,"TP1",j; break
+        if t2: raw_exit,reason,xi=tp2,"TP2",j; break
     if reason == "TIME_EXIT_72H" and end_i < entry_i + 72:
         return None, end_i
-    gross=((exitp-entry)/entry*100) if side=="BUY" else ((entry-exitp)/entry*100)
-    costs=2*(FEE_BPS+SLIPPAGE_BPS)/100
+    # Closing BUY sells below trigger; closing SELL buys above trigger.
+    exit_fill=raw_exit*(1.0-slip_fraction if side=="BUY" else 1.0+slip_fraction)
+    raw_gross=((raw_exit-raw_entry)/raw_entry*100) if side=="BUY" else ((raw_entry-raw_exit)/raw_entry*100)
+    gross=((exit_fill-entry)/entry*100) if side=="BUY" else ((entry-exit_fill)/entry*100)
+    fee_cost_pct=2.0*max(0.0,FEE_BPS)/100.0
+    slippage_cost_pct=max(0.0,raw_gross-gross)
+    risk_cost_pct=fee_cost_pct+2.0*max(0.0,SLIPPAGE_BPS)/100.0
     path=[]
     for k in range(entry_i, xi+1):
         candle=h1.iloc[k]
-        path.append({"time":str(candle.close_time),"price":float(exitp if k==xi else candle.close)})
-    return {"symbol":symbol,"side":side,"signal_time":str(signal_time),"entry_time":str(row.open_time),"entry":entry,"stop_loss":sl,"tp1":tp1,"tp2":tp2,"exit_time":str(h1.iloc[xi].close_time),"exit":exitp,"exit_reason":reason,"gross_pct":round(gross,4),"cost_pct":round(costs,4),"net_pct":round(gross-costs,4),"bars_held":xi-entry_i,"score":score,"strength":strength,"_path":path},xi
+        path.append({"time":str(candle.close_time),"price":float(exit_fill if k==xi else candle.close)})
+    return {"symbol":symbol,"side":side,"signal_time":str(signal_time),"entry_time":str(row.open_time),
+            "raw_entry":raw_entry,"entry":entry,"stop_loss":sl,"tp1":tp1,"tp2":tp2,
+            "exit_time":str(h1.iloc[xi].close_time),"raw_exit":raw_exit,"exit":exit_fill,
+            "exit_reason":reason,"raw_gross_pct":round(raw_gross,4),"gross_pct":round(gross,4),
+            "fee_cost_pct":round(fee_cost_pct,4),"slippage_cost_pct":round(slippage_cost_pct,4),
+            "slippage_bps_per_side":SLIPPAGE_BPS,"cost_pct":round(fee_cost_pct,4),
+            "risk_cost_pct":round(risk_cost_pct,4),"net_pct":round(gross-fee_cost_pct,4),
+            "bars_held":xi-entry_i,"score":score,"strength":strength,"_path":path},xi
 
 def closed_prefix(df, decision_time, limit=None):
     """Select the same closed-candle prefix via a sorted timestamp index (O(log n))."""
@@ -664,7 +677,11 @@ def simulate_self_test():
     trade, _ = simulate("TESTUSDT", "BUY", signal_time, 0, candle, 1.0, 95, "TEST",
                         {"entry": 100.0, "stop_loss": 98.0})
     assert trade is not None and trade["exit_reason"] == "TP1"
-    assert abs(trade["exit"] - 103.6) < 1e-9, "same-candle TP1+TP2 must be credited as TP1"
+    expected_entry=100.0*(1.0+max(0.0,SLIPPAGE_BPS)/10000.0)
+    expected_tp1=expected_entry+2.0*float(getattr(main,"TP1_RR",1.8))
+    expected_exit=expected_tp1*(1.0-max(0.0,SLIPPAGE_BPS)/10000.0)
+    assert abs(trade["entry"]-expected_entry) < 1e-9, "BUY entry must include adverse slippage"
+    assert abs(trade["exit"]-expected_exit) < 1e-9, "TP1 fill must include adverse exit slippage"
     stop_conflict = candle.copy()
     stop_conflict.loc[0, "low"] = 97.0
     trade, _ = simulate("TESTUSDT", "BUY", signal_time, 0, stop_conflict, 1.0, 95, "TEST",
@@ -883,6 +900,27 @@ def run():
             engine_trades,engine_out,initial_cash=initial_capital,
             risk_pct=risk_pct,max_position_pct=max_position_pct
         )
+    # Split TREND into separate shared-cash BUY and SELL accounts for diagnostics.
+    # Offline only: live signal routing remains unchanged.
+    trend_side_portfolios={}
+    for engine_name, engine_trades in sorted(engine_candidate_trades.items()):
+        if "TREND" not in str(engine_name).upper():
+            continue
+        for trend_side in ("BUY","SELL"):
+            side_trades=[t for t in engine_trades if str(t.get("side","")).upper()==trend_side]
+            key=f"{engine_name}:{trend_side}"
+            if side_trades:
+                trend_side_portfolios[key]=portfolio_ledger(
+                    side_trades,OUT/"engine-comparison"/("trend-"+trend_side.lower()),
+                    initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct
+                )
+            else:
+                trend_side_portfolios[key]={
+                    "initial_capital_usdt":initial_capital,"final_equity_usdt":initial_capital,
+                    "net_pnl_usdt":0.0,"net_return_pct":0.0,"max_drawdown_pct":0.0,
+                    "candidate_trades":0,"accepted_trades":0,"rejected_trades":0,
+                    "note":"No candidate trades for this engine/side in the selected window."
+                }
     # Run a separate, explicitly experimental comparison. The baseline remains unchanged;
     # this does not activate the obstacle guard in main.py or the live Telegram scanner.
     guarded_trades=[t for t in trades if bool(t.get("entry_guard_allowed",True))]
@@ -893,7 +931,7 @@ def run():
     perf["total_instrumented_seconds"]=round(sum(perf["stage_seconds"].values()),4)
     # Linux GitHub-hosted runners report ru_maxrss in KiB; diagnostics only.
     perf["peak_rss_kib"]=int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-    summary={"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"fee and slippage on both entry and exit included in net P/L","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
+    summary={"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"trend_buy_sell_portfolio_comparison":trend_side_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"adverse slippage applied to entry and exit fill prices; round-trip fees deducted separately; sizing reserves fees plus estimated round-trip slippage","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
     (OUT/"summary.json").write_text(json.dumps(summary,indent=2),encoding="utf-8"); print(json.dumps(summary,indent=2),flush=True)
     if not trades: raise SystemExit("No trades produced; do not infer profitability.")
 if __name__=="__main__": run()
