@@ -303,6 +303,21 @@ def boundary_execution_candle_self_test():
             pass
         else:
             raise AssertionError("replay accepted missing/misplaced boundary candle")
+    # At a current/future boundary, the open is usable for entry, but its
+    # still-forming OHLC must not produce a trade outcome or a time exit.
+    live_end = pd.Timestamp.now(tz="UTC").floor("h")
+    incomplete = pd.DataFrame({
+        "open_time": [live_end - pd.Timedelta(hours=1), live_end],
+        "close_time": [live_end - pd.Timedelta(milliseconds=1), live_end + pd.Timedelta(hours=1) - pd.Timedelta(milliseconds=1)],
+        "open": [100.0, 101.0], "high": [102.0, 120.0],
+        "low": [99.0, 80.0], "close": [101.0, 90.0], "volume": [10.0, 10.0],
+    })
+    incomplete_trade, _ = simulate(
+        "TESTUSDT", "BUY", live_end - pd.Timedelta(milliseconds=1), 1,
+        incomplete, 1.0, 95, "STRONG", {"entry": 100.0, "stop_loss": 98.0},
+        evaluation_time=live_end + pd.Timedelta(minutes=30),
+    )
+    assert incomplete_trade is None, "incomplete boundary OHLC incorrectly determined a trade outcome"
     print("BOUNDARY_EXECUTION_CANDLE_SELF_TEST: PASS")
     return True
 
@@ -479,7 +494,7 @@ def entry_location_guard_self_test():
     return True
 
 
-def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=None):
+def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=None,evaluation_time=None):
     row=h1.iloc[entry_i]; entry=float(row.open)
     if entry<=0 or atr<=0:return None,entry_i
     # Reuse the production engine's validated stop distance, re-anchored to
@@ -494,7 +509,20 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
     rr1=float(getattr(main,"TP1_RR",1.8)); rr2=float(getattr(main,"TP2_RR",2.4))
     if side=="BUY": sl,tp1,tp2=entry-risk,entry+risk*rr1,entry+risk*rr2
     else: sl,tp1,tp2=entry+risk,entry-risk*rr1,entry-risk*rr2
-    end_i=min(len(h1)-1,entry_i+72); exitp=float(h1.iloc[end_i].close); reason="TIME_EXIT_72H"; xi=end_i
+    clock = pd.Timestamp.now(tz="UTC") if evaluation_time is None else pd.Timestamp(evaluation_time)
+    if clock.tzinfo is None:
+        clock = clock.tz_localize("UTC")
+    else:
+        clock = clock.tz_convert("UTC")
+    closed_positions = [j for j in range(len(h1)) if h1.iloc[j]["close_time"] < clock]
+    last_closed_i = max(closed_positions) if closed_positions else -1
+    end_i=min(last_closed_i,entry_i+72)
+    # Never inspect the high/low/close of a still-forming execution candle.
+    # If the complete 72h horizon is not available, keep an untriggered trade
+    # censored rather than fabricating a time exit from partial history.
+    if end_i < entry_i:
+        return None, entry_i
+    exitp=float(h1.iloc[end_i].close); reason="TIME_EXIT_72H"; xi=end_i
     # Conservative OHLC ambiguity policy: SL wins over targets; if both targets
     # are touched in one candle, credit only TP1 because intrabar order is unknown.
     for j in range(entry_i,end_i+1):
@@ -505,6 +533,8 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
         if slhit: exitp,reason,xi=sl,"SL",j; break
         if t1: exitp,reason,xi=tp1,"TP1",j; break
         if t2: exitp,reason,xi=tp2,"TP2",j; break
+    if reason == "TIME_EXIT_72H" and end_i < entry_i + 72:
+        return None, end_i
     gross=((exitp-entry)/entry*100) if side=="BUY" else ((entry-exitp)/entry*100)
     costs=2*(FEE_BPS+SLIPPAGE_BPS)/100
     path=[]
