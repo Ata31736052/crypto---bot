@@ -121,7 +121,7 @@ def _ab_record_input(symbol, tf, frame):
         signal_frame = frame[frame["close_time"] < boundary]
         outcome_frame = frame.iloc[0:0]
     def fingerprint(part):
-        canonical = part[cols].to_csv(index=False, date_format="%Y-%m-%dT%H:%M:%S.%f%z", float_format="%.12g") if not part.empty else "EMPTY\\n"
+        canonical = part[cols].to_csv(index=False, date_format="%Y-%m-%dT%H:%M:%S.%f%z", float_format="%.12g") if not part.empty else "EMPTY\n"
         return {"rows": int(len(part)), "sha256": hashlib.sha256(canonical.encode()).hexdigest(),
                 "first_open": str(part.iloc[0]["open_time"]) if len(part) else None,
                 "last_open": str(part.iloc[-1]["open_time"]) if len(part) else None}
@@ -129,7 +129,7 @@ def _ab_record_input(symbol, tf, frame):
               "signal_window": fingerprint(signal_frame),
               "outcome_window": fingerprint(outcome_frame)}
     with open(path, "a", encoding="utf-8") as handle:
-        handle.write(json.dumps(record, sort_keys=True) + "\\n")
+        handle.write(json.dumps(record, sort_keys=True) + "\n")
 '''
 for label in ("A", "B"):
     source_path = WORK / label / "historical_backtest.py"
@@ -165,7 +165,7 @@ for label in ("A", "B"):
                           signal_boundary_ms=int(end.timestamp()*1000) if tf=="1h" else None)
                   for tf in ("1h","30m","4h","1d")}''')
         source = source.replace('                c=h1.iloc[i]; close_time=c.close_time',
-                                '                c=h1.iloc[i]; close_time=c.close_time\\n                if c.open_time >= end: break', 1)
+                                '                c=h1.iloc[i]; close_time=c.close_time\n                if c.open_time >= end: break', 1)
     return_line = '    return d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]'
     replacement = '''    d=d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]
     _ab_record_input(symbol, tf, d)
