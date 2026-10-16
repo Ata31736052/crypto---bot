@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Closed-candle historical replay of the repository signal engine. No orders or Telegram."""
-import json, os, time, cProfile, pstats, io, resource
+import json, os, time, cProfile, pstats, io, resource, math
 from pathlib import Path
 import pandas as pd
 import requests
@@ -21,14 +21,76 @@ TIMEFRAME_LIMITS = {"1h": main.KLINE_LIMIT_MAIN, "30m": main.KLINE_LIMIT_CONFIRM
                     "4h": main.KLINE_LIMIT_4H, "1d": main.KLINE_LIMIT_DAILY}
 SESSION = requests.Session()
 
-def filter_closed_before_end(d, end_ms):
-    """Exclude candles not fully closed before the exclusive UTC end boundary."""
+def filter_closed_before_end(d, end_ms, include_boundary_open=False):
+    """Keep only closed candles before end; optionally retain the exact boundary-open 1H execution bar."""
     if d is None or d.empty:
         return d
     boundary=pd.to_datetime(end_ms,unit="ms",utc=True)
+    if include_boundary_open:
+        # The candle opening exactly at the exclusive end is execution-only:
+        # it supplies the next-bar open for a signal on the final in-window candle.
+        # The replay loop must never evaluate it as a signal candle.
+        return d[(d["close_time"] < boundary) | (d["open_time"] == boundary)]
     return d[d["close_time"] < boundary]
 
-def fetch(symbol, tf, start_ms, end_ms):
+def validate_finite_ohlcv(frame, context="OHLCV"):
+    """Fail closed if any OHLCV row contains missing, malformed, or non-finite numeric data."""
+    if frame is None or frame.empty:
+        return True
+    columns = ("open", "high", "low", "close", "volume")
+    missing = [column for column in columns if column not in frame.columns]
+    if missing:
+        raise RuntimeError(f"{context} is missing columns: {', '.join(missing)}")
+    for column in columns:
+        values = pd.to_numeric(frame[column], errors="coerce")
+        if values.isna().any():
+            raise RuntimeError(f"{context} contains missing or invalid {column} values")
+        if not all(math.isfinite(float(value)) for value in values):
+            raise RuntimeError(f"{context} contains non-finite {column} values")
+    return True
+
+
+def validate_boundary_execution_candle(frame, end_time):
+    """Require the exact next-hour candle used only to execute the final in-window signal."""
+    boundary = pd.Timestamp(end_time)
+    if boundary.tzinfo is None:
+        raise ValueError("end_time must be timezone-aware")
+    boundary = boundary.tz_convert("UTC")
+    if frame is None or frame.empty:
+        raise RuntimeError("Missing boundary-open execution candle")
+    if "open_time" not in frame or "close_time" not in frame:
+        raise RuntimeError("Boundary execution candle is missing timestamp columns")
+    matches = frame[frame["open_time"] == boundary]
+    if len(matches) != 1:
+        raise RuntimeError("Expected exactly one boundary-open execution candle")
+    candle = matches.iloc[0]
+    if pd.isna(candle["close_time"]) or candle["close_time"] <= boundary:
+        raise RuntimeError("Boundary execution candle has an invalid close_time")
+    for column in ("open", "high", "low", "close", "volume"):
+        try:
+            value = float(candle[column])
+        except (KeyError, TypeError, ValueError, OverflowError):
+            raise RuntimeError(f"Boundary execution candle has invalid {column}")
+        if not math.isfinite(value):
+            raise RuntimeError(f"Boundary execution candle has non-finite {column}")
+    if any(float(candle[column]) <= 0 for column in ("open", "high", "low", "close")) or float(candle["volume"]) < 0:
+        raise RuntimeError("Boundary execution candle has non-positive price or negative volume")
+    return True
+
+
+def replay_signal_indices(frame, start_index, end_time):
+    """Validate replay boundary and return signal indices; boundary row is execution-only."""
+    validate_boundary_execution_candle(frame, end_time)
+    boundary = pd.Timestamp(end_time).tz_convert("UTC")
+    boundary_index = int(frame["open_time"].searchsorted(boundary))
+    if boundary_index >= len(frame) or frame.iloc[boundary_index]["open_time"] != boundary:
+        raise RuntimeError("Boundary execution candle is missing or misplaced")
+    if boundary_index < 1 or frame.iloc[boundary_index - 1]["close_time"] >= boundary:
+        raise RuntimeError("No valid closed signal candle immediately before execution boundary")
+    return range(max(0, int(start_index)), boundary_index)
+
+
+def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, now=None, signal_boundary_ms=None):
     rows=[]; cursor=start_ms
     while cursor < end_ms:
         r=SESSION.get(f"{BASE}/api/v3/klines",params={"symbol":symbol,"interval":tf,"startTime":cursor,"endTime":end_ms,"limit":1000},timeout=30)
@@ -46,8 +108,26 @@ def fetch(symbol, tf, start_ms, end_ms):
     for c in ("open","high","low","close","volume"): d[c]=pd.to_numeric(d[c],errors="coerce")
     # Treat end_ms as an exclusive closed-candle boundary. Binance endTime can
     # include a candle whose open_time equals the boundary but whose close is later.
-    d=d[d.close_time < pd.Timestamp.now(tz="UTC")]
-    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])
+    # The boundary-open bar is execution-only and may still be forming at "now";
+    # preserve its open price when explicitly requested, without admitting other open bars.
+    clock = pd.Timestamp.now(tz="UTC") if now is None else pd.Timestamp(now)
+    if clock.tzinfo is None:
+        clock = clock.tz_localize("UTC")
+    else:
+        clock = clock.tz_convert("UTC")
+    boundary = pd.to_datetime(signal_boundary_ms if signal_boundary_ms is not None else end_ms, unit="ms", utc=True)
+    closed_or_execution = d.close_time < clock
+    if include_boundary_open:
+        closed_or_execution = closed_or_execution | (d.open_time == boundary)
+    d=d[closed_or_execution]
+    if signal_boundary_ms is None:
+        d=filter_closed_before_end(d,end_ms,include_boundary_open=include_boundary_open)
+    else:
+        # Separate the signal cutoff from the wider data window used for exits.
+        data_cutoff = pd.to_datetime(end_ms, unit="ms", utc=True)
+        d=d[(d.close_time < data_cutoff) | (d.open_time == boundary)]
+    validate_finite_ohlcv(d, f"{symbol} {tf}")
+    d=d.dropna(subset=["open","high","low","close","volume"])
     return d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]
 
 
@@ -62,10 +142,210 @@ def closed_end_cutoff_self_test():
         "open_time":pd.to_datetime(["2026-10-13T12:00:00Z"],utc=True),
         "close_time":pd.to_datetime(["2026-10-13T12:59:59.999Z"],utc=True),
     })],ignore_index=True)
-    kept=filter_closed_before_end(sample,int(end.timestamp()*1000))
-    assert len(kept)==2 and kept.close_time.max() < end, "post-boundary candle leaked into fixed window"
+    end_ms=int(end.timestamp()*1000)
+    kept=filter_closed_before_end(sample,end_ms)
+    assert len(kept)==2 and kept.close_time.max() < end, "post-boundary candle leaked into signal window"
+    with_execution_bar=filter_closed_before_end(sample,end_ms,include_boundary_open=True)
+    assert len(with_execution_bar)==3 and with_execution_bar.iloc[-1].open_time==end, "boundary-open execution candle was not retained"
+    assert with_execution_bar.iloc[-1].close_time > end, "test execution candle must close after the signal window"
     print("CLOSED_END_CUTOFF_SELF_TEST: PASS")
     return True
+
+def fetch_clock_boundary_self_test():
+    """A fixed end boundary retains its execution-open even while that candle is forming."""
+    end = pd.Timestamp("2026-10-13T12:00:00Z")
+    end_ms = int(end.timestamp() * 1000)
+    rows = []
+    for open_time, close_time, price in (
+        (end - pd.Timedelta(hours=1), end - pd.Timedelta(milliseconds=1), 100.0),
+        (end, end + pd.Timedelta(hours=1) - pd.Timedelta(milliseconds=1), 101.0),
+        (end + pd.Timedelta(hours=1), end + pd.Timedelta(hours=2) - pd.Timedelta(milliseconds=1), 102.0),
+    ):
+        rows.append([
+            int(open_time.timestamp() * 1000), str(price), str(price + 1), str(price - 1),
+            str(price), "10", int(close_time.timestamp() * 1000), "1000", 10, "5", "500", "0",
+        ])
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+        def json(self):
+            return rows
+
+    class FakeSession:
+        def get(self, *args, **kwargs):
+            return FakeResponse()
+
+    original_session = SESSION
+    try:
+        globals()["SESSION"] = FakeSession()
+        # The execution candle is not closed at this clock time, but its open is known.
+        now = end + pd.Timedelta(minutes=30)
+        with_execution = fetch(
+            "ETHUSDT", "1h", end_ms - 2 * MS["1h"], end_ms,
+            include_boundary_open=True, now=now,
+        )
+        assert len(with_execution) == 2, "forming boundary execution candle was dropped or a future candle leaked"
+        assert with_execution.iloc[-1]["open_time"] == end
+        assert float(with_execution.iloc[-1]["open"]) == 101.0
+        without_execution = fetch(
+            "ETHUSDT", "1h", end_ms - 2 * MS["1h"], end_ms,
+            include_boundary_open=False, now=now,
+        )
+        assert len(without_execution) == 1 and without_execution.iloc[-1]["open_time"] == end - pd.Timedelta(hours=1)
+    finally:
+        globals()["SESSION"] = original_session
+    print("FETCH_CLOCK_BOUNDARY_SELF_TEST: PASS")
+    return True
+
+
+def boundary_execution_candle_self_test():
+    """Cover present, missing, duplicated, and malformed boundary execution bars."""
+    end = pd.Timestamp("2026-10-13T12:00:00Z")
+    frame = pd.DataFrame({
+        "open_time": pd.to_datetime(["2026-10-13T11:00:00Z", "2026-10-13T12:00:00Z"], utc=True),
+        "close_time": pd.to_datetime(["2026-10-13T11:59:59.999Z", "2026-10-13T12:59:59.999Z"], utc=True),
+        "open": [100.0, 101.0], "high": [102.0, 103.0],
+        "low": [99.0, 100.0], "close": [101.0, 102.0], "volume": [10.0, 12.0],
+    })
+    assert validate_boundary_execution_candle(frame, end) is True
+    # The execution candle must be distinct from the final in-window signal candle.
+    assert frame.iloc[-1]["open_time"] == end
+    assert frame.iloc[-2]["close_time"] < end
+    for invalid, message in (
+        (frame.iloc[:-1].copy(), "missing boundary bar"),
+        (pd.concat([frame, frame.iloc[-1:]], ignore_index=True), "duplicate boundary bar"),
+    ):
+        try:
+            validate_boundary_execution_candle(invalid, end)
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError(f"{message} was not rejected")
+    malformed = frame.copy()
+    malformed.loc[1, "close_time"] = end
+    try:
+        validate_boundary_execution_candle(malformed, end)
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("invalid boundary close_time was not rejected")
+    malformed = frame.copy()
+    malformed.loc[1, "open"] = float("nan")
+    try:
+        validate_boundary_execution_candle(malformed, end)
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("invalid boundary price was not rejected")
+    # Infinity must be rejected for every OHLCV field, not merely NaN.
+    for column in ("open", "high", "low", "close", "volume"):
+        for bad in (float("inf"), float("-inf")):
+            malformed = frame.copy()
+            malformed.loc[1, column] = bad
+            try:
+                validate_boundary_execution_candle(malformed, end)
+            except RuntimeError:
+                pass
+            else:
+                raise AssertionError(f"non-finite {column} value {bad} was not rejected")
+    # Integration-style filter -> replay regression: without the opt-in, the
+    # boundary row is excluded; with it, that row is retained for execution only.
+    end_ms = int(end.timestamp() * 1000)
+    signal_only = filter_closed_before_end(frame, end_ms)
+    assert len(signal_only) == 1 and signal_only.iloc[-1]["close_time"] < end, (
+        "default filter leaked the boundary execution candle into the signal window"
+    )
+    filtered = filter_closed_before_end(frame, end_ms, include_boundary_open=True)
+    assert len(filtered) == 2 and filtered.iloc[-1]["open_time"] == end, (
+        "filter did not retain the boundary-open execution candle"
+    )
+    # Post-boundary candles are outcome-only and must not enter signal generation.
+    outcome_rows = pd.DataFrame({
+        "open_time": pd.to_datetime(["2026-10-13T13:00:00Z", "2026-10-13T14:00:00Z"], utc=True),
+        "close_time": pd.to_datetime(["2026-10-13T13:59:59.999Z", "2026-10-13T14:59:59.999Z"], utc=True),
+        "open": [102.0, 104.0], "high": [106.0, 107.0],
+        "low": [101.0, 103.0], "close": [105.0, 106.0], "volume": [10.0, 10.0],
+    })
+    replay_frame = pd.concat([filtered, outcome_rows], ignore_index=True)
+    signal_indices = list(replay_signal_indices(replay_frame, 0, end))
+    boundary_index = int(replay_frame["open_time"].searchsorted(end))
+    assert signal_indices == [0], f"future outcome candles leaked into signal indices: {signal_indices}"
+    assert boundary_index not in signal_indices, "boundary execution candle was evaluated as a signal"
+    assert boundary_index < len(replay_frame) - 1, "test requires post-boundary outcome candles"
+    # Exercise the actual execution function using the replay's next-bar index.
+    # This proves the boundary-open candle's OPEN is consumed as the entry price,
+    # rather than merely checking that the dataframe contains the expected value.
+    signal_index = signal_indices[0]
+    trade, _ = simulate(
+        "TESTUSDT", "BUY", filtered.iloc[signal_index]["close_time"],
+        signal_index + 1, replay_frame, 1.0, 95, "STRONG",
+        {"entry": 100.0, "stop_loss": 98.0},
+    )
+    assert trade is not None, "simulate did not produce a trade from the boundary execution candle"
+    assert trade["entry"] == 101.0, (
+        f"simulate did not consume boundary candle OPEN; actual entry={trade['entry']}"
+    )
+    assert trade["exit_reason"] == "TP1", f"post-boundary closed candle did not drive exit: {trade['exit_reason']}"
+    assert pd.Timestamp(trade["exit_time"]) == pd.Timestamp("2026-10-13T13:59:59.999Z"), (
+        "exit did not use the first completed post-boundary candle"
+    )
+    assert pd.Timestamp(trade["entry_time"]) == end, (
+        "simulate entry timestamp did not match the boundary-open execution candle"
+    )
+    assert signal_index + 1 == boundary_index, (
+        "replay's next-bar execution index did not point at the boundary candle"
+    )
+    for invalid in (filtered.iloc[:-1].copy(), filtered.assign(open_time=[filtered.iloc[0]["open_time"], end + pd.Timedelta(hours=1)])):
+        try:
+            replay_signal_indices(invalid, 0, end)
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError("replay accepted missing/misplaced boundary candle")
+    # At a current/future boundary, the open is usable for entry, but its
+    # still-forming OHLC must not produce a trade outcome or a time exit.
+    live_end = pd.Timestamp.now(tz="UTC").floor("h")
+    incomplete = pd.DataFrame({
+        "open_time": [live_end - pd.Timedelta(hours=1), live_end],
+        "close_time": [live_end - pd.Timedelta(milliseconds=1), live_end + pd.Timedelta(hours=1) - pd.Timedelta(milliseconds=1)],
+        "open": [100.0, 101.0], "high": [102.0, 120.0],
+        "low": [99.0, 80.0], "close": [101.0, 90.0], "volume": [10.0, 10.0],
+    })
+    incomplete_trade, _ = simulate(
+        "TESTUSDT", "BUY", live_end - pd.Timedelta(milliseconds=1), 1,
+        incomplete, 1.0, 95, "STRONG", {"entry": 100.0, "stop_loss": 98.0},
+        evaluation_time=live_end + pd.Timedelta(minutes=30),
+    )
+    assert incomplete_trade is None, "incomplete boundary OHLC incorrectly determined a trade outcome"
+    print("BOUNDARY_EXECUTION_CANDLE_SELF_TEST: PASS")
+    return True
+
+
+def finite_ohlcv_self_test():
+    """Reject NaN and both infinities in every OHLCV field on any row."""
+    frame = pd.DataFrame({
+        "open": [100.0, 101.0], "high": [102.0, 103.0],
+        "low": [99.0, 100.0], "close": [101.0, 102.0],
+        "volume": [10.0, 12.0],
+    })
+    assert validate_finite_ohlcv(frame, "self-test") is True
+    for row_index in range(len(frame)):
+        for column in ("open", "high", "low", "close", "volume"):
+            for bad in (float("nan"), float("inf"), float("-inf")):
+                malformed = frame.copy()
+                malformed.loc[row_index, column] = bad
+                try:
+                    validate_finite_ohlcv(malformed, "self-test")
+                except RuntimeError:
+                    pass
+                else:
+                    raise AssertionError(
+                        f"non-finite {column} at row {row_index} ({bad}) was not rejected"
+                    )
+    print("FINITE_OHLCV_SELF_TEST: PASS")
+    return True
+
 
 def prepare(d):
     if d.empty: return d
@@ -214,7 +494,27 @@ def entry_location_guard_self_test():
     return True
 
 
-def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=None):
+def last_closed_index(h1, clock):
+    """Return the last candle index closed strictly before clock in O(log n).
+
+    Compare integer epoch milliseconds so pandas datetime64[ms] columns (as
+    returned by pandas 3 for Binance timestamps) safely accept nanosecond
+    Timestamp evaluation times without a lossy datetime-unit conversion.
+    """
+    if h1 is None or h1.empty:
+        return -1
+    clock = pd.Timestamp(clock)
+    if clock.tzinfo is None:
+        clock = clock.tz_localize("UTC")
+    else:
+        clock = clock.tz_convert("UTC")
+    # Normalize the series to nanoseconds too: concatenation and test frames
+    # may preserve datetime64[ns] even when Binance's fetched frame uses [ms].
+    close_ns = pd.to_datetime(h1["close_time"], utc=True).astype("datetime64[ns, UTC]").astype("int64")
+    return int(close_ns.searchsorted(clock.value, side="left")) - 1
+
+
+def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=None,evaluation_time=None):
     row=h1.iloc[entry_i]; entry=float(row.open)
     if entry<=0 or atr<=0:return None,entry_i
     # Reuse the production engine's validated stop distance, re-anchored to
@@ -229,7 +529,19 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
     rr1=float(getattr(main,"TP1_RR",1.8)); rr2=float(getattr(main,"TP2_RR",2.4))
     if side=="BUY": sl,tp1,tp2=entry-risk,entry+risk*rr1,entry+risk*rr2
     else: sl,tp1,tp2=entry+risk,entry-risk*rr1,entry-risk*rr2
-    end_i=min(len(h1)-1,entry_i+72); exitp=float(h1.iloc[end_i].close); reason="TIME_EXIT_72H"; xi=end_i
+    clock = pd.Timestamp.now(tz="UTC") if evaluation_time is None else pd.Timestamp(evaluation_time)
+    if clock.tzinfo is None:
+        clock = clock.tz_localize("UTC")
+    else:
+        clock = clock.tz_convert("UTC")
+    last_closed_i = last_closed_index(h1, clock)
+    end_i=min(last_closed_i,entry_i+72)
+    # Never inspect the high/low/close of a still-forming execution candle.
+    # If the complete 72h horizon is not available, keep an untriggered trade
+    # censored rather than fabricating a time exit from partial history.
+    if end_i < entry_i:
+        return None, entry_i
+    exitp=float(h1.iloc[end_i].close); reason="TIME_EXIT_72H"; xi=end_i
     # Conservative OHLC ambiguity policy: SL wins over targets; if both targets
     # are touched in one candle, credit only TP1 because intrabar order is unknown.
     for j in range(entry_i,end_i+1):
@@ -240,6 +552,8 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
         if slhit: exitp,reason,xi=sl,"SL",j; break
         if t1: exitp,reason,xi=tp1,"TP1",j; break
         if t2: exitp,reason,xi=tp2,"TP2",j; break
+    if reason == "TIME_EXIT_72H" and end_i < entry_i + 72:
+        return None, end_i
     gross=((exitp-entry)/entry*100) if side=="BUY" else ((entry-exitp)/entry*100)
     costs=2*(FEE_BPS+SLIPPAGE_BPS)/100
     path=[]
@@ -307,7 +621,39 @@ def historical_btc_regime(frames, decision_time):
     return {"combined": combined, "combined_score": h["score"] + d["score"], "1h": h, "daily": d}
 
 def simulate_self_test():
-    """Regression tests for same-candle stop/target ambiguity."""
+    """Regression tests for same-candle stop/target ambiguity and closed-index lookup."""
+    lookup_times = pd.to_datetime([
+        "2026-10-01T00:59:59Z", "2026-10-01T01:59:59Z",
+        "2026-10-01T02:59:59Z",
+    ], utc=True)
+    lookup_frame = pd.DataFrame({"close_time": lookup_times})
+    for clock in (
+        pd.Timestamp("2026-09-30T23:00:00Z"),
+        lookup_times[0],
+        pd.Timestamp("2026-10-01T01:00:00Z"),
+        lookup_times[-1] + pd.Timedelta(seconds=1),
+    ):
+        expected = max((j for j, value in enumerate(lookup_times) if value < clock), default=-1)
+        assert last_closed_index(lookup_frame, clock) == expected, (
+            f"last-closed index mismatch for clock={clock}"
+        )
+    assert last_closed_index(pd.DataFrame(), lookup_times[0]) == -1
+    # Binance timestamps may be datetime64[ms] under pandas 3; evaluation
+    # Timestamp objects commonly carry ns precision. This must not raise.
+    ms_frame = pd.DataFrame({
+        "close_time": pd.to_datetime([
+            "2026-10-01T00:59:59.999Z", "2026-10-01T01:59:59.999Z",
+        ], utc=True).astype("datetime64[ms, UTC]")
+    })
+    assert last_closed_index(ms_frame, pd.Timestamp("2026-10-01T01:00:00Z")) == 0
+    assert last_closed_index(ms_frame, pd.Timestamp("2026-10-01T00:00:00Z")) == -1
+    ns_frame = pd.DataFrame({
+        "close_time": pd.to_datetime([
+            "2026-10-01T00:59:59.999Z", "2026-10-01T01:59:59.999Z",
+        ], utc=True)
+    })
+    assert last_closed_index(ns_frame, pd.Timestamp("2026-10-01T01:00:00Z")) == 0
+    assert last_closed_index(ns_frame, pd.Timestamp("2026-10-01T02:00:00Z")) == 1
     signal_time = pd.Timestamp("2026-10-01T00:00:00Z")
     entry_time = pd.Timestamp("2026-10-01T01:00:00Z")
     close_time = pd.Timestamp("2026-10-01T01:59:59.999000Z")
@@ -354,7 +700,7 @@ def run():
     print(f"PERIOD {start} -> {end}; symbols={SYMBOLS}; fee/side={FEE_BPS}bps; slippage/side={SLIPPAGE_BPS}bps",flush=True)
     # Fetch BTC context once and rebuild it at each historical decision instant.
     try:
-        btc_raw={tf:fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000)) for tf in ("1h","1d")}
+        btc_raw={tf:fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000),include_boundary_open=(tf=="1h")) for tf in ("1h","1d")}
         t_prepare=time.perf_counter()
         btc_frames={tf:prepare(df) for tf,df in btc_raw.items()}
         stage_done("prepare_btc_history", t_prepare)
@@ -368,17 +714,26 @@ def run():
     for sym in SYMBOLS:
         try:
             print("FETCH",sym,flush=True)
-            raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000)) for tf in ("1h","30m","4h","1d")}
+            raw={}
+            for tf in ("1h","30m","4h","1d"):
+                if tf == "1h":
+                    # Signal generation ends at end; fetch later closed candles for outcomes.
+                    outcome_end_ms=int((end+pd.Timedelta(hours=73)).timestamp()*1000)
+                    raw[tf]=fetch(sym,tf,int(fetch_start.timestamp()*1000),outcome_end_ms,
+                                  include_boundary_open=True,signal_boundary_ms=int(end.timestamp()*1000))
+                else:
+                    raw[tf]=fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000))
             if len(raw["1h"])<250 or len(raw["30m"])<50: raise RuntimeError("Insufficient historical candles")
             t_prepare=time.perf_counter()
             frames={tf:prepare(d) for tf,d in raw.items()}
             stage_done("prepare_symbol_history", t_prepare)
             validate_warmup(frames, start, sym)
             h1=frames["1h"]
+            validate_boundary_execution_candle(h1, end)
             idx=max(220,int(h1.open_time.searchsorted(start)))
             baseline_last_exit=idx-1
             engine_last_exit={}
-            for i in range(idx,len(h1)-1):
+            for i in replay_signal_indices(h1, idx, end):
                 t_step=time.perf_counter()
                 c=h1.iloc[i]; close_time=c.close_time
                 if close_time<start: continue
