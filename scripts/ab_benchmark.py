@@ -28,6 +28,7 @@ ENV.update({
     "BACKTEST_FEE_BPS": os.getenv("BACKTEST_FEE_BPS", "10"),
     "BACKTEST_SLIPPAGE_BPS": os.getenv("BACKTEST_SLIPPAGE_BPS", "5"),
     "BACKTEST_END_TIME": os.getenv("BACKTEST_END_TIME", "2026-10-13T13:00:00Z"),
+    "AB_SIGNAL_BOUNDARY": os.getenv("BACKTEST_END_TIME", "2026-10-13T13:00:00Z"),
     "BACKTEST_PROFILE_ENGINE": "0",
     "PYTHONUNBUFFERED": "1",
     "TELEGRAM_TOKEN": "",
@@ -108,6 +109,18 @@ def _ab_record_input(symbol, tf, frame):
     path = os.getenv("AB_INPUT_MANIFEST")
     if not path:
         raise RuntimeError("AB_INPUT_MANIFEST is required for controlled A/B")
+    # Fingerprint only the fixed signal-decision window, not the candidate's
+    # extra 1H candles fetched after the boundary solely to resolve trade exits.
+    # The exact boundary-open 1H candle remains in the manifest as execution-only.
+    boundary = pd.Timestamp(os.environ["AB_SIGNAL_BOUNDARY"])
+    if boundary.tzinfo is None:
+        raise RuntimeError("AB_SIGNAL_BOUNDARY must include a timezone")
+    boundary = boundary.tz_convert("UTC")
+    if not frame.empty:
+        if tf == "1h":
+            frame = frame[(frame["close_time"] < boundary) | (frame["open_time"] == boundary)]
+        else:
+            frame = frame[frame["close_time"] < boundary]
     cols = ["open_time", "close_time", "open", "high", "low", "close", "volume"]
     canonical = frame[cols].to_csv(index=False, date_format="%Y-%m-%dT%H:%M:%S.%f%z", float_format="%.12g") if not frame.empty else "EMPTY\n"
     record = {"symbol": symbol, "timeframe": tf, "rows": int(len(frame)),
