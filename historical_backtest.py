@@ -494,6 +494,13 @@ def entry_location_guard_self_test():
     return True
 
 
+def last_closed_index(h1, clock):
+    """Return the last candle index closed strictly before clock in O(log n)."""
+    if h1 is None or h1.empty:
+        return -1
+    return int(h1["close_time"].searchsorted(clock, side="left")) - 1
+
+
 def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=None,evaluation_time=None):
     row=h1.iloc[entry_i]; entry=float(row.open)
     if entry<=0 or atr<=0:return None,entry_i
@@ -514,8 +521,7 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
         clock = clock.tz_localize("UTC")
     else:
         clock = clock.tz_convert("UTC")
-    closed_positions = [j for j in range(len(h1)) if h1.iloc[j]["close_time"] < clock]
-    last_closed_i = max(closed_positions) if closed_positions else -1
+    last_closed_i = last_closed_index(h1, clock)
     end_i=min(last_closed_i,entry_i+72)
     # Never inspect the high/low/close of a still-forming execution candle.
     # If the complete 72h horizon is not available, keep an untriggered trade
@@ -602,7 +608,23 @@ def historical_btc_regime(frames, decision_time):
     return {"combined": combined, "combined_score": h["score"] + d["score"], "1h": h, "daily": d}
 
 def simulate_self_test():
-    """Regression tests for same-candle stop/target ambiguity."""
+    """Regression tests for same-candle stop/target ambiguity and closed-index lookup."""
+    lookup_times = pd.to_datetime([
+        "2026-10-01T00:59:59Z", "2026-10-01T01:59:59Z",
+        "2026-10-01T02:59:59Z",
+    ], utc=True)
+    lookup_frame = pd.DataFrame({"close_time": lookup_times})
+    for clock in (
+        pd.Timestamp("2026-09-30T23:00:00Z"),
+        lookup_times[0],
+        pd.Timestamp("2026-10-01T01:00:00Z"),
+        lookup_times[-1] + pd.Timedelta(seconds=1),
+    ):
+        expected = max((j for j, value in enumerate(lookup_times) if value < clock), default=-1)
+        assert last_closed_index(lookup_frame, clock) == expected, (
+            f"last-closed index mismatch for clock={clock}"
+        )
+    assert last_closed_index(pd.DataFrame(), lookup_times[0]) == -1
     signal_time = pd.Timestamp("2026-10-01T00:00:00Z")
     entry_time = pd.Timestamp("2026-10-01T01:00:00Z")
     close_time = pd.Timestamp("2026-10-01T01:59:59.999000Z")
