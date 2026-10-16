@@ -1,5 +1,7 @@
 name: Historical Binance Backtest | 180D | Offline Signals
 on:
+  push:
+    branches: ['experiment/ema-extension-guard-20261016']
   pull_request:
     branches: [main]
     paths:
@@ -49,6 +51,7 @@ jobs:
       BACKTEST_SYMBOLS: ${{ github.event.inputs.symbols || 'ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT' }}
       BACKTEST_FEE_BPS: ${{ github.event.inputs.fee_bps || '10' }}
       BACKTEST_SLIPPAGE_BPS: ${{ github.event.inputs.slippage_bps || '5' }}
+      BACKTEST_TREND_BUY_MAX_EMA_EXTENSION_ATR: "1.5"
       BACKTEST_END_TIME: ${{ github.event.inputs.end_time || '2026-10-13T13:00:00Z' }}
       PYTHONUNBUFFERED: "1"
       TELEGRAM_TOKEN: ""
