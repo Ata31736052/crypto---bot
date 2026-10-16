@@ -84,14 +84,13 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
                 continue
 
             risk_budget = equity_before_entry * max(0.0, float(risk_pct)) / 100.0
-            # Include estimated round-trip fees/slippage in risk sizing. Otherwise
-            # a stop-out can exceed the configured equity-risk budget by cost_pct.
-            # stop distance is a fraction; cost_pct is stored as a percentage.
+            # net_pct already embeds adverse entry/exit fills; cost_pct contains fees only.
+            # Use risk_cost_pct for a conservative round-trip cost reserve in sizing.
             cost_pct = max(0.0, float(trade.get("cost_pct", 0) or 0))
-            all_in_stop_fraction = risk_fraction + cost_pct / 100.0
+            risk_cost_pct = max(cost_pct, float(trade.get("risk_cost_pct", cost_pct) or 0))
+            all_in_stop_fraction = risk_fraction + risk_cost_pct / 100.0
             risk_sized_notional = risk_budget / all_in_stop_fraction
-            # Reserve enough shared cash to cover configured round-trip costs.
-            fee_reserve_factor = 1.0 + cost_pct / 100.0
+            fee_reserve_factor = 1.0 + risk_cost_pct / 100.0
             cash_limited_notional = cash / fee_reserve_factor
             notional = min(
                 risk_sized_notional,
