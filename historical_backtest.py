@@ -682,6 +682,18 @@ def simulate_self_test():
     expected_exit=expected_tp1*(1.0-max(0.0,SLIPPAGE_BPS)/10000.0)
     assert abs(trade["entry"]-expected_entry) < 1e-9, "BUY entry must include adverse slippage"
     assert abs(trade["exit"]-expected_exit) < 1e-9, "TP1 fill must include adverse exit slippage"
+    # SELL pays adverse slippage in the opposite direction at both entry and exit.
+    sell_candle = candle.copy()
+    sell_candle.loc[0, ["high","low","close"]] = [101.0, 95.0, 97.0]
+    sell_trade, _ = simulate("TESTUSDT", "SELL", signal_time, 0, sell_candle, 1.0, 95, "TEST",
+                             {"entry": 100.0, "stop_loss": 102.0})
+    expected_sell_entry=100.0*(1.0-max(0.0,SLIPPAGE_BPS)/10000.0)
+    expected_sell_tp1=expected_sell_entry-2.0*float(getattr(main,"TP1_RR",1.8))
+    expected_sell_exit=expected_sell_tp1*(1.0+max(0.0,SLIPPAGE_BPS)/10000.0)
+    assert sell_trade is not None and sell_trade["exit_reason"] == "TP1"
+    assert abs(sell_trade["entry"]-expected_sell_entry) < 1e-9, "SELL entry must include adverse slippage"
+    assert abs(sell_trade["exit"]-expected_sell_exit) < 1e-9, "SELL exit fill must include adverse slippage"
+    assert sell_trade["net_pct"] < sell_trade["raw_gross_pct"], "SELL slippage must worsen realized return"
     stop_conflict = candle.copy()
     stop_conflict.loc[0, "low"] = 97.0
     trade, _ = simulate("TESTUSDT", "BUY", signal_time, 0, stop_conflict, 1.0, 95, "TEST",
