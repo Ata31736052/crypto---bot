@@ -508,9 +508,10 @@ def last_closed_index(h1, clock):
         clock = clock.tz_localize("UTC")
     else:
         clock = clock.tz_convert("UTC")
-    close_ms = h1["close_time"].astype("int64")
-    clock_ms = clock.value // 1_000_000
-    return int(close_ms.searchsorted(clock_ms, side="left")) - 1
+    # Normalize the series to nanoseconds too: concatenation and test frames
+    # may preserve datetime64[ns] even when Binance's fetched frame uses [ms].
+    close_ns = pd.to_datetime(h1["close_time"], utc=True).astype("datetime64[ns, UTC]").astype("int64")
+    return int(close_ns.searchsorted(clock.value, side="left")) - 1
 
 
 def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=None,evaluation_time=None):
@@ -646,6 +647,13 @@ def simulate_self_test():
     })
     assert last_closed_index(ms_frame, pd.Timestamp("2026-10-01T01:00:00Z")) == 0
     assert last_closed_index(ms_frame, pd.Timestamp("2026-10-01T00:00:00Z")) == -1
+    ns_frame = pd.DataFrame({
+        "close_time": pd.to_datetime([
+            "2026-10-01T00:59:59.999Z", "2026-10-01T01:59:59.999Z",
+        ], utc=True)
+    })
+    assert last_closed_index(ns_frame, pd.Timestamp("2026-10-01T01:00:00Z")) == 0
+    assert last_closed_index(ns_frame, pd.Timestamp("2026-10-01T02:00:00Z")) == 1
     signal_time = pd.Timestamp("2026-10-01T00:00:00Z")
     entry_time = pd.Timestamp("2026-10-01T01:00:00Z")
     close_time = pd.Timestamp("2026-10-01T01:59:59.999000Z")
