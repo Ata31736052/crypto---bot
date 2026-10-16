@@ -83,14 +83,14 @@ def replay_signal_indices(frame, start_index, end_time):
     validate_boundary_execution_candle(frame, end_time)
     boundary = pd.Timestamp(end_time).tz_convert("UTC")
     boundary_index = int(frame["open_time"].searchsorted(boundary))
-    if boundary_index != len(frame) - 1 or frame.iloc[boundary_index]["open_time"] != boundary:
-        raise RuntimeError("Boundary execution candle must be the final replay row")
+    if boundary_index >= len(frame) or frame.iloc[boundary_index]["open_time"] != boundary:
+        raise RuntimeError("Boundary execution candle is missing or misplaced")
     if boundary_index < 1 or frame.iloc[boundary_index - 1]["close_time"] >= boundary:
         raise RuntimeError("No valid closed signal candle immediately before execution boundary")
     return range(max(0, int(start_index)), boundary_index)
 
 
-def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, now=None):
+def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, now=None, signal_boundary_ms=None):
     rows=[]; cursor=start_ms
     while cursor < end_ms:
         r=SESSION.get(f"{BASE}/api/v3/klines",params={"symbol":symbol,"interval":tf,"startTime":cursor,"endTime":end_ms,"limit":1000},timeout=30)
@@ -115,12 +115,17 @@ def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, now=None):
         clock = clock.tz_localize("UTC")
     else:
         clock = clock.tz_convert("UTC")
-    boundary = pd.to_datetime(end_ms, unit="ms", utc=True)
+    boundary = pd.to_datetime(signal_boundary_ms if signal_boundary_ms is not None else end_ms, unit="ms", utc=True)
     closed_or_execution = d.close_time < clock
     if include_boundary_open:
         closed_or_execution = closed_or_execution | (d.open_time == boundary)
     d=d[closed_or_execution]
-    d=filter_closed_before_end(d,end_ms,include_boundary_open=include_boundary_open)
+    if signal_boundary_ms is None:
+        d=filter_closed_before_end(d,end_ms,include_boundary_open=include_boundary_open)
+    else:
+        # Separate the signal cutoff from the wider data window used for exits.
+        data_cutoff = pd.to_datetime(end_ms, unit="ms", utc=True)
+        d=d[(d.close_time < data_cutoff) | (d.open_time == boundary)]
     validate_finite_ohlcv(d, f"{symbol} {tf}")
     d=d.dropna(subset=["open","high","low","close","volume"])
     return d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]
@@ -255,22 +260,35 @@ def boundary_execution_candle_self_test():
     assert len(filtered) == 2 and filtered.iloc[-1]["open_time"] == end, (
         "filter did not retain the boundary-open execution candle"
     )
-    signal_indices = list(replay_signal_indices(filtered, 0, end))
-    boundary_index = len(filtered) - 1
-    assert signal_indices == [0], f"unexpected signal indices: {signal_indices}"
+    # Post-boundary candles are outcome-only and must not enter signal generation.
+    outcome_rows = pd.DataFrame({
+        "open_time": pd.to_datetime(["2026-10-13T13:00:00Z", "2026-10-13T14:00:00Z"], utc=True),
+        "close_time": pd.to_datetime(["2026-10-13T13:59:59.999Z", "2026-10-13T14:59:59.999Z"], utc=True),
+        "open": [102.0, 104.0], "high": [106.0, 107.0],
+        "low": [101.0, 103.0], "close": [105.0, 106.0], "volume": [10.0, 10.0],
+    })
+    replay_frame = pd.concat([filtered, outcome_rows], ignore_index=True)
+    signal_indices = list(replay_signal_indices(replay_frame, 0, end))
+    boundary_index = int(replay_frame["open_time"].searchsorted(end))
+    assert signal_indices == [0], f"future outcome candles leaked into signal indices: {signal_indices}"
     assert boundary_index not in signal_indices, "boundary execution candle was evaluated as a signal"
+    assert boundary_index < len(replay_frame) - 1, "test requires post-boundary outcome candles"
     # Exercise the actual execution function using the replay's next-bar index.
     # This proves the boundary-open candle's OPEN is consumed as the entry price,
     # rather than merely checking that the dataframe contains the expected value.
     signal_index = signal_indices[0]
     trade, _ = simulate(
         "TESTUSDT", "BUY", filtered.iloc[signal_index]["close_time"],
-        signal_index + 1, filtered, 1.0, 95, "STRONG",
+        signal_index + 1, replay_frame, 1.0, 95, "STRONG",
         {"entry": 100.0, "stop_loss": 98.0},
     )
     assert trade is not None, "simulate did not produce a trade from the boundary execution candle"
     assert trade["entry"] == 101.0, (
         f"simulate did not consume boundary candle OPEN; actual entry={trade['entry']}"
+    )
+    assert trade["exit_reason"] == "TP1", f"post-boundary closed candle did not drive exit: {trade['exit_reason']}"
+    assert pd.Timestamp(trade["exit_time"]) == pd.Timestamp("2026-10-13T13:59:59.999Z"), (
+        "exit did not use the first completed post-boundary candle"
     )
     assert pd.Timestamp(trade["entry_time"]) == end, (
         "simulate entry timestamp did not match the boundary-open execution candle"
@@ -615,7 +633,15 @@ def run():
     for sym in SYMBOLS:
         try:
             print("FETCH",sym,flush=True)
-            raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000),include_boundary_open=(tf=="1h")) for tf in ("1h","30m","4h","1d")}
+            raw={}
+            for tf in ("1h","30m","4h","1d"):
+                if tf == "1h":
+                    # Signal generation ends at end; fetch later closed candles for outcomes.
+                    outcome_end_ms=int((end+pd.Timedelta(hours=73)).timestamp()*1000)
+                    raw[tf]=fetch(sym,tf,int(fetch_start.timestamp()*1000),outcome_end_ms,
+                                  include_boundary_open=True,signal_boundary_ms=int(end.timestamp()*1000))
+                else:
+                    raw[tf]=fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000))
             if len(raw["1h"])<250 or len(raw["30m"])<50: raise RuntimeError("Insufficient historical candles")
             t_prepare=time.perf_counter()
             frames={tf:prepare(d) for tf,d in raw.items()}
