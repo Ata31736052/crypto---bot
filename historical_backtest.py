@@ -495,10 +495,22 @@ def entry_location_guard_self_test():
 
 
 def last_closed_index(h1, clock):
-    """Return the last candle index closed strictly before clock in O(log n)."""
+    """Return the last candle index closed strictly before clock in O(log n).
+
+    Compare integer epoch milliseconds so pandas datetime64[ms] columns (as
+    returned by pandas 3 for Binance timestamps) safely accept nanosecond
+    Timestamp evaluation times without a lossy datetime-unit conversion.
+    """
     if h1 is None or h1.empty:
         return -1
-    return int(h1["close_time"].searchsorted(clock, side="left")) - 1
+    clock = pd.Timestamp(clock)
+    if clock.tzinfo is None:
+        clock = clock.tz_localize("UTC")
+    else:
+        clock = clock.tz_convert("UTC")
+    close_ms = h1["close_time"].astype("int64")
+    clock_ms = clock.value // 1_000_000
+    return int(close_ms.searchsorted(clock_ms, side="left")) - 1
 
 
 def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=None,evaluation_time=None):
@@ -625,6 +637,15 @@ def simulate_self_test():
             f"last-closed index mismatch for clock={clock}"
         )
     assert last_closed_index(pd.DataFrame(), lookup_times[0]) == -1
+    # Binance timestamps may be datetime64[ms] under pandas 3; evaluation
+    # Timestamp objects commonly carry ns precision. This must not raise.
+    ms_frame = pd.DataFrame({
+        "close_time": pd.to_datetime([
+            "2026-10-01T00:59:59.999Z", "2026-10-01T01:59:59.999Z",
+        ], utc=True).astype("datetime64[ms, UTC]")
+    })
+    assert last_closed_index(ms_frame, pd.Timestamp("2026-10-01T01:00:00Z")) == 0
+    assert last_closed_index(ms_frame, pd.Timestamp("2026-10-01T00:00:00Z")) == -1
     signal_time = pd.Timestamp("2026-10-01T00:00:00Z")
     entry_time = pd.Timestamp("2026-10-01T01:00:00Z")
     close_time = pd.Timestamp("2026-10-01T01:59:59.999000Z")
