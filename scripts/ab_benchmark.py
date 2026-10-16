@@ -109,26 +109,27 @@ def _ab_record_input(symbol, tf, frame):
     path = os.getenv("AB_INPUT_MANIFEST")
     if not path:
         raise RuntimeError("AB_INPUT_MANIFEST is required for controlled A/B")
-    # Fingerprint only the fixed signal-decision window, not the candidate's
-    # extra 1H candles fetched after the boundary solely to resolve trade exits.
-    # The exact boundary-open 1H candle remains in the manifest as execution-only.
     boundary = pd.Timestamp(os.environ["AB_SIGNAL_BOUNDARY"])
     if boundary.tzinfo is None:
         raise RuntimeError("AB_SIGNAL_BOUNDARY must include a timezone")
     boundary = boundary.tz_convert("UTC")
-    if not frame.empty:
-        if tf == "1h":
-            frame = frame[(frame["close_time"] < boundary) | (frame["open_time"] == boundary)]
-        else:
-            frame = frame[frame["close_time"] < boundary]
     cols = ["open_time", "close_time", "open", "high", "low", "close", "volume"]
-    canonical = frame[cols].to_csv(index=False, date_format="%Y-%m-%dT%H:%M:%S.%f%z", float_format="%.12g") if not frame.empty else "EMPTY\n"
-    record = {"symbol": symbol, "timeframe": tf, "rows": int(len(frame)),
-              "sha256": hashlib.sha256(canonical.encode()).hexdigest(),
-              "first_open": str(frame.iloc[0]["open_time"]) if len(frame) else None,
-              "last_open": str(frame.iloc[-1]["open_time"]) if len(frame) else None}
+    if tf == "1h":
+        signal_frame = frame[(frame["close_time"] < boundary) | (frame["open_time"] == boundary)]
+        outcome_frame = frame[frame["open_time"] > boundary]
+    else:
+        signal_frame = frame[frame["close_time"] < boundary]
+        outcome_frame = frame.iloc[0:0]
+    def fingerprint(part):
+        canonical = part[cols].to_csv(index=False, date_format="%Y-%m-%dT%H:%M:%S.%f%z", float_format="%.12g") if not part.empty else "EMPTY\\n"
+        return {"rows": int(len(part)), "sha256": hashlib.sha256(canonical.encode()).hexdigest(),
+                "first_open": str(part.iloc[0]["open_time"]) if len(part) else None,
+                "last_open": str(part.iloc[-1]["open_time"]) if len(part) else None}
+    record = {"symbol": symbol, "timeframe": tf,
+              "signal_window": fingerprint(signal_frame),
+              "outcome_window": fingerprint(outcome_frame)}
     with open(path, "a", encoding="utf-8") as handle:
-        handle.write(json.dumps(record, sort_keys=True) + "\n")
+        handle.write(json.dumps(record, sort_keys=True) + "\\n")
 '''
 for label in ("A", "B"):
     source_path = WORK / label / "historical_backtest.py"
@@ -138,13 +139,14 @@ for label in ("A", "B"):
     if label == "A":
         sig = "def fetch(symbol, tf, start_ms, end_ms):"
         if sig not in source: raise SystemExit("Cannot safely patch baseline fetch signature")
-        source = source.replace(sig, "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False):", 1)
+        source = source.replace(sig, "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, signal_boundary_ms=None):", 1)
         old_filters = (
             '    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])',
             '    d=d[d.close_time < pd.Timestamp.now(tz="UTC")].dropna(subset=["open","high","low","close","volume"])',
         )
-        new_filter = '''    boundary=pd.to_datetime(end_ms,unit="ms",utc=True)
-    d=d[(d.close_time < boundary) | ((tf == "1h") & include_boundary_open & (d.open_time == boundary))]
+        new_filter = '''    boundary=pd.to_datetime(signal_boundary_ms if signal_boundary_ms is not None else end_ms,unit="ms",utc=True)
+    data_cutoff=pd.to_datetime(end_ms,unit="ms",utc=True)
+    d=d[(d.close_time < data_cutoff) | ((tf == "1h") & include_boundary_open & (d.open_time == boundary))]
     d=d.dropna(subset=["open","high","low","close","volume"])'''
         matched_filters = [line for line in old_filters if line in source]
         if len(matched_filters) != 1:
@@ -156,7 +158,14 @@ for label in ("A", "B"):
         if new_filter not in source:
             raise SystemExit("Baseline boundary normalization postcondition failed")
         source = source.replace('fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000))', 'fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000),include_boundary_open=(tf=="1h"))')
-        source = source.replace('fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000))', 'fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000),include_boundary_open=(tf=="1h"))')
+        source = source.replace('raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000)) for tf in ("1h","30m","4h","1d")}',
+'''raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),
+                          int((end+pd.Timedelta(hours=73)).timestamp()*1000) if tf=="1h" else int(end.timestamp()*1000),
+                          include_boundary_open=(tf=="1h"),
+                          signal_boundary_ms=int(end.timestamp()*1000) if tf=="1h" else None)
+                  for tf in ("1h","30m","4h","1d")}''')
+        source = source.replace('                c=h1.iloc[i]; close_time=c.close_time',
+                                '                c=h1.iloc[i]; close_time=c.close_time\\n                if c.open_time >= end: break', 1)
     return_line = '    return d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]'
     replacement = '''    d=d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]
     _ab_record_input(symbol, tf, d)
@@ -302,7 +311,8 @@ report={
  "trade_sha256":next(iter(trade_hashes)),
  "input_manifest_sha256":next(iter(input_manifest_hashes)),
  "input_manifest_rows":samples[0]["input_manifest_rows"],
- "notes":["Raw OHLCV manifests are fingerprinted before indicator preparation and must match across all samples.",
+ "notes":["Separate signal-window and outcome-window OHLCV hashes and row counts are fingerprinted before indicator preparation and must match across all samples.",
+          "Both baseline and candidate fetch the same 73-hour post-boundary 1H outcome window; replay stops at the fixed signal boundary.",
           "Baseline is benchmark-shimmed to the candidate's exclusive end boundary, retaining the boundary-open execution candle only for 1H.",
           "Same GitHub-hosted runner and Python environment for all samples.",
           "Exact Binance kline HTTP responses are cached and replayed to both revisions.",
