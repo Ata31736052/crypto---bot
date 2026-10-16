@@ -27,8 +27,8 @@ ENV.update({
     "BACKTEST_SYMBOLS": os.getenv("BACKTEST_SYMBOLS", "ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT"),
     "BACKTEST_FEE_BPS": os.getenv("BACKTEST_FEE_BPS", "10"),
     "BACKTEST_SLIPPAGE_BPS": os.getenv("BACKTEST_SLIPPAGE_BPS", "5"),
-    "BACKTEST_END_TIME": os.getenv("BACKTEST_END_TIME", "2026-10-13T13:00:00Z"),
-    "AB_SIGNAL_BOUNDARY": os.getenv("BACKTEST_END_TIME", "2026-10-13T13:00:00Z"),
+    "BACKTEST_END_TIME": os.getenv("BACKTEST_END_TIME", "2026-10-12T00:00:00Z"),
+    "AB_SIGNAL_BOUNDARY": os.getenv("BACKTEST_END_TIME", "2026-10-12T00:00:00Z"),
     "BACKTEST_PROFILE_ENGINE": "0",
     "PYTHONUNBUFFERED": "1",
     "TELEGRAM_TOKEN": "",
@@ -125,6 +125,21 @@ def _ab_record_input(symbol, tf, frame):
         return {"rows": int(len(part)), "sha256": hashlib.sha256(canonical.encode()).hexdigest(),
                 "first_open": str(part.iloc[0]["open_time"]) if len(part) else None,
                 "last_open": str(part.iloc[-1]["open_time"]) if len(part) else None}
+    # Mutation regression: changing an outcome-only candle must alter the outcome hash.
+    if not getattr(_ab_record_input, "_mutation_test_done", False):
+        sample = pd.DataFrame({
+            "open_time": pd.to_datetime(["2026-10-12T00:00:00Z", "2026-10-12T01:00:00Z"], utc=True),
+            "close_time": pd.to_datetime(["2026-10-12T00:59:59.999Z", "2026-10-12T01:59:59.999Z"], utc=True),
+            "open": [100.0, 101.0], "high": [101.0, 102.0], "low": [99.0, 100.0],
+            "close": [100.5, 101.5], "volume": [10.0, 11.0]})
+        outcome = sample[sample["open_time"] > boundary]
+        altered = sample.copy()
+        altered.loc[1, "close"] = 101.6
+        altered_outcome = altered[altered["open_time"] > boundary]
+        if fingerprint(outcome)["sha256"] == fingerprint(altered_outcome)["sha256"]:
+            raise RuntimeError("Outcome-only candle mutation did not change manifest hash")
+        _ab_record_input._mutation_test_done = True
+        print("AB_OUTCOME_MANIFEST_MUTATION_SELF_TEST: PASS", flush=True)
     record = {"symbol": symbol, "timeframe": tf,
               "signal_window": fingerprint(signal_frame),
               "outcome_window": fingerprint(outcome_frame)}
