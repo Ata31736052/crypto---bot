@@ -120,9 +120,13 @@ jobs:
           timing = main.signal_timing_metadata({
               'candle_time': '2026-10-04 04:00:00+00:00',
               'signal_timeframe': '1h',
+              'candidate_created_at': '2026-10-04T05:22:34+00:00',
           }, observed_at='2026-10-04T05:23:34+00:00')
           assert timing['candle_close_time'] == '2026-10-04T05:00:00+00:00', timing
           assert 23.5 <= timing['latency_from_close_minutes'] <= 23.6, timing
+          assert timing['candidate_to_send_seconds'] == 60.0, timing
+          assert timing['candidate_to_send_seconds'] == 60.0, timing
+          print('PASS: candidate creation-to-send latency is measured separately')
           print('PASS: 1h latency measured from candle close, not candle open')
           timing_4h = main.signal_timing_metadata({
               'candle_time': '2026-10-04 00:00:00+00:00',
