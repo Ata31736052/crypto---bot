@@ -8380,6 +8380,23 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         if not safe_float(r1.get("bearish_candle")):
             reject.append("SELL latest 1H candle is not bearish")
 
+    # Experimental TREND BUY calibration (offline-validation branch only):
+    # the baseline BUY path could pass with merely soft MACD agreement, while
+    # the historical shared-cash replay showed persistent BUY-side losses.
+    # Keep early pullbacks eligible, but require either aligned fast EMAs or
+    # an actual bullish recovery candle with improving MACD histogram. Reject
+    # overbought continuation entries rather than chasing an exhausted move.
+    if side == "BUY" and mode == "TREND":
+        macd_hist = safe_float(r1.get("macd_hist"))
+        macd_hist_prev = safe_float(r1.get("macd_hist_prev"))
+        bullish_candle = bool(safe_float(r1.get("bullish_candle")))
+        fast_ema_aligned = ema9 > ema21
+        early_recovery = close > ema21 and macd_hist > macd_hist_prev and rsi >= 45 and bullish_candle
+        if not (fast_ema_aligned or early_recovery):
+            reject.append("TREND BUY lacks aligned fast EMA or confirmed bullish recovery")
+        if rsi > 72:
+            reject.append(f"TREND BUY overbought / late entry risk (RSI {rsi:.1f} > 72)")
+
     # HARD: major trend must not directly oppose the proposed trade.
     if mode != "BOTTOM_HUNTER":
         major_ok = (close > ema200 and close > ema21) if side == "BUY" else (close < ema200 and close < ema21)
