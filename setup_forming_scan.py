@@ -38,14 +38,17 @@ def save_state(state):
 
 
 
+def is_new_episode(state, symbol, side):
+    previous = state.get(str(symbol).upper())
+    return not (isinstance(previous, dict) and previous.get("side") == side)
+
+
 def dedupe_episode_self_test():
     state = {"ETHUSDT": {"side": "BUY_WATCH", "sent_epoch": 100, "candle_time": "t1"}}
-    # Persistent same-side watch must remain one alert episode.
-    prior = state.get("ETHUSDT")
-    assert isinstance(prior, dict) and prior.get("side") == "BUY_WATCH"
-    # No-watch clears an episode; a later same-side setup can alert again.
+    assert is_new_episode(state, "ETHUSDT", "BUY_WATCH") is False
+    assert is_new_episode(state, "ETHUSDT", "SELL_WATCH") is True
     state.pop("ETHUSDT", None)
-    assert "ETHUSDT" not in state
+    assert is_new_episode(state, "ETHUSDT", "BUY_WATCH") is True
     print("SETUP_FORMING_EPISODE_DEDUPE_SELF_TEST: PASS")
     return True
 
@@ -84,7 +87,7 @@ def run_scan():
             detected += 1
             key = str(watch["symbol"]).upper()
             previous = state.get(key)
-            if isinstance(previous, dict) and previous.get("side") == watch["side"]:
+            if not is_new_episode(state, key, watch["side"]):
                 # One alert per continuous same-side setup episode, not one per hour.
                 previous["last_candle_time"] = watch["candle_time"]
                 continue
