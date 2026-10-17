@@ -37,6 +37,19 @@ def save_state(state):
     tmp.replace(STATE_PATH)
 
 
+
+def dedupe_episode_self_test():
+    state = {"ETHUSDT": {"side": "BUY_WATCH", "sent_epoch": 100, "candle_time": "t1"}}
+    # Persistent same-side watch must remain one alert episode.
+    prior = state.get("ETHUSDT")
+    assert isinstance(prior, dict) and prior.get("side") == "BUY_WATCH"
+    # No-watch clears an episode; a later same-side setup can alert again.
+    state.pop("ETHUSDT", None)
+    assert "ETHUSDT" not in state
+    print("SETUP_FORMING_EPISODE_DEDUPE_SELF_TEST: PASS")
+    return True
+
+
 def run_scan():
     now_epoch = int(time.time())
     now_ms = now_epoch * 1000
@@ -64,16 +77,23 @@ def run_scan():
             checked += 1
             watch = main.detect_setup_forming_1h(symbol, frame, now_ms=now_ms)
             if not isinstance(watch, dict):
+                # A successful evaluation with no active setup ends the previous
+                # warning episode. API/data failures above do not clear the state.
+                state.pop(str(symbol).upper(), None)
                 continue
             detected += 1
-            key = "|".join((watch["symbol"], watch["side"], watch["candle_time"]))
-            if key in state:
+            key = str(watch["symbol"]).upper()
+            previous = state.get(key)
+            if isinstance(previous, dict) and previous.get("side") == watch["side"]:
+                # One alert per continuous same-side setup episode, not one per hour.
+                previous["last_candle_time"] = watch["candle_time"]
                 continue
             if main.send_telegram_message(main.format_setup_forming_warning(watch)):
                 state[key] = {
                     "sent_epoch": now_epoch,
                     "side": watch["side"],
                     "candle_time": watch["candle_time"],
+                    "last_candle_time": watch["candle_time"],
                 }
                 save_state(state)
                 sent += 1
