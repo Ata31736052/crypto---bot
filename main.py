@@ -8798,7 +8798,19 @@ def detect_setup_forming_1h(symbol, df, now_ms=None):
         return None
     now_ms = int(now_ms if now_ms is not None else time.time() * 1000)
     try:
-        closed = df.loc[pd.to_numeric(df["close_time"], errors="coerce") <= now_ms].copy()
+        # Production get_klines() converts timestamps to UTC pandas datetimes;
+        # deterministic tests may supply raw Binance millisecond integers.
+        # Normalize both forms to epoch milliseconds before filtering. Using
+        # pd.to_numeric() directly on Timestamp objects silently yielded NaN
+        # for every row, disabling all real Setup Forming warnings.
+        close_series = df["close_time"]
+        if pd.api.types.is_numeric_dtype(close_series):
+            close_ms = pd.to_numeric(close_series, errors="coerce")
+        else:
+            close_dt = pd.to_datetime(close_series, errors="coerce", utc=True)
+            close_ms = close_dt.astype("int64") // 1_000_000
+            close_ms = close_ms.where(close_dt.notna(), np.nan)
+        closed = df.loc[close_ms <= now_ms].copy()
         if len(closed) < 3:
             return None
         last3 = closed.tail(3)
@@ -8833,7 +8845,11 @@ def detect_setup_forming_1h(symbol, df, now_ms=None):
             side, count = "SELL_WATCH", sum(bear_evidence)
         else:
             return None
-        candle_time = pd.to_datetime(int(last["open_time"]), unit="ms", utc=True).isoformat()
+        raw_open_time = last["open_time"]
+        if isinstance(raw_open_time, (pd.Timestamp, datetime)):
+            candle_time = pd.to_datetime(raw_open_time, utc=True).isoformat()
+        else:
+            candle_time = pd.to_datetime(int(raw_open_time), unit="ms", utc=True).isoformat()
         return {
             "symbol": str(symbol).upper(),
             "side": side,
@@ -8887,6 +8903,16 @@ def run_setup_forming_self_test():
     bearish["rsi"] = [55.0, 54.0, 53.0, 52.0]
     result = detect_setup_forming_1h("TESTUSDT", bearish, now_ms=5000)
     assert result and result["side"] == "SELL_WATCH"
+
+    # Production get_klines() uses UTC Timestamp columns, not raw ms integers.
+    # This regression test ensures the live data representation is accepted.
+    timestamp_frame = base.copy()
+    timestamp_frame["open_time"] = pd.to_datetime(timestamp_frame["open_time"], unit="ms", utc=True)
+    timestamp_frame["close_time"] = pd.to_datetime(timestamp_frame["close_time"], unit="ms", utc=True)
+    timestamp_watch = detect_setup_forming_1h("TESTUSDT", timestamp_frame, now_ms=5000)
+    assert timestamp_watch and timestamp_watch["side"] == "BUY_WATCH"
+    assert timestamp_watch["candle_time"] == pd.to_datetime(4000, unit="ms", utc=True).isoformat()
+
     message = format_setup_forming_warning(bullish)
     assert "NOT a BUY/SELL entry signal" in message
     assert "Stop loss" not in message and "Take profit" not in message
