@@ -75,32 +75,18 @@ def run(cmd, cwd=None, env=None, capture=False):
                           stderr=subprocess.STDOUT if capture else None)
 def git(*args):
     return run(["git", *args], cwd=ROOT, capture=True).stdout.strip()
-# Fetch refs and create isolated worktrees from immutable commit SHAs.
+# Fetch immutable engine revisions. Both worktrees use the exact same current
+# backtest harness, portfolio ledger, and dependencies; only main.py differs.
 run(["git","fetch","--no-tags","origin",BASE_SHA,CANDIDATE_SHA], cwd=ROOT)
-for label, sha in (("A",BASE_SHA),("B",CANDIDATE_SHA)):
+for label in ("A", "B"):
     path=WORK/label
     if path.exists(): shutil.rmtree(path)
-    run(["git","worktree","add","--detach",str(path),sha],cwd=ROOT)
-# The historical baseline predates BACKTEST_END_TIME support and otherwise
-# silently uses the runner's current hour. Apply a benchmark-only date-anchor
-# shim to A so both revisions receive the exact same fixed test window. This
-# changes no strategy or performance code; the report/logs preserve both SHAs.
-baseline_file = WORK / "A" / "historical_backtest.py"
-baseline_source = baseline_file.read_text(encoding="utf-8")
-legacy_end = '    end=pd.Timestamp.now(tz="UTC").floor("h"); start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)'
-fixed_end = '''    end_raw=os.getenv("BACKTEST_END_TIME", "").strip()
-    if end_raw:
-        end=pd.Timestamp(end_raw)
-        if end.tzinfo is None:
-            raise ValueError("BACKTEST_END_TIME must include Z or an explicit UTC offset")
-        end=end.tz_convert("UTC").floor("h")
-    else:
-        end=pd.Timestamp.now(tz="UTC").floor("h")
-    start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)'''
-if legacy_end in baseline_source:
-    baseline_file.write_text(baseline_source.replace(legacy_end, fixed_end, 1), encoding="utf-8")
-elif 'BACKTEST_END_TIME' not in baseline_source:
-    raise SystemExit("Cannot safely anchor baseline: expected legacy end-time expression was not found")
+    run(["git","worktree","add","--detach",str(path),CANDIDATE_SHA],cwd=ROOT)
+# A is the baseline engine under test, but deliberately keeps B's identical
+# replay/portfolio harness. This isolates main.py behavior from unrelated
+# historical_backtest.py, portfolio, data-window, and fee/slippage changes.
+baseline_main = run(["git","show",f"{BASE_SHA}:main.py"], cwd=ROOT, capture=True).stdout
+(WORK/"A"/"main.py").write_text(baseline_main, encoding="utf-8")
 # Benchmark-only source shims: align the baseline end-boundary policy and fingerprint raw OHLCV frames before prepare().
 MANIFEST_HELPER = r'''
 import hashlib, json, os
@@ -151,36 +137,7 @@ for label in ("A", "B"):
     source = source_path.read_text(encoding="utf-8")
     if "def _ab_record_input(" not in source:
         source = source.replace("def fetch(", MANIFEST_HELPER + "\ndef fetch(", 1)
-    if label == "A":
-        sig = "def fetch(symbol, tf, start_ms, end_ms):"
-        if sig not in source: raise SystemExit("Cannot safely patch baseline fetch signature")
-        source = source.replace(sig, "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, signal_boundary_ms=None):", 1)
-        old_filters = (
-            '    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])',
-            '    d=d[d.close_time < pd.Timestamp.now(tz="UTC")].dropna(subset=["open","high","low","close","volume"])',
-        )
-        new_filter = '''    boundary=pd.to_datetime(signal_boundary_ms if signal_boundary_ms is not None else end_ms,unit="ms",utc=True)
-    data_cutoff=pd.to_datetime(end_ms,unit="ms",utc=True)
-    d=d[(d.close_time < data_cutoff) | ((tf == "1h") & include_boundary_open & (d.open_time == boundary))]
-    d=d.dropna(subset=["open","high","low","close","volume"])'''
-        matched_filters = [line for line in old_filters if line in source]
-        if len(matched_filters) != 1:
-            raise SystemExit(
-                "Cannot safely normalize baseline end-boundary policy: "
-                f"expected exactly one known filter, found {len(matched_filters)}"
-            )
-        source = source.replace(matched_filters[0], new_filter, 1)
-        if new_filter not in source:
-            raise SystemExit("Baseline boundary normalization postcondition failed")
-        source = source.replace('fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000))', 'fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000),include_boundary_open=(tf=="1h"))')
-        source = source.replace('raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000)) for tf in ("1h","30m","4h","1d")}',
-'''raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),
-                          int((end+pd.Timedelta(hours=73)).timestamp()*1000) if tf=="1h" else int(end.timestamp()*1000),
-                          include_boundary_open=(tf=="1h"),
-                          signal_boundary_ms=int(end.timestamp()*1000) if tf=="1h" else None)
-                  for tf in ("1h","30m","4h","1d")}''')
-        source = source.replace('                c=h1.iloc[i]; close_time=c.close_time',
-                                '                c=h1.iloc[i]; close_time=c.close_time\n                if c.open_time >= end: break', 1)
+    # Both revisions intentionally run the same replay and input-manifest code.
     return_line = '    return d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]'
     replacement = '''    d=d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]
     _ab_record_input(symbol, tf, d)
