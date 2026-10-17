@@ -8479,21 +8479,20 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     else:
         reject.append(f"ATR volatility unsuitable ({atrp:.2f}%)")
 
-    # v62 REAL-RUN ENTRY-LOCATION FIX:
-    # Run #96 showed that raw strength can still hide a late entry. MUBARAK
-    # was acceptable at ~4.5% from EMA21, while the 4H KITE setup was ~17.7%
-    # above EMA200. Keep moderate extension tradeable, but reject extreme
-    # distance from both the fast trend anchor and the long-term baseline.
-    if mode != "BOTTOM_HUNTER":
-        ema200_dist = abs(close / ema200 - 1) * 100 if ema200 > 0 else 999
-        if dist21 > PRO_MAX_EMA21_SEVERE_DISTANCE:
-            reject.append(f"entry severely extended from EMA21 ({dist21:.2f}%)")
-        elif dist21 <= PRO_MAX_EMA21_DISTANCE:
+    # ENTRY LOCATION: a high setup score must never hide a stretched entry.
+    # Trend already used this hard EMA21 extension ceiling; apply the same
+    # ceiling to Bottom Hunter too, while retaining its distinct reversal setup.
+    ema200_dist = abs(close / ema200 - 1) * 100 if ema200 > 0 else 999
+    if dist21 > PRO_MAX_EMA21_SEVERE_DISTANCE:
+        reject.append(f"entry severely extended from EMA21 ({dist21:.2f}%)")
+    elif mode != "BOTTOM_HUNTER":
+        if dist21 <= PRO_MAX_EMA21_DISTANCE:
             quality += 1
         else:
             quality -= 1
             signal.setdefault("reasons", []).append(f"Entry extended from EMA21 ({dist21:.2f}%)")
 
+    if mode != "BOTTOM_HUNTER":
         if ema200_dist > PRO_MAX_EMA200_DISTANCE:
             reject.append(f"entry too far from EMA200 ({ema200_dist:.2f}%)")
         elif ema200_dist <= PRO_EMA200_EXTENDED_DISTANCE:
@@ -8585,9 +8584,10 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         else:
             quality += 1
 
-    # SOFT location check: near resistance/support reduces quality, but is not
-    # an automatic rejection unless the room is extremely small.
-    if mode not in ("BREAKOUT", "BOTTOM_HUNTER"):
+    # LOCATION CHECK: do not enter into a nearby opposing structure.
+    # Bottom Hunter is exempt from trend confirmation, NOT from poor trade
+    # location. Exclude only BREAKOUT, whose explicit setup is to clear that level.
+    if mode != "BREAKOUT":
         look = df1.iloc[:-1].tail(20)
         recent_high = safe_float(look["high"].max()) if not look.empty else 0
         recent_low = safe_float(look["low"].min()) if not look.empty else 0
