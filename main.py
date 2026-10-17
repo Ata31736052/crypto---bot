@@ -5965,13 +5965,16 @@ def send_signal_to_telegram(
         signal_mode = str(signal.get("signal_mode", "TREND")).upper()
         signal_tf = str(signal.get("signal_timeframe", TIMEFRAME_MAIN)).lower()
         tf_label = "4H" if signal_mode == "4H_SIGNAL" or signal_tf == "4h" else ("DAILY" if signal_mode == "DAILY_SIGNAL" or signal_tf == "1d" else "1H")
+        timing = signal_timing_metadata(signal)
         log(
             f"Telegram signal sent: "
             f"{signal.get('symbol')} "
             f"{signal.get('signal')} "
             f"TF={tf_label} "
             f"Mode={signal_mode} "
-            f"Score={signal.get('score')}"
+            f"Score={signal.get('score')} "
+            f"CandidateToSendSec={timing.get('candidate_to_send_seconds')} "
+            f"CloseLatencyMin={timing.get('latency_from_close_minutes')}"
         )
 
     return success
