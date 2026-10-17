@@ -889,7 +889,7 @@ def run():
     else:
         end = pd.Timestamp.now(tz="UTC").floor("h")
     start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
-    trades=[]; engine_candidate_trades={}; errors=[]; setup_episodes=[]; setup_frames={}; actionable_signals=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
+    trades=[]; engine_candidate_trades={}; errors=[]; setup_episodes=[]; setup_frames={}; actionable_signals=[]; trend_gate_rows=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
     perf={"stage_seconds":{},"counters":{"candle_steps":0,"timeframe_index_lookups":0,"rows_materialized":0,"btc_regime_lookups":0,"engine_calls":0}}
     # ENGINE_INTERNAL_PROFILE: profile exactly one real production-engine invocation.
     # This is offline-only instrumentation; no signal, score, or trade decision is changed.
@@ -986,9 +986,42 @@ def run():
                 # Evaluate every closed candle. The baseline and each engine counterfactual
                 # maintain separate exit clocks so one engine's open trade cannot suppress
                 # another engine's candidate stream.
+                # Diagnostic-only wrapper: capture TREND candidate/gate state without
+                # changing the signal engine's return values or decision path.
+                gate_capture={"symbol":sym,"signal_time":str(close_time)}
+                original_eval=main.evaluate_final_signal
+                original_professional_gate=main.professional_signal_quality_gate
+                def capture_eval(*args, **kwargs):
+                    candidate=original_eval(*args, **kwargs)
+                    if isinstance(candidate,dict) and str(candidate.get("signal","")).upper() in ("BUY","SELL"):
+                        gate_capture["candidate_side"]=str(candidate.get("signal","")).upper()
+                        gate_capture["candidate_score"]=candidate.get("score")
+                        gate_capture["candidate_strength"]=candidate.get("strength")
+                    return candidate
+                def capture_professional_gate(signal, gate_data, gate_btc_regime):
+                    outcome=original_professional_gate(signal, gate_data, gate_btc_regime)
+                    mode=str(signal.get("signal_mode",signal.get("engine","TREND"))).upper() if isinstance(signal,dict) else ""
+                    if mode=="TREND":
+                        breakdown=signal.get("professional_quality_breakdown",{}) or {}
+                        reasons=(breakdown.get("reject_reasons",[]) if isinstance(breakdown,dict) else []) or (outcome[1] if isinstance(outcome,tuple) and len(outcome)>1 else [])
+                        gate_capture.update({
+                            "gate_passed":bool(outcome[0]) if isinstance(outcome,tuple) and outcome else False,
+                            "gate_reasons":list(reasons or []),
+                            "quality_score":breakdown.get("quality_score") if isinstance(breakdown,dict) else None,
+                            "quality_points":breakdown.get("quality_points") if isinstance(breakdown,dict) else None,
+                            "confirmation_count":breakdown.get("confirmation_count",breakdown.get("confirmations")) if isinstance(breakdown,dict) else None,
+                            "required_confirmations":breakdown.get("required_confirmations") if isinstance(breakdown,dict) else None,
+                            "htf_alignment":breakdown.get("htf_alignment") if isinstance(breakdown,dict) else None,
+                            "required_htf_alignment":breakdown.get("required_htf_alignment") if isinstance(breakdown,dict) else None,
+                            "rr_tp1":signal.get("rr_tp1"),
+                            "rr_tp2":signal.get("rr_tp2"),
+                        })
+                    return outcome
                 original_prepare=main.prepare_symbol_data
                 original_live_price=main.get_live_price
                 try:
+                    main.evaluate_final_signal=capture_eval
+                    main.professional_signal_quality_gate=capture_professional_gate
                     main.prepare_symbol_data=lambda _symbol, _data=data: _data
                     current_price=float(data["1h"].iloc[-1]["close"])
                     current_close_time=str(data["1h"].iloc[-1]["close_time"])
@@ -1034,6 +1067,28 @@ def run():
                 finally:
                     main.prepare_symbol_data=original_prepare
                     main.get_live_price=original_live_price
+                    main.evaluate_final_signal=original_eval
+                    main.professional_signal_quality_gate=original_professional_gate
+                # Save candidate-level gate states for later attribution. This file is
+                # diagnostic-only and is not read by the live scanner.
+                if gate_capture.get("candidate_side"):
+                    trace_for_gate=(scan.get("symbol_trace",{}) if isinstance(scan,dict) else {}) or {}
+                    trend_trace=trace_for_gate.get("trend",{}) or {}
+                    row_now=data["1h"].iloc[-1]
+                    gate_row={
+                        "symbol":sym,"side":gate_capture.get("candidate_side"),"signal_time":str(close_time),
+                        "candidate_score":gate_capture.get("candidate_score"),"candidate_strength":gate_capture.get("candidate_strength"),
+                        "gate_passed":gate_capture.get("gate_passed"),"gate_reasons_json":json.dumps(gate_capture.get("gate_reasons",[]),ensure_ascii=False),
+                        "quality_score":gate_capture.get("quality_score"),"quality_points":gate_capture.get("quality_points"),
+                        "confirmation_count":gate_capture.get("confirmation_count"),"required_confirmations":gate_capture.get("required_confirmations"),
+                        "htf_alignment":gate_capture.get("htf_alignment"),"required_htf_alignment":gate_capture.get("required_htf_alignment"),
+                        "rr_tp1":gate_capture.get("rr_tp1"),"rr_tp2":gate_capture.get("rr_tp2"),
+                        "risk_rejection":trend_trace.get("risk_rejection"),
+                        "first_rejection":trace_for_gate.get("first_rejection"),
+                    }
+                    for feature in ("close","ema9","ema21","ema50","ema200","adx","plus_di","minus_di","rsi","volume_ratio","atr_percent","macd_hist","distance_ema21","rolling_vwap","bb_position","atr"):
+                        gate_row[feature]=row_now.get(feature)
+                    trend_gate_rows.append(gate_row)
                 selected=scan.get("signal") if isinstance(scan,dict) else None
                 higher=scan.get("higher_signals",[]) if isinstance(scan,dict) else []
                 candidates=[x for x in [selected]+(higher if isinstance(higher,list) else []) if isinstance(x,dict) and str(x.get("signal","")).upper() in ("BUY","SELL")]
@@ -1102,6 +1157,7 @@ def run():
             errors.append({"symbol":sym,"error":str(exc)}); print("ERROR",sym,exc,flush=True)
     columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason"]
     pd.DataFrame(trades,columns=columns).to_csv(OUT/"trades.csv",index=False)
+    pd.DataFrame(trend_gate_rows).to_csv(OUT/"trend-gate-timing.csv",index=False)
     vals=[float(t["net_pct"]) for t in trades]
     portfolio_ledger_self_test(OUT)
     initial_capital=float(os.getenv("BACKTEST_INITIAL_CAPITAL_USDT","1000"))
