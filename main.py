@@ -6370,6 +6370,7 @@ def mark_signal_sent(
             0
         ),
 
+        "candidate_created_at": signal.get("candidate_created_at"),
         "candle_time": signal.get(
             "candle_time"
         ),
@@ -6545,6 +6546,7 @@ def add_signal_to_history(
         ),
         
 
+        "candidate_created_at": signal.get("candidate_created_at"),
         "candle_time": signal.get(
             "candle_time"
         ),
