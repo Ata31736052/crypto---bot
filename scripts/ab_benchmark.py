@@ -282,7 +282,6 @@ for label, ordinal in sequence:
 # all runs. Exact CSV equality is stricter than merely matching trade counts.
 baseline=[s for s in samples if s["label"]=="A"]
 candidate=[s for s in samples if s["label"]=="B"]
-trade_hashes={s["trade_sha256"] for s in samples}
 input_manifest_hashes={s["input_manifest_sha256"] for s in samples}
 if len(input_manifest_hashes) != 1:
     (OUT/"input-mismatch.json").write_text(json.dumps({
@@ -296,10 +295,28 @@ def comparable(s):
             "symbols":x["symbols"],"candidate_trade_count":x["candidate_trade_count"],
             "portfolio":x["portfolio"],"engine_breakdown":x["engine_breakdown"],
             "diagnostics":x["diagnostics"]}
-summary_hashes={json.dumps(comparable(s),sort_keys=True,default=str) for s in samples}
-if len(trade_hashes)!=1 or len(summary_hashes)!=1:
+# A strategy-change PR is expected to alter trades. In that mode, require exact
+# repeatability within A and within B, while retaining cross-revision diffs as
+# evidence; performance-only PRs still require exact A/B output parity.
+expect_identical = os.getenv("AB_EXPECT_IDENTICAL_OUTPUTS", "1").strip().lower() not in ("0","false","no")
+by_label={label:[s for s in samples if s["label"]==label] for label in ("A","B")}
+within_revision_mismatches=[]
+for label, rows in by_label.items():
+    trade_hashes={s["trade_sha256"] for s in rows}
+    summary_hashes={json.dumps(comparable(s),sort_keys=True,default=str) for s in rows}
+    if len(trade_hashes)!=1 or len(summary_hashes)!=1:
+        within_revision_mismatches.append(label)
+cross_revision_identical = (
+    len({s["trade_sha256"] for s in samples})==1 and
+    len({json.dumps(comparable(s),sort_keys=True,default=str) for s in samples})==1
+)
+if within_revision_mismatches or (expect_identical and not cross_revision_identical):
     (OUT/"mismatch.json").write_text(json.dumps({
-        "trade_hashes":[s["trade_sha256"] for s in samples],
+        "status":"OUTPUT_MISMATCH",
+        "expect_identical_outputs":expect_identical,
+        "within_revision_mismatches":within_revision_mismatches,
+        "cross_revision_identical":cross_revision_identical,
+        "trade_hashes":[{"label":s["label"],"phase":s["phase"],"ordinal":s["ordinal"],"sha256":s["trade_sha256"]} for s in samples],
         "summaries":[{"label":s["label"],"phase":s["phase"],"ordinal":s["ordinal"],
                       "summary":comparable(s)} for s in samples]},indent=2,default=str))
     raise SystemExit("OUTPUT MISMATCH: do not merge; see mismatch.json")
@@ -309,7 +326,9 @@ def stats(rows,key):
             "min":round(min(values),4),"max":round(max(values),4),
             "range":round(max(values)-min(values),4)}
 report={
- "status":"PASS_OUTPUTS_IDENTICAL",
+ "status":("PASS_OUTPUTS_IDENTICAL" if cross_revision_identical else "PASS_REPEATABLE_STRATEGY_CHANGE"),
+ "expect_identical_outputs":expect_identical,
+ "cross_revision_outputs_identical":cross_revision_identical,
  "base_sha":BASE_SHA,"candidate_sha":CANDIDATE_SHA,
  "configuration":{"days":ENV["BACKTEST_DAYS"],"symbols":ENV["BACKTEST_SYMBOLS"],
                   "fee_bps_per_side":ENV["BACKTEST_FEE_BPS"],
@@ -332,7 +351,8 @@ report={
           "Same GitHub-hosted runner and Python environment for all samples.",
           "Exact Binance kline HTTP responses are cached and replayed to both revisions.",
           "Wall time includes Python startup; signal_engine stage is the primary optimization metric.",
-          "No signal thresholds, strategy rules, Telegram delivery, or orders are changed."]
+          "Cross-revision exact output parity is required for performance-only changes; strategy-change PRs instead require repeatable outputs within each revision and retain cross-revision differences for outcome review.",
+          "No live scan, Telegram delivery, or orders are performed."]
 }
 progress_path.write_text(json.dumps({"status":"BENCHMARK_COMPARISON_COMPLETE","completed_unix":time.time()},indent=2),encoding="utf-8")
 report["signal_engine_median_improvement_pct"]=round(
@@ -341,4 +361,4 @@ report["signal_engine_median_improvement_pct"]=round(
 ) if report["timings"]["baseline_A"]["signal_engine"]["median"] else None
 (OUT/"report.json").write_text(json.dumps(report,indent=2,default=str),encoding="utf-8")
 print(json.dumps({k:v for k,v in report.items() if k not in ("samples",)},indent=2,default=str),flush=True)
-print("A/B benchmark: PASS (identical outputs)",flush=True)
+print("A/B benchmark: PASS (exact parity)" if cross_revision_identical else "A/B benchmark: PASS (repeatable strategy-change outputs; cross-revision differences retained)",flush=True)
