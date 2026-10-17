@@ -6373,6 +6373,8 @@ def mark_signal_sent(
             "candle_time"
         ),
 
+        **signal_timing_metadata(signal),
+
         "sent_at": now_iran().isoformat()
     }
 
@@ -6396,6 +6398,41 @@ def mark_signal_sent(
             )
 
     return True
+
+
+def signal_timing_metadata(signal, observed_at=None):
+    """Return auditable candle-close timing without changing signal decisions.
+
+    candle_time remains the candle OPEN time for duplicate-key compatibility.
+    Latency is measured from the expected close of that candle to the time
+    this successful-send record is written.
+    """
+    signal = signal if isinstance(signal, dict) else {}
+    candle_open = signal.get("candle_time")
+    timeframe = str(signal.get("signal_timeframe", TIMEFRAME_MAIN)).strip().lower()
+    durations = {
+        "1m": 1, "3m": 3, "5m": 5, "15m": 15, "30m": 30,
+        "1h": 60, "2h": 120, "4h": 240, "6h": 360,
+        "8h": 480, "12h": 720, "1d": 1440, "1w": 10080,
+    }
+    minutes = durations.get(timeframe)
+    if not candle_open or minutes is None:
+        return {"candle_close_time": None, "latency_from_close_minutes": None}
+    try:
+        opened = pd.to_datetime(candle_open, utc=True, errors="raise")
+        closed = opened + pd.Timedelta(minutes=minutes)
+        observed = pd.to_datetime(
+            observed_at if observed_at is not None else now_iran(),
+            utc=True,
+            errors="raise",
+        )
+        latency = (observed - closed).total_seconds() / 60.0
+        return {
+            "candle_close_time": closed.isoformat(),
+            "latency_from_close_minutes": round(latency, 3),
+        }
+    except (TypeError, ValueError, OverflowError):
+        return {"candle_close_time": None, "latency_from_close_minutes": None}
 
 
 # =========================================================
@@ -6496,6 +6533,9 @@ def add_signal_to_history(
         "candle_time": signal.get(
             "candle_time"
         ),
+
+        "signal_timeframe": signal.get("signal_timeframe", TIMEFRAME_MAIN),
+        **signal_timing_metadata(signal),
 
         # Outcome tracker fields. These are filled by future scans and do
         # not affect signal generation or Telegram delivery.
