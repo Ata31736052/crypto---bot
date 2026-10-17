@@ -4448,7 +4448,8 @@ def evaluate_final_signal(
 
         "candle_time": str(
             row["open_time"]
-        )
+        ),
+        "candidate_created_at": now_iran().isoformat()
     })
 
     return result
@@ -6401,13 +6402,32 @@ def mark_signal_sent(
 
 
 def signal_timing_metadata(signal, observed_at=None):
-    """Return auditable candle-close timing without changing signal decisions.
+    """Return candle-close and candidate-to-send timing for audit only.
 
     candle_time remains the candle OPEN time for duplicate-key compatibility.
-    Latency is measured from the expected close of that candle to the time
-    this successful-send record is written.
     """
     signal = signal if isinstance(signal, dict) else {}
+    observed_value = observed_at if observed_at is not None else now_iran()
+    result = {
+        "candle_close_time": None,
+        "latency_from_close_minutes": None,
+        "candidate_to_send_seconds": None,
+    }
+    try:
+        observed = pd.to_datetime(observed_value, utc=True, errors="raise")
+    except (TypeError, ValueError, OverflowError):
+        return result
+
+    candidate_created = signal.get("candidate_created_at")
+    if candidate_created:
+        try:
+            created = pd.to_datetime(candidate_created, utc=True, errors="raise")
+            result["candidate_to_send_seconds"] = round(
+                (observed - created).total_seconds(), 3
+            )
+        except (TypeError, ValueError, OverflowError):
+            pass
+
     candle_open = signal.get("candle_time")
     timeframe = str(signal.get("signal_timeframe", TIMEFRAME_MAIN)).strip().lower()
     durations = {
@@ -6417,22 +6437,17 @@ def signal_timing_metadata(signal, observed_at=None):
     }
     minutes = durations.get(timeframe)
     if not candle_open or minutes is None:
-        return {"candle_close_time": None, "latency_from_close_minutes": None}
+        return result
     try:
         opened = pd.to_datetime(candle_open, utc=True, errors="raise")
         closed = opened + pd.Timedelta(minutes=minutes)
-        observed = pd.to_datetime(
-            observed_at if observed_at is not None else now_iran(),
-            utc=True,
-            errors="raise",
+        result["candle_close_time"] = closed.isoformat()
+        result["latency_from_close_minutes"] = round(
+            (observed - closed).total_seconds() / 60.0, 3
         )
-        latency = (observed - closed).total_seconds() / 60.0
-        return {
-            "candle_close_time": closed.isoformat(),
-            "latency_from_close_minutes": round(latency, 3),
-        }
     except (TypeError, ValueError, OverflowError):
-        return {"candle_close_time": None, "latency_from_close_minutes": None}
+        pass
+    return result
 
 
 # =========================================================
@@ -8038,6 +8053,7 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
         "mtf_adjustment": mtf_adjustment,
         "reasons": reasons,
         "candle_time": str(row.get("open_time")),
+        "candidate_created_at": now_iran().isoformat(),
         "bottom_warning": "Early reversal setup; exact bottom is not confirmed."
     }
 
@@ -8333,6 +8349,7 @@ def build_breakout_signal(symbol, data, breakout, btc_regime=None):
         "btc_regime": btc_regime.get("combined","UNKNOWN") if btc_regime else "UNKNOWN",
         "reasons": breakout.get("reasons",[]) + ([btc.get("reason")] if btc.get("reason") else []),
         "candle_time": str(data["1h"].iloc[-1].get("open_time")),
+        "candidate_created_at": now_iran().isoformat(),
     }
 
 def professional_signal_quality_gate(signal, data, btc_regime=None):
