@@ -8792,7 +8792,7 @@ def detect_setup_forming_1h(symbol, df, now_ms=None):
     alignment and the entry-quality gates are deliberately not prerequisites.
     """
     required = ("open_time", "close_time", "close", "ema9", "macd_hist", "rsi")
-    if df is None or not isinstance(df, pd.DataFrame) or len(df) < 55:
+    if df is None or not isinstance(df, pd.DataFrame) or len(df) < 3:
         return None
     if any(column not in df.columns for column in required):
         return None
@@ -8879,7 +8879,7 @@ def run_setup_forming_self_test():
     open_candle = base.copy()
     open_candle.loc[3, "close_time"] = 6000
     ignored = detect_setup_forming_1h("TESTUSDT", open_candle, now_ms=5000)
-    assert ignored is None, "incomplete candle was used as a setup"
+    assert ignored and ignored["candle_time"] == pd.to_datetime(3000, unit="ms", utc=True).isoformat(), "incomplete candle influenced the warning"
     bearish = base.copy()
     bearish["close"] = [10.3, 10.2, 10.1, 10.0]
     bearish["ema9"] = [10.4, 10.3, 10.2, 10.1]
@@ -8887,6 +8887,9 @@ def run_setup_forming_self_test():
     bearish["rsi"] = [55.0, 54.0, 53.0, 52.0]
     result = detect_setup_forming_1h("TESTUSDT", bearish, now_ms=5000)
     assert result and result["side"] == "SELL_WATCH"
+    message = format_setup_forming_warning(bullish)
+    assert "NOT a BUY/SELL entry signal" in message
+    assert "Stop loss" not in message and "Take profit" not in message
     return True
 
 
