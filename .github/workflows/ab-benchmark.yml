@@ -19,8 +19,9 @@ on:
 permissions:
   contents: read
 concurrency:
+  # A newer commit supersedes stale benchmark runs for the same PR.
   group: controlled-ab-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   ab-benchmark:
     runs-on: ubuntu-latest
