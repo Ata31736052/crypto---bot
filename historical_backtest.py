@@ -516,6 +516,43 @@ def last_closed_index(h1, clock):
     return int(close_ns.searchsorted(clock.value, side="left")) - 1
 
 
+def forward_outcome_diagnostics(h1, entry_i, side, entry):
+    """Measure 1h/2h mark-to-market entry quality independently of strategy exits."""
+    side = str(side).upper()
+    slip = max(0.0, SLIPPAGE_BPS) / 10000.0
+    fee_pct = 2.0 * max(0.0, FEE_BPS) / 100.0
+    out = {}
+    for hours in (1, 2):
+        end_i = entry_i + hours - 1
+        prefix = f"forward_{hours}h"
+        keys = (f"{prefix}_net_pct", f"mfe_{hours}h_net_pct", f"mae_{hours}h_net_pct")
+        if entry_i < 0 or end_i >= len(h1) or entry <= 0:
+            out.update({key: None for key in keys})
+            continue
+        window = h1.iloc[entry_i:end_i + 1]
+        if not all(math.isfinite(float(window.iloc[j][col]))
+                   for j in range(len(window)) for col in ("high", "low", "close")):
+            out.update({key: None for key in keys})
+            continue
+        close = float(window.iloc[-1].close)
+        close_fill = close * (1.0 - slip if side == "BUY" else 1.0 + slip)
+        close_gross = ((close_fill - entry) / entry * 100.0) if side == "BUY" else ((entry - close_fill) / entry * 100.0)
+        if side == "BUY":
+            favorable = float(pd.to_numeric(window["high"], errors="coerce").max())
+            adverse = float(pd.to_numeric(window["low"], errors="coerce").min())
+        else:
+            favorable = float(pd.to_numeric(window["low"], errors="coerce").min())
+            adverse = float(pd.to_numeric(window["high"], errors="coerce").max())
+        favorable_fill = favorable * (1.0 - slip if side == "BUY" else 1.0 + slip)
+        adverse_fill = adverse * (1.0 - slip if side == "BUY" else 1.0 + slip)
+        mfe_gross = ((favorable_fill - entry) / entry * 100.0) if side == "BUY" else ((entry - favorable_fill) / entry * 100.0)
+        mae_gross = ((adverse_fill - entry) / entry * 100.0) if side == "BUY" else ((entry - adverse_fill) / entry * 100.0)
+        out[keys[0]] = round(close_gross - fee_pct, 4)
+        out[keys[1]] = round(mfe_gross - fee_pct, 4)
+        out[keys[2]] = round(mae_gross - fee_pct, 4)
+    return out
+
+
 def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=None,evaluation_time=None):
     row=h1.iloc[entry_i]
     raw_entry=float(row.open)
@@ -562,6 +599,7 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
     fee_cost_pct=2.0*max(0.0,FEE_BPS)/100.0
     slippage_cost_pct=max(0.0,raw_gross-gross)
     risk_cost_pct=fee_cost_pct+2.0*max(0.0,SLIPPAGE_BPS)/100.0
+    forward_metrics=forward_outcome_diagnostics(h1, entry_i, side, entry)
     path=[]
     for k in range(entry_i, xi+1):
         candle=h1.iloc[k]
@@ -573,7 +611,7 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
             "fee_cost_pct":round(fee_cost_pct,4),"slippage_cost_pct":round(slippage_cost_pct,4),
             "slippage_bps_per_side":SLIPPAGE_BPS,"cost_pct":round(fee_cost_pct,4),
             "risk_cost_pct":round(risk_cost_pct,4),"net_pct":round(gross-fee_cost_pct,4),
-            "bars_held":xi-entry_i,"score":score,"strength":strength,"_path":path},xi
+            "bars_held":xi-entry_i,"score":score,"strength":strength,**forward_metrics,"_path":path},xi
 
 def closed_prefix(df, decision_time, limit=None):
     """Select the same closed-candle prefix via a sorted timestamp index (O(log n))."""
@@ -694,6 +732,21 @@ def simulate_self_test():
     assert abs(sell_trade["entry"]-expected_sell_entry) < 1e-9, "SELL entry must include adverse slippage"
     assert abs(sell_trade["exit"]-expected_sell_exit) < 1e-9, "SELL exit fill must include adverse slippage"
     assert sell_trade["net_pct"] < sell_trade["raw_gross_pct"], "SELL slippage must worsen realized return"
+    # Verify 1h/2h forward outcomes are independent of the later TP exit.
+    forward_frame = pd.DataFrame([
+        {"open_time":pd.Timestamp("2026-10-01T01:00:00Z"),"close_time":pd.Timestamp("2026-10-01T01:59:59.999Z"),"open":100.0,"high":101.5,"low":99.5,"close":101.0,"volume":10.0},
+        {"open_time":pd.Timestamp("2026-10-01T02:00:00Z"),"close_time":pd.Timestamp("2026-10-01T02:59:59.999Z"),"open":101.0,"high":102.0,"low":100.0,"close":101.5,"volume":10.0},
+        {"open_time":pd.Timestamp("2026-10-01T03:00:00Z"),"close_time":pd.Timestamp("2026-10-01T03:59:59.999Z"),"open":101.5,"high":105.0,"low":100.0,"close":104.0,"volume":10.0},
+    ])
+    forward_trade, _ = simulate("TESTUSDT", "BUY", signal_time, 0, forward_frame, 1.0, 95, "TEST",
+                                {"entry":100.0,"stop_loss":98.0},
+                                evaluation_time=pd.Timestamp("2026-10-01T04:00:00Z"))
+    assert forward_trade is not None and forward_trade["exit_reason"] == "TP1"
+    assert forward_trade["forward_1h_net_pct"] is not None
+    assert forward_trade["forward_2h_net_pct"] is not None
+    assert forward_trade["mfe_1h_net_pct"] > forward_trade["forward_1h_net_pct"]
+    assert forward_trade["mae_1h_net_pct"] < forward_trade["forward_1h_net_pct"]
+    print("FORWARD_ENTRY_OUTCOME_SELF_TEST: PASS")
     stop_conflict = candle.copy()
     stop_conflict.loc[0, "low"] = 97.0
     trade, _ = simulate("TESTUSDT", "BUY", signal_time, 0, stop_conflict, 1.0, 95, "TEST",
@@ -709,7 +762,8 @@ def summarize_entry_timing(trades):
         "directional_move_6h_pct", "directional_move_12h_pct",
         "directional_move_24h_pct", "ema21_extension_atr",
         "room_to_obstacle_atr", "range_position_20", "atr_pct",
-        "rsi", "adx", "volume_ratio",
+        "rsi", "adx", "volume_ratio", "forward_1h_net_pct", "mfe_1h_net_pct", "mae_1h_net_pct",
+        "forward_2h_net_pct", "mfe_2h_net_pct", "mae_2h_net_pct",
     )
     if not trades:
         return {"status": "NO_TRADES", "groups": {}}
@@ -738,6 +792,7 @@ def summarize_entry_timing(trades):
                     "p75": round(float(values.quantile(0.75)), 4),
                     "p90": round(float(values.quantile(0.90)), 4),
                     "max": round(float(values.max()), 4),
+                    "min": round(float(values.min()), 4),
                 }
         if "entry_guard_allowed" in part:
             guard = part["entry_guard_allowed"].astype(str).str.lower().isin(("true", "1", "yes"))
@@ -745,7 +800,7 @@ def summarize_entry_timing(trades):
         groups[key] = stats
     return {
         "status": "COMPLETED",
-        "note": "Descriptive signal-time statistics only; no threshold selection and no production veto.",
+        "note": "Descriptive per-engine candidate-stream statistics only; 1h/2h returns are mark-to-market after estimated round-trip fees and slippage, independent of stop/target exits; no threshold selection and no production veto.",
         "groups": groups,
     }
 
@@ -941,7 +996,7 @@ def run():
                     print(f"TRADE {sym} {side} {trade['signal_time']} engine={trade['engine']} net={trade['net_pct']}% {trade['exit_reason']}",flush=True)
         except Exception as exc:
             errors.append({"symbol":sym,"error":str(exc)}); print("ERROR",sym,exc,flush=True)
-    columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason"]
+    columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason","forward_1h_net_pct","mfe_1h_net_pct","mae_1h_net_pct","forward_2h_net_pct","mfe_2h_net_pct","mae_2h_net_pct"]
     pd.DataFrame(trades,columns=columns).to_csv(OUT/"trades.csv",index=False)
     vals=[float(t["net_pct"]) for t in trades]
     portfolio_ledger_self_test(OUT)
@@ -990,7 +1045,7 @@ def run():
     perf["total_instrumented_seconds"]=round(sum(perf["stage_seconds"].values()),4)
     # Linux GitHub-hosted runners report ru_maxrss in KiB; diagnostics only.
     perf["peak_rss_kib"]=int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-    summary={"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"trend_buy_sell_portfolio_comparison":trend_side_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"adverse slippage applied to entry and exit fill prices; round-trip fees deducted separately; sizing reserves fees plus estimated round-trip slippage","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"entry_timing_diagnostics":summarize_entry_timing(trades),"errors":errors}
+    summary={"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"trend_buy_sell_portfolio_comparison":trend_side_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"adverse slippage applied to entry and exit fill prices; round-trip fees deducted separately; sizing reserves fees plus estimated round-trip slippage","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"entry_timing_diagnostics":summarize_entry_timing([t for stream in engine_candidate_trades.values() for t in stream]),"errors":errors}
     (OUT/"summary.json").write_text(json.dumps(summary,indent=2),encoding="utf-8"); print(json.dumps(summary,indent=2),flush=True)
     if not trades: raise SystemExit("No trades produced; do not infer profitability.")
 if __name__=="__main__": run()
