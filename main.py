@@ -8781,6 +8781,115 @@ def _log_selected_engine_diagnostic(signal):
     )
     return True
 
+
+# =========================================================
+# SETUP FORMING: EARLY WARNING ONLY (1H CLOSED CANDLES)
+# =========================================================
+def detect_setup_forming_1h(symbol, df, now_ms=None):
+    """Return an early directional WATCH, never an entry signal.
+
+    Uses only fully closed 1H candles and local 1H evidence. Daily/4H
+    alignment and the entry-quality gates are deliberately not prerequisites.
+    """
+    required = ("open_time", "close_time", "close", "ema9", "macd_hist", "rsi")
+    if df is None or not isinstance(df, pd.DataFrame) or len(df) < 55:
+        return None
+    if any(column not in df.columns for column in required):
+        return None
+    now_ms = int(now_ms if now_ms is not None else time.time() * 1000)
+    try:
+        closed = df.loc[pd.to_numeric(df["close_time"], errors="coerce") <= now_ms].copy()
+        if len(closed) < 3:
+            return None
+        last3 = closed.tail(3)
+        prev, last = last3.iloc[-2], last3.iloc[-1]
+        vals = {}
+        for name in ("close", "ema9", "macd_hist", "rsi"):
+            vals[name] = [safe_float(x, float("nan")) for x in last3[name].tolist()]
+        if not all(np.isfinite(x) for series in vals.values() for x in series):
+            return None
+        close, ema9 = vals["close"][-1], vals["ema9"][-1]
+        macd = vals["macd_hist"]
+        rsi = vals["rsi"]
+        bull_evidence = [
+            close > ema9,
+            vals["ema9"][-1] > vals["ema9"][-2],
+            vals["ema9"][-2] > vals["ema9"][-3],
+            macd[-1] > macd[-2],
+            rsi[-1] > rsi[-2],
+        ]
+        bear_evidence = [
+            close < ema9,
+            vals["ema9"][-1] < vals["ema9"][-2],
+            vals["ema9"][-2] < vals["ema9"][-3],
+            macd[-1] < macd[-2],
+            rsi[-1] < rsi[-2],
+        ]
+        # A watch requires directional price location plus 2 of 4 supporting
+        # early clues. This is intentionally looser than entry qualification.
+        if bull_evidence[0] and sum(bull_evidence) >= 3:
+            side, count = "BUY_WATCH", sum(bull_evidence)
+        elif bear_evidence[0] and sum(bear_evidence) >= 3:
+            side, count = "SELL_WATCH", sum(bear_evidence)
+        else:
+            return None
+        candle_time = pd.to_datetime(int(last["open_time"]), unit="ms", utc=True).isoformat()
+        return {
+            "symbol": str(symbol).upper(),
+            "side": side,
+            "candle_time": candle_time,
+            "close": close,
+            "evidence_count": count,
+            "message_type": "SETUP_FORMING",
+        }
+    except Exception:
+        return None
+
+
+def format_setup_forming_warning(watch):
+    """Human-readable alert with no entry instruction or trade levels."""
+    side_label = "Potential bullish setup" if watch.get("side") == "BUY_WATCH" else "Potential bearish setup"
+    price = safe_float(watch.get("close"), 0.0)
+    return (
+        "🔔 <b>SETUP FORMING — EARLY WARNING</b>\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        f"🪙 <b>{telegram_escape(watch.get('symbol', 'UNKNOWN'))}</b>\n"
+        f"📍 {side_label} detected on the 1H timeframe\n"
+        f"💰 Last closed-candle price: {price:.8g}\n"
+        f"🧩 Early clues: {safe_int(watch.get('evidence_count', 0))}/5\n\n"
+        "⚠️ Watch only — NOT a BUY/SELL entry signal.\n"
+        "Wait for the separate entry system to confirm conditions."
+    )
+
+
+def run_setup_forming_self_test():
+    """Deterministic regression tests: direction, closed-candle and no-entry semantics."""
+    base = pd.DataFrame({
+        "open_time": [1000, 2000, 3000, 4000],
+        "close_time": [1500, 2500, 3500, 4500],
+        "close": [10.0, 10.1, 10.2, 10.3],
+        "ema9": [9.8, 9.9, 10.0, 10.1],
+        "macd_hist": [-0.3, -0.2, -0.1, 0.0],
+        "rsi": [45.0, 46.0, 47.0, 48.0],
+    })
+    bullish = detect_setup_forming_1h("TESTUSDT", base, now_ms=5000)
+    assert bullish and bullish["side"] == "BUY_WATCH"
+    assert bullish["message_type"] == "SETUP_FORMING"
+    # A not-yet-closed last candle must not influence the result.
+    open_candle = base.copy()
+    open_candle.loc[3, "close_time"] = 6000
+    ignored = detect_setup_forming_1h("TESTUSDT", open_candle, now_ms=5000)
+    assert ignored is None, "incomplete candle was used as a setup"
+    bearish = base.copy()
+    bearish["close"] = [10.3, 10.2, 10.1, 10.0]
+    bearish["ema9"] = [10.4, 10.3, 10.2, 10.1]
+    bearish["macd_hist"] = [0.3, 0.2, 0.1, 0.0]
+    bearish["rsi"] = [55.0, 54.0, 53.0, 52.0]
+    result = detect_setup_forming_1h("TESTUSDT", bearish, now_ms=5000)
+    assert result and result["side"] == "SELL_WATCH"
+    return True
+
+
 def analyze_one_symbol(symbol, btc_regime):
     """Run Trend, Reversal and Breakout independently; select the strongest
     valid 1H engine while also returning independent 4H/Daily signals.
@@ -8799,6 +8908,7 @@ def analyze_one_symbol(symbol, btc_regime):
         if df_1h is None or df_30m is None:
             return {"ok": False, "symbol": symbol, "signal": None, "error": "Required 1H/30M data unavailable"}
 
+        setup_forming = detect_setup_forming_1h(symbol, df_1h)
         mtf_context = get_mtf_context(data)
         bottom_diagnostic = {}
         trace = {
@@ -9020,7 +9130,7 @@ def analyze_one_symbol(symbol, btc_regime):
             trace["status"] = "ACCEPTED"
             trace["selected"] = {"engine": selected.get("engine"), "side": selected.get("signal"), "score": selected.get("score")}
             trace["final_rejection"] = None
-            return {"ok": True, "symbol": symbol, "signal": selected, "higher_signals": higher_signals, "bottom_diagnostic": bottom_diagnostic, "symbol_trace": trace}
+            return {"ok": True, "symbol": symbol, "signal": selected, "higher_signals": higher_signals, "bottom_diagnostic": bottom_diagnostic, "symbol_trace": trace, "setup_forming": setup_forming}
         # Final rejection is deliberately distinct from first_rejection.
         final_reasons = []
         for engine_name in ("trend", "reversal", "breakout"):
@@ -9032,7 +9142,7 @@ def analyze_one_symbol(symbol, btc_regime):
             else:
                 final_reasons = ["NO_QUALIFIED_ENGINE"]
         trace["final_rejection"] = list(dict.fromkeys(str(x) for x in final_reasons))[:12]
-        return {"ok": True, "symbol": symbol, "signal": None, "higher_signals": higher_signals, "reason": "No qualified Trend, Reversal or Breakout setup", "bottom_diagnostic": bottom_diagnostic, "symbol_trace": trace}
+        return {"ok": True, "symbol": symbol, "signal": None, "higher_signals": higher_signals, "reason": "No qualified Trend, Reversal or Breakout setup", "bottom_diagnostic": bottom_diagnostic, "symbol_trace": trace, "setup_forming": setup_forming}
     except Exception as e:
         log(f"Symbol error {symbol}: {e}")
         if DEBUG_MODE: traceback.print_exc()
@@ -9513,6 +9623,7 @@ def scan_market():
 
     candidates = []
     symbol_trace_records = []
+    setup_forming_warnings = []
 
     for index, symbol in enumerate(
         coins,
@@ -9540,6 +9651,10 @@ def scan_market():
             continue
 
         scan["checked"] += 1
+
+        watch = result.get("setup_forming")
+        if isinstance(watch, dict):
+            setup_forming_warnings.append(watch)
 
         trace = result.get("symbol_trace")
         if isinstance(trace, dict):
@@ -9604,6 +9719,29 @@ def scan_market():
         for higher_signal in result.get("higher_signals", []):
             if higher_signal.get("strength") == "STRONG":
                 scan["strong_signals"] += 1
+
+    # =====================================================
+    # 4.5 SETUP FORMING WARNINGS (NOT ACTIONABLE SIGNALS)
+    # =====================================================
+    sent_watches = state.setdefault("last_setup_forming", {})
+    if not isinstance(sent_watches, dict):
+        sent_watches = {}
+        state["last_setup_forming"] = sent_watches
+    for watch in setup_forming_warnings:
+        key = "|".join((watch["symbol"], watch["side"], watch["candle_time"]))
+        if key in sent_watches:
+            continue
+        if send_telegram_message(format_setup_forming_warning(watch)):
+            sent_watches[key] = {
+                "sent_at": now_iran().isoformat(),
+                "evidence_count": safe_int(watch.get("evidence_count", 0)),
+            }
+            log(f"SETUP_FORMING_WARNING_SENT {watch['symbol']} {watch['side']} candle={watch['candle_time']}")
+        else:
+            log(f"SETUP_FORMING_WARNING_NOT_SENT {watch['symbol']} {watch['side']}")
+    # Keep the deduplication ledger bounded.
+    if len(sent_watches) > 1500:
+        state["last_setup_forming"] = dict(list(sent_watches.items())[-1000:])
 
     # =====================================================
     # 5. SORT / SEPARATE BOTTOM HUNTER
