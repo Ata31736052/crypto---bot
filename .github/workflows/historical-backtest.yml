@@ -1,7 +1,12 @@
 name: Historical Binance Backtest | 180D | Offline Signals
-# Manual only: the controlled A/B workflow already runs the fixed-window replay
-# repeatedly on one runner; a second automatic 180D replay duplicates load and evidence.
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'main.py'
+      - 'historical_backtest.py'
+      - 'portfolio_ledger.py'
+      - '.github/workflows/historical-backtest.yml'
   workflow_dispatch:
     inputs:
       days:
