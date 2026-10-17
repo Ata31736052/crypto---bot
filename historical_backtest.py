@@ -800,8 +800,6 @@ def summarize_setup_forming(episodes, frames_by_symbol, actionable_signals, fee_
             row["matching_entry_fill"] = entry_fill
 
     def horizon_stats(horizon):
-
-    def horizon_stats(horizon):
         complete = [r for r in rows if r.get(f"full_{horizon}h") and r.get(f"mfe_{horizon}h_pct") is not None]
         mfe = [r[f"mfe_{horizon}h_pct"] for r in complete]
         mae = [r[f"mae_{horizon}h_pct"] for r in complete]
