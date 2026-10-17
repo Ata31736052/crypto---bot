@@ -9749,28 +9749,9 @@ def scan_market():
             if higher_signal.get("strength") == "STRONG":
                 scan["strong_signals"] += 1
 
-    # =====================================================
-    # 4.5 SETUP FORMING WARNINGS (NOT ACTIONABLE SIGNALS)
-    # =====================================================
-    sent_watches = state.setdefault("last_setup_forming", {})
-    if not isinstance(sent_watches, dict):
-        sent_watches = {}
-        state["last_setup_forming"] = sent_watches
-    for watch in setup_forming_warnings:
-        key = "|".join((watch["symbol"], watch["side"], watch["candle_time"]))
-        if key in sent_watches:
-            continue
-        if send_telegram_message(format_setup_forming_warning(watch)):
-            sent_watches[key] = {
-                "sent_at": now_iran().isoformat(),
-                "evidence_count": safe_int(watch.get("evidence_count", 0)),
-            }
-            log(f"SETUP_FORMING_WARNING_SENT {watch['symbol']} {watch['side']} candle={watch['candle_time']}")
-        else:
-            log(f"SETUP_FORMING_WARNING_NOT_SENT {watch['symbol']} {watch['side']}")
-    # Keep the deduplication ledger bounded.
-    if len(sent_watches) > 1500:
-        state["last_setup_forming"] = dict(list(sent_watches.items())[-1000:])
+    # Setup Forming delivery is intentionally handled ONLY by setup_forming_scan.py.
+    # Keep this main 1H/30M signal scan entry-focused to prevent duplicate warning
+    # sends from two independent state files and schedules.
 
     # =====================================================
     # 5. SORT / SEPARATE BOTTOM HUNTER
