@@ -44,6 +44,12 @@ jobs:
           set -euo pipefail
           python -m py_compile main.py setup_forming_scan.py
           python - <<'PY'
+          from pathlib import Path
+          main_source = Path("main.py").read_text(encoding="utf-8")
+          scanner_source = Path("setup_forming_scan.py").read_text(encoding="utf-8")
+          assert "SETUP_FORMING_WARNING_SENT" not in main_source, "duplicate Setup Forming sender remains in main.py"
+          assert 'main.send_telegram_message(main.format_setup_forming_warning(watch))' in scanner_source
+          print("Single production Setup Forming sender check: PASS")
           import main
           assert main.run_setup_forming_self_test() is True
           import setup_forming_scan
