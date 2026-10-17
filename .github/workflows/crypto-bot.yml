@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   pull_request:
   schedule:
-    - cron: '7 * * * *'
+    - cron: '7,37 * * * *'
       timezone: 'Asia/Tehran'
 
 concurrency:
