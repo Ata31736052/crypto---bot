@@ -48,6 +48,7 @@ jobs:
           import setup_forming_scan
           assert callable(setup_forming_scan.load_state)
           assert callable(setup_forming_scan.save_state)
+          assert setup_forming_scan.dedupe_episode_self_test() is True
           print("Setup Forming standalone scanner compile and regression tests: PASS")
           PY
 
