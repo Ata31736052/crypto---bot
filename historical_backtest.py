@@ -703,6 +703,179 @@ def simulate_self_test():
     return True
 
 
+
+def summarize_setup_forming(episodes, frames_by_symbol, actionable_signals, fee_bps=10.0, slippage_bps=5.0):
+    """Evaluate warning episodes against future 1H candles and later executable signals.
+
+    Indicators and warnings are generated from closed-candle prefixes only. Forward
+    high/low excursions are outcomes, never inputs to the warning detector.
+    """
+    import statistics
+    cost_pct = 2.0 * (max(0.0, float(fee_bps)) + max(0.0, float(slippage_bps))) / 100.0
+    rows = []
+    for ep in episodes:
+        symbol = ep["symbol"]
+        frame = frames_by_symbol[symbol]
+        idx = int(ep["candle_index"])
+        price = float(ep["warning_price"])
+        buy = ep["side"] == "BUY_WATCH"
+        row = dict(ep)
+        for horizon in (6, 12, 24):
+            future = frame.iloc[idx + 1:idx + 1 + horizon]
+            row[f"bars_{horizon}h"] = len(future)
+            row[f"full_{horizon}h"] = len(future) == horizon
+            if future.empty or not math.isfinite(price) or price <= 0:
+                row[f"mfe_{horizon}h_pct"] = None
+                row[f"mae_{horizon}h_pct"] = None
+                row[f"net_mfe_{horizon}h_pct"] = None
+                continue
+            if buy:
+                mfe = (float(future["high"].max()) / price - 1.0) * 100.0
+                mae = (float(future["low"].min()) / price - 1.0) * 100.0
+            else:
+                mfe = (price / float(future["low"].min()) - 1.0) * 100.0
+                mae = (price / float(future["high"].max()) - 1.0) * 100.0
+            row[f"mfe_{horizon}h_pct"] = round(mfe, 4)
+            row[f"mae_{horizon}h_pct"] = round(mae, 4)
+            row[f"net_mfe_{horizon}h_pct"] = round(mfe - cost_pct, 4)
+
+        # Simple path-order check: first +/-1% barrier within 24 hours.
+        future24 = frame.iloc[idx + 1:idx + 25]
+        row["full_24h"] = len(future24) == 24
+        outcome = "INCOMPLETE_24H_WINDOW"
+        if len(future24) == 24:
+            outcome = "NO_BARRIER_24H"
+            target = price * (1.01 if buy else 0.99)
+            stop = price * (0.99 if buy else 1.01)
+            for candle in future24.itertuples(index=False):
+                high, low = float(candle.high), float(candle.low)
+                adverse_hit = low <= stop if buy else high >= stop
+                favorable_hit = high >= target if buy else low <= target
+                if adverse_hit:  # pessimistic ordering if both levels touch in one candle
+                    outcome = "ADVERSE_FIRST_1PCT"
+                    break
+                if favorable_hit:
+                    outcome = "FAVORABLE_FIRST_1PCT"
+                    break
+        row["barrier_outcome_24h"] = outcome
+        # Matching is assigned in a separate one-to-one pass after all episodes
+        # are built, so one actionable signal cannot inflate multiple warnings.
+        row["matching_entry_within_24h"] = False
+        row["entry_lead_hours"] = None
+        row["warning_price_advantage_pct"] = None
+        row["matching_entry_time"] = None
+        row["matching_entry_fill"] = None
+        rows.append(row)
+
+    # Deduplicate actionable signal records and assign each signal to at most one
+    # warning episode: earliest eligible same-symbol/same-side warning first.
+    unique_signals = {}
+    for sig in actionable_signals:
+        key = (str(sig["symbol"]).upper(), str(sig["side"]).upper(), str(sig["signal_time"]))
+        unique_signals.setdefault(key, sig)
+    used_signal_keys = set()
+    for row in sorted(rows, key=lambda item: (str(item["warning_time"]), item["symbol"], item["side"])):
+        buy = row["side"] == "BUY_WATCH"
+        side = "BUY" if buy else "SELL"
+        warning_time = pd.Timestamp(row["warning_time"])
+        price = float(row["warning_price"])
+        matching = []
+        for key, sig in unique_signals.items():
+            if key in used_signal_keys or key[0] != str(row["symbol"]).upper() or key[1] != side:
+                continue
+            sig_time = pd.Timestamp(sig["signal_time"])
+            delta_hours = (sig_time - warning_time).total_seconds() / 3600.0
+            if 0.0 <= delta_hours <= 24.0:
+                matching.append((delta_hours, key, sig))
+        if matching:
+            lead_hours, signal_key, sig = min(matching, key=lambda item: (item[0], item[1][2]))
+            used_signal_keys.add(signal_key)
+            entry_fill = float(sig["entry_fill"])
+            price_advantage = ((entry_fill / price - 1.0) * 100.0 if buy
+                               else (price / entry_fill - 1.0) * 100.0)
+            row["matching_entry_within_24h"] = True
+            row["entry_lead_hours"] = round(lead_hours, 3)
+            row["warning_price_advantage_pct"] = round(price_advantage, 4)
+            row["matching_entry_time"] = sig["signal_time"]
+            row["matching_entry_fill"] = entry_fill
+
+    def horizon_stats(horizon):
+        complete = [r for r in rows if r.get(f"full_{horizon}h") and r.get(f"mfe_{horizon}h_pct") is not None]
+        mfe = [r[f"mfe_{horizon}h_pct"] for r in complete]
+        mae = [r[f"mae_{horizon}h_pct"] for r in complete]
+        net_mfe = [r[f"net_mfe_{horizon}h_pct"] for r in complete]
+        return {
+            "complete_episodes": len(complete),
+            "median_max_favorable_excursion_pct": round(statistics.median(mfe), 4) if mfe else None,
+            "median_max_adverse_excursion_pct": round(statistics.median(mae), 4) if mae else None,
+            "pct_with_favorable_excursion_exceeding_round_trip_cost": round(sum(x > 0 for x in net_mfe) / len(net_mfe) * 100, 2) if net_mfe else None,
+        }
+    matched = [r for r in rows if r.get("matching_entry_within_24h")]
+    return {
+        "warning_candle_count": int(sum(int(ep.get("warning_candles_in_episode", 1)) for ep in episodes)),
+        "episode_count": len(rows),
+        "round_trip_cost_estimate_pct": round(cost_pct, 4),
+        "horizons": {f"{h}h": horizon_stats(h) for h in (6, 12, 24)},
+        "episodes_with_same_side_entry_within_24h": len(matched),
+        "median_hours_warning_to_entry": round(statistics.median([r["entry_lead_hours"] for r in matched]), 3) if matched else None,
+        "median_warning_price_advantage_at_entry_pct": round(statistics.median([r["warning_price_advantage_pct"] for r in matched]), 4) if matched else None,
+        "unique_actionable_signals": len(unique_signals),
+        "one_to_one_warning_entry_matches": len(matched),
+        "unmatched_unique_actionable_signals": len(unique_signals) - len(used_signal_keys),
+        "barrier_outcomes_24h": {
+            "complete_episodes": sum(r.get("full_24h", False) for r in rows),
+            **{name: sum(r.get("full_24h", False) and r.get("barrier_outcome_24h") == name for r in rows)
+               for name in ("FAVORABLE_FIRST_1PCT", "ADVERSE_FIRST_1PCT", "NO_BARRIER_24H")},
+            "incomplete_episodes_excluded": sum(not r.get("full_24h", False) for r in rows),
+        },
+        "interpretation": "Excursion statistics are descriptive, not realized strategy returns. Barrier counts include only episodes with a complete 24h forward window; same-candle +/-1% conflict is counted adverse-first. Entry matching is deduplicated and one-to-one. Estimated round-trip fee+slippage is deducted from MFE only.",
+        "episodes": rows,
+    }
+
+
+def setup_forming_metrics_self_test():
+    """Deterministic no-lookahead/outcome calculations for the early-warning replay."""
+    idx = pd.date_range("2026-01-01", periods=30, freq="h", tz="UTC")
+    frame = pd.DataFrame({
+        "open_time": idx,
+        "close_time": idx + pd.Timedelta(minutes=59, seconds=59, milliseconds=999),
+        "open": [100.0] * 30,
+        "high": [100.0] + [102.0] * 29,
+        "low": [100.0] + [99.5] * 29,
+        "close": [100.0] * 30,
+        "volume": [1.0] * 30,
+    })
+    episodes = [{"symbol":"TESTUSDT","side":"BUY_WATCH","candle_index":0,
+                 "warning_time":str(frame.iloc[0]["close_time"]),"warning_price":100.0,
+                 "evidence_count":3,"warning_candles_in_episode":1}]
+    signals = [{"symbol":"TESTUSDT","side":"BUY","signal_time":str(frame.iloc[2]["close_time"]),
+                "entry_fill":100.2}]
+    report = summarize_setup_forming(episodes, {"TESTUSDT":frame}, signals, 10, 5)
+    assert report["episode_count"] == 1
+    assert report["horizons"]["6h"]["complete_episodes"] == 1
+    assert report["episodes_with_same_side_entry_within_24h"] == 1
+    assert report["one_to_one_warning_entry_matches"] == 1
+    assert report["unique_actionable_signals"] == 1
+    assert report["barrier_outcomes_24h"]["FAVORABLE_FIRST_1PCT"] == 1
+    assert report["episodes"][0]["entry_lead_hours"] == 2.0
+
+    # A single actionable entry may be matched to at most one warning episode.
+    second_episode = dict(episodes[0], candle_index=1,
+                          warning_time=str(frame.iloc[1]["close_time"]),
+                          warning_price=100.0)
+    repeated = summarize_setup_forming([episodes[0], second_episode],
+                                       {"TESTUSDT": frame}, signals, 10, 5)
+    assert repeated["one_to_one_warning_entry_matches"] == 1
+    assert repeated["episodes_with_same_side_entry_within_24h"] == 1
+    # Partial 24h forward windows must not be counted as NO_BARRIER or +/-1% outcomes.
+    short_frame = frame.iloc[:10].copy()
+    partial = summarize_setup_forming(episodes, {"TESTUSDT": short_frame}, signals, 10, 5)
+    assert partial["barrier_outcomes_24h"]["complete_episodes"] == 0
+    assert partial["barrier_outcomes_24h"]["incomplete_episodes_excluded"] == 1
+    assert partial["barrier_outcomes_24h"]["NO_BARRIER_24H"] == 0
+    print("SETUP_FORMING_HISTORICAL_METRICS_SELF_TEST: PASS")
+    return True
+
 def run():
     # Fixed UTC end lets baseline and experiment use identical closed-candle windows.
     end_raw = os.getenv("BACKTEST_END_TIME", "").strip()
@@ -716,7 +889,7 @@ def run():
     else:
         end = pd.Timestamp.now(tz="UTC").floor("h")
     start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
-    trades=[]; engine_candidate_trades={}; errors=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
+    trades=[]; engine_candidate_trades={}; errors=[]; setup_episodes=[]; setup_frames={}; actionable_signals=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
     perf={"stage_seconds":{},"counters":{"candle_steps":0,"timeframe_index_lookups":0,"rows_materialized":0,"btc_regime_lookups":0,"engine_calls":0}}
     # ENGINE_INTERNAL_PROFILE: profile exactly one real production-engine invocation.
     # This is offline-only instrumentation; no signal, score, or trade decision is changed.
@@ -759,14 +932,37 @@ def run():
             validate_warmup(frames, start, sym)
             h1=frames["1h"]
             validate_boundary_execution_candle(h1, end)
+            # Indicator values are causal (EMA/MACD/RSI use current and prior candles).
+            # Each detector call below receives only the last three closed candles.
+            setup_frames[sym] = h1
+            setup_indicator_frame = main.add_indicators(h1)
             idx=max(220,int(h1.open_time.searchsorted(start)))
             baseline_last_exit=idx-1
             engine_last_exit={}
+            last_setup_side = None
             for i in replay_signal_indices(h1, idx, end):
                 t_step=time.perf_counter()
                 c=h1.iloc[i]; close_time=c.close_time
                 if close_time<start: continue
                 perf["counters"]["candle_steps"] += 1
+                # Historical Setup Forming replay: no higher-timeframe data or future
+                # candles are passed into the detector. Consecutive same-side watches
+                # form one episode rather than inflating counts every hour.
+                watch = main.detect_setup_forming_1h(
+                    sym, setup_indicator_frame.iloc[max(0, i - 2):i + 1],
+                    now_ms=int(pd.Timestamp(close_time).timestamp() * 1000)
+                )
+                watch_side = watch.get("side") if isinstance(watch, dict) else None
+                if watch_side and watch_side != last_setup_side:
+                    setup_episodes.append({
+                        "symbol": sym, "side": watch_side, "candle_index": int(i),
+                        "warning_time": str(close_time), "warning_price": float(c["close"]),
+                        "evidence_count": int(watch.get("evidence_count", 0)),
+                        "warning_candles_in_episode": 1,
+                    })
+                elif watch_side and setup_episodes and setup_episodes[-1]["symbol"] == sym and setup_episodes[-1]["side"] == watch_side:
+                    setup_episodes[-1]["warning_candles_in_episode"] += 1
+                last_setup_side = watch_side
                 data={}
                 for tf,df in frames.items():
                     if not df.empty:
@@ -848,6 +1044,16 @@ def run():
                         diagnostics["first_no_signal_reasons"].append({"symbol":sym,"time":str(close_time),"first_rejection":trace.get("first_rejection"),"final_rejection":trace.get("final_rejection"),"error":scan.get("error") if isinstance(scan,dict) else "invalid scan result"})
                     continue
 
+                # Record every qualified directional candidate for comparison with
+                # earlier Setup Forming episodes; use next-bar open plus adverse slippage.
+                if i + 1 < len(h1):
+                    next_open = float(h1.iloc[i + 1]["open"])
+                    for candidate in candidates:
+                        side = str(candidate.get("signal", "")).upper()
+                        if side not in ("BUY", "SELL"):
+                            continue
+                        entry_fill = next_open * (1.0 + SLIPPAGE_BPS / 10000.0 if side == "BUY" else 1.0 - SLIPPAGE_BPS / 10000.0)
+                        actionable_signals.append({"symbol": sym, "side": side, "signal_time": str(close_time), "entry_fill": entry_fill})
                 # Build independent candidate streams: choose the strongest candidate
                 # within each engine at this timestamp, not one global winner. This avoids
                 # contaminating TREND-vs-REVERSAL results with cross-engine selection bias.
@@ -943,7 +1149,10 @@ def run():
     perf["total_instrumented_seconds"]=round(sum(perf["stage_seconds"].values()),4)
     # Linux GitHub-hosted runners report ru_maxrss in KiB; diagnostics only.
     perf["peak_rss_kib"]=int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-    summary={"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"trend_buy_sell_portfolio_comparison":trend_side_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"adverse slippage applied to entry and exit fill prices; round-trip fees deducted separately; sizing reserves fees plus estimated round-trip slippage","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
+    setup_report = summarize_setup_forming(setup_episodes, setup_frames, actionable_signals, FEE_BPS, SLIPPAGE_BPS)
+    setup_episode_rows = setup_report.pop("episodes")
+    pd.DataFrame(setup_episode_rows).to_csv(OUT / "setup-forming-episodes.csv", index=False)
+    summary={"setup_forming_historical_replay":setup_report,"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"trend_buy_sell_portfolio_comparison":trend_side_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"adverse slippage applied to entry and exit fill prices; round-trip fees deducted separately; sizing reserves fees plus estimated round-trip slippage","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
     (OUT/"summary.json").write_text(json.dumps(summary,indent=2),encoding="utf-8"); print(json.dumps(summary,indent=2),flush=True)
     if not trades: raise SystemExit("No trades produced; do not infer profitability.")
 if __name__=="__main__": run()

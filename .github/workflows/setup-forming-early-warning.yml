@@ -1,0 +1,103 @@
+name: Setup Forming Early Warning | Lightweight 1H
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'main.py'
+      - 'setup_forming_scan.py'
+      - 'historical_backtest.py'
+      - '.github/workflows/setup-forming-early-warning.yml'
+  schedule:
+    - cron: '*/10 * * * *'
+      timezone: 'Asia/Tehran'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: setup-forming-early-warning
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TELEGRAM_TOKEN: ''
+      TELEGRAM_CHAT_ID: ''
+      RUN_ONCE: '0'
+      TELEGRAM_TEST_ON_START: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; else python -m pip install requests pandas numpy; fi
+      - name: Compile warning scanner and run deterministic tests
+        run: |
+          set -euo pipefail
+          python -m py_compile main.py setup_forming_scan.py
+          python - <<'PY'
+          from pathlib import Path
+          main_source = Path("main.py").read_text(encoding="utf-8")
+          scanner_source = Path("setup_forming_scan.py").read_text(encoding="utf-8")
+          assert "SETUP_FORMING_WARNING_SENT" not in main_source, "duplicate Setup Forming sender remains in main.py"
+          assert 'main.send_telegram_message(main.format_setup_forming_warning(watch))' in scanner_source
+          print("Single production Setup Forming sender check: PASS")
+          import main
+          assert main.run_setup_forming_self_test() is True
+          import setup_forming_scan
+          assert callable(setup_forming_scan.load_state)
+          assert callable(setup_forming_scan.save_state)
+          assert setup_forming_scan.dedupe_episode_self_test() is True
+          import historical_backtest
+          assert historical_backtest.setup_forming_metrics_self_test() is True
+          print("Setup Forming scanner + one-to-one historical metrics regression tests: PASS")
+          PY
+
+  scan:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      RUN_ONCE: '0'
+      TELEGRAM_TEST_ON_START: '0'
+      RUN_SETUP_FORMING_ONLY: '1'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; else python -m pip install requests pandas numpy; fi
+      - name: Restore recent warning deduplication state
+        uses: actions/cache/restore@v4
+        with:
+          path: setup_forming_state.json
+          key: setup-forming-state-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            setup-forming-state-
+      - name: Verify Telegram configuration
+        run: |
+          set -euo pipefail
+          test -n "$TELEGRAM_TOKEN" || { echo "TELEGRAM_TOKEN is missing"; exit 1; }
+          test -n "$TELEGRAM_CHAT_ID" || { echo "TELEGRAM_CHAT_ID is missing"; exit 1; }
+      - name: Run 1H warning-only scan
+        run: python setup_forming_scan.py
+      - name: Save recent warning deduplication state
+        if: always() && hashFiles('setup_forming_state.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: setup_forming_state.json
+          key: setup-forming-state-${{ github.run_id }}-${{ github.run_attempt }}
