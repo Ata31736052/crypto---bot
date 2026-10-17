@@ -29,6 +29,7 @@ jobs:
       AB_BASE_SHA: 6dd8090de95878f5ec013577c73eb99d4ceb59cd
       AB_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       AB_REPEATS: "3"
+      AB_EXPECT_IDENTICAL_OUTPUTS: ${{ !contains(toJSON(github.event.pull_request.labels), 'strategy-change') }}
       BACKTEST_DAYS: "180"
       BACKTEST_SYMBOLS: "ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT"
       BACKTEST_FEE_BPS: "10"
