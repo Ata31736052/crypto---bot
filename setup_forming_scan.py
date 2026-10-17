@@ -25,10 +25,17 @@ def load_state(now=None):
     except (OSError, ValueError, TypeError):
         return {}
     cutoff = now - MAX_STATE_AGE_SECONDS
-    return {
-        str(key): value for key, value in payload.items()
-        if isinstance(value, dict) and int(value.get("sent_epoch", 0) or 0) >= cutoff
-    }
+    clean = {}
+    for key, value in payload.items():
+        if not isinstance(value, dict) or "|" in str(key):
+            continue
+        try:
+            sent_epoch = int(value.get("sent_epoch", 0) or 0)
+        except (TypeError, ValueError, OverflowError):
+            continue
+        if sent_epoch >= cutoff and value.get("side") in ("BUY_WATCH", "SELL_WATCH"):
+            clean[str(key).upper()] = value
+    return clean
 
 
 def save_state(state):
@@ -113,6 +120,8 @@ def run_scan():
 
     save_state(state)
     print(f"SETUP_FORMING_ONLY_DONE checked={checked} detected={detected} sent={sent} failures={failures}")
+    if checked == 0:
+        raise RuntimeError("Setup Forming scan could not validate any symbol data; refusing a false-success run")
     if failures:
         # Keep a visible, nonzero workflow result when one or more market/send
         # operations failed, so delivery gaps cannot be mistaken for success.
