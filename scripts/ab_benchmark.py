@@ -342,7 +342,7 @@ report={
                            "signal_engine":stats(candidate,"engine_seconds"),
                            "instrumented_total":stats(candidate,"total_instrumented_seconds")}},
  "samples":[{k:v for k,v in s.items() if k!="summary"} for s in samples],
- "trade_sha256":next(iter(trade_hashes)),
+ "trade_sha256_by_revision":{label:next(iter({s["trade_sha256"] for s in rows})) for label,rows in by_label.items()},
  "input_manifest_sha256":next(iter(input_manifest_hashes)),
  "input_manifest_rows":samples[0]["input_manifest_rows"],
  "notes":["Separate signal-window and outcome-window OHLCV hashes and row counts are fingerprinted before indicator preparation and must match across all samples.",
