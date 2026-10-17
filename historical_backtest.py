@@ -740,34 +740,56 @@ def summarize_setup_forming(episodes, frames_by_symbol, actionable_signals, fee_
             row[f"net_mfe_{horizon}h_pct"] = round(mfe - cost_pct, 4)
 
         # Simple path-order check: first +/-1% barrier within 24 hours.
-        outcome = "NO_BARRIER_24H"
-        target = price * (1.01 if buy else 0.99)
-        stop = price * (0.99 if buy else 1.01)
         future24 = frame.iloc[idx + 1:idx + 25]
-        for candle in future24.itertuples(index=False):
-            high, low = float(candle.high), float(candle.low)
-            adverse_hit = low <= stop if buy else high >= stop
-            favorable_hit = high >= target if buy else low <= target
-            if adverse_hit:  # pessimistic ordering if both levels touch in one candle
-                outcome = "ADVERSE_FIRST_1PCT"
-                break
-            if favorable_hit:
-                outcome = "FAVORABLE_FIRST_1PCT"
-                break
+        row["full_24h"] = len(future24) == 24
+        outcome = "INCOMPLETE_24H_WINDOW"
+        if len(future24) == 24:
+            outcome = "NO_BARRIER_24H"
+            target = price * (1.01 if buy else 0.99)
+            stop = price * (0.99 if buy else 1.01)
+            for candle in future24.itertuples(index=False):
+                high, low = float(candle.high), float(candle.low)
+                adverse_hit = low <= stop if buy else high >= stop
+                favorable_hit = high >= target if buy else low <= target
+                if adverse_hit:  # pessimistic ordering if both levels touch in one candle
+                    outcome = "ADVERSE_FIRST_1PCT"
+                    break
+                if favorable_hit:
+                    outcome = "FAVORABLE_FIRST_1PCT"
+                    break
         row["barrier_outcome_24h"] = outcome
+        # Matching is assigned in a separate one-to-one pass after all episodes
+        # are built, so one actionable signal cannot inflate multiple warnings.
+        row["matching_entry_within_24h"] = False
+        row["entry_lead_hours"] = None
+        row["warning_price_advantage_pct"] = None
+        row["matching_entry_time"] = None
+        row["matching_entry_fill"] = None
+        rows.append(row)
 
+    # Deduplicate actionable signal records and assign each signal to at most one
+    # warning episode: earliest eligible same-symbol/same-side warning first.
+    unique_signals = {}
+    for sig in actionable_signals:
+        key = (str(sig["symbol"]).upper(), str(sig["side"]).upper(), str(sig["signal_time"]))
+        unique_signals.setdefault(key, sig)
+    used_signal_keys = set()
+    for row in sorted(rows, key=lambda item: (str(item["warning_time"]), item["symbol"], item["side"])):
+        buy = row["side"] == "BUY_WATCH"
         side = "BUY" if buy else "SELL"
-        warning_time = pd.Timestamp(ep["warning_time"])
+        warning_time = pd.Timestamp(row["warning_time"])
+        price = float(row["warning_price"])
         matching = []
-        for sig in actionable_signals:
-            if sig["symbol"] != symbol or sig["side"] != side:
+        for key, sig in unique_signals.items():
+            if key in used_signal_keys or key[0] != str(row["symbol"]).upper() or key[1] != side:
                 continue
             sig_time = pd.Timestamp(sig["signal_time"])
             delta_hours = (sig_time - warning_time).total_seconds() / 3600.0
             if 0.0 <= delta_hours <= 24.0:
-                matching.append((delta_hours, sig))
+                matching.append((delta_hours, key, sig))
         if matching:
-            lead_hours, sig = min(matching, key=lambda item: item[0])
+            lead_hours, signal_key, sig = min(matching, key=lambda item: (item[0], item[1][2]))
+            used_signal_keys.add(signal_key)
             entry_fill = float(sig["entry_fill"])
             price_advantage = ((entry_fill / price - 1.0) * 100.0 if buy
                                else (price / entry_fill - 1.0) * 100.0)
@@ -776,13 +798,8 @@ def summarize_setup_forming(episodes, frames_by_symbol, actionable_signals, fee_
             row["warning_price_advantage_pct"] = round(price_advantage, 4)
             row["matching_entry_time"] = sig["signal_time"]
             row["matching_entry_fill"] = entry_fill
-        else:
-            row["matching_entry_within_24h"] = False
-            row["entry_lead_hours"] = None
-            row["warning_price_advantage_pct"] = None
-            row["matching_entry_time"] = None
-            row["matching_entry_fill"] = None
-        rows.append(row)
+
+    def horizon_stats(horizon):
 
     def horizon_stats(horizon):
         complete = [r for r in rows if r.get(f"full_{horizon}h") and r.get(f"mfe_{horizon}h_pct") is not None]
@@ -804,8 +821,16 @@ def summarize_setup_forming(episodes, frames_by_symbol, actionable_signals, fee_
         "episodes_with_same_side_entry_within_24h": len(matched),
         "median_hours_warning_to_entry": round(statistics.median([r["entry_lead_hours"] for r in matched]), 3) if matched else None,
         "median_warning_price_advantage_at_entry_pct": round(statistics.median([r["warning_price_advantage_pct"] for r in matched]), 4) if matched else None,
-        "barrier_outcomes_24h": {name: sum(r.get("barrier_outcome_24h") == name for r in rows) for name in ("FAVORABLE_FIRST_1PCT", "ADVERSE_FIRST_1PCT", "NO_BARRIER_24H")},
-        "interpretation": "Excursion statistics are descriptive, not realized strategy returns. A same-candle +/-1% conflict is counted adverse-first; estimated round-trip fee+slippage is deducted from MFE only.",
+        "unique_actionable_signals": len(unique_signals),
+        "one_to_one_warning_entry_matches": len(matched),
+        "unmatched_unique_actionable_signals": len(unique_signals) - len(used_signal_keys),
+        "barrier_outcomes_24h": {
+            "complete_episodes": sum(r.get("full_24h", False) for r in rows),
+            **{name: sum(r.get("full_24h", False) and r.get("barrier_outcome_24h") == name for r in rows)
+               for name in ("FAVORABLE_FIRST_1PCT", "ADVERSE_FIRST_1PCT", "NO_BARRIER_24H")},
+            "incomplete_episodes_excluded": sum(not r.get("full_24h", False) for r in rows),
+        },
+        "interpretation": "Excursion statistics are descriptive, not realized strategy returns. Barrier counts include only episodes with a complete 24h forward window; same-candle +/-1% conflict is counted adverse-first. Entry matching is deduplicated and one-to-one. Estimated round-trip fee+slippage is deducted from MFE only.",
         "episodes": rows,
     }
 
@@ -831,8 +856,25 @@ def setup_forming_metrics_self_test():
     assert report["episode_count"] == 1
     assert report["horizons"]["6h"]["complete_episodes"] == 1
     assert report["episodes_with_same_side_entry_within_24h"] == 1
+    assert report["one_to_one_warning_entry_matches"] == 1
+    assert report["unique_actionable_signals"] == 1
     assert report["barrier_outcomes_24h"]["FAVORABLE_FIRST_1PCT"] == 1
     assert report["episodes"][0]["entry_lead_hours"] == 2.0
+
+    # A single actionable entry may be matched to at most one warning episode.
+    second_episode = dict(episodes[0], candle_index=1,
+                          warning_time=str(frame.iloc[1]["close_time"]),
+                          warning_price=100.0)
+    repeated = summarize_setup_forming([episodes[0], second_episode],
+                                       {"TESTUSDT": frame}, signals, 10, 5)
+    assert repeated["one_to_one_warning_entry_matches"] == 1
+    assert repeated["episodes_with_same_side_entry_within_24h"] == 1
+    # Partial 24h forward windows must not be counted as NO_BARRIER or +/-1% outcomes.
+    short_frame = frame.iloc[:10].copy()
+    partial = summarize_setup_forming(episodes, {"TESTUSDT": short_frame}, signals, 10, 5)
+    assert partial["barrier_outcomes_24h"]["complete_episodes"] == 0
+    assert partial["barrier_outcomes_24h"]["incomplete_episodes_excluded"] == 1
+    assert partial["barrier_outcomes_24h"]["NO_BARRIER_24H"] == 0
     print("SETUP_FORMING_HISTORICAL_METRICS_SELF_TEST: PASS")
     return True
 
