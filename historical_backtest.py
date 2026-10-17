@@ -716,7 +716,7 @@ def run():
     else:
         end = pd.Timestamp.now(tz="UTC").floor("h")
     start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
-    trades=[]; engine_candidate_trades={}; errors=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
+    trades=[]; engine_candidate_trades={}; errors=[]; trend_timing_rows=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
     perf={"stage_seconds":{},"counters":{"candle_steps":0,"timeframe_index_lookups":0,"rows_materialized":0,"btc_regime_lookups":0,"engine_calls":0}}
     # ENGINE_INTERNAL_PROFILE: profile exactly one real production-engine invocation.
     # This is offline-only instrumentation; no signal, score, or trade decision is changed.
@@ -792,7 +792,57 @@ def run():
                 # another engine's candidate stream.
                 original_prepare=main.prepare_symbol_data
                 original_live_price=main.get_live_price
+                original_eval=main.evaluate_final_signal
+                original_professional_gate=main.professional_signal_quality_gate
+                current_trend_row={"row":None}
+                row_now=data["1h"].iloc[-1]
+                feature_names=("close","ema9","ema21","ema50","ema200","adx","plus_di","minus_di","rsi","volume_ratio","atr_percent","macd_hist","distance_ema21","rolling_vwap","bb_position","atr")
+                def capture_eval(*args, **kwargs):
+                    candidate=original_eval(*args, **kwargs)
+                    if isinstance(candidate,dict):
+                        side=str(candidate.get("signal","NO_SIGNAL")).upper()
+                        row={
+                            "symbol":sym,"signal_time":str(close_time),"engine_mode":"TREND_RAW_SCORER",
+                            "candidate_generated":side in ("BUY","SELL"),
+                            "candidate_side":side if side in ("BUY","SELL") else "",
+                            "candidate_score":candidate.get("score"),"candidate_strength":candidate.get("strength"),
+                            "candidate_reasons_json":json.dumps(candidate.get("reasons",[]),ensure_ascii=False,default=str),
+                            "candidate_warnings_json":json.dumps(candidate.get("warnings",[]),ensure_ascii=False,default=str),
+                            "trend_diagnostic_json":json.dumps(candidate.get("trend_diagnostic",{}),ensure_ascii=False,default=str),
+                            "gate_called":False,"gate_passed":None,"gate_reasons_json":"[]",
+                        }
+                        for feature in feature_names:
+                            row[feature]=row_now.get(feature)
+                        trend_timing_rows.append(row)
+                        current_trend_row["row"]=row
+                    return candidate
+                def capture_professional_gate(signal, gate_data, gate_btc_regime=None):
+                    outcome=original_professional_gate(signal, gate_data, gate_btc_regime)
+                    mode=str(signal.get("signal_mode",signal.get("engine","TREND"))).upper() if isinstance(signal,dict) else ""
+                    if mode=="TREND" and current_trend_row.get("row") is not None:
+                        row=current_trend_row["row"]
+                        breakdown=(signal.get("professional_quality_breakdown",{}) or {}) if isinstance(signal,dict) else {}
+                        reasons=(breakdown.get("reject_reasons",[]) if isinstance(breakdown,dict) else [])
+                        if not reasons and isinstance(outcome,tuple) and len(outcome)>1:
+                            reasons=outcome[1] or []
+                        row.update({
+                            "gate_called":True,
+                            "gate_mode":mode,
+                            "gate_passed":bool(outcome[0]) if isinstance(outcome,tuple) and outcome else bool(outcome),
+                            "gate_reasons_json":json.dumps(list(reasons or []),ensure_ascii=False,default=str),
+                            "quality_score":breakdown.get("quality_score") if isinstance(breakdown,dict) else (outcome[2] if isinstance(outcome,tuple) and len(outcome)>2 else None),
+                            "quality_points":breakdown.get("quality_points") if isinstance(breakdown,dict) else None,
+                            "confirmation_count":breakdown.get("confirmation_count",breakdown.get("confirmations")) if isinstance(breakdown,dict) else None,
+                            "required_confirmations":breakdown.get("required_confirmations") if isinstance(breakdown,dict) else None,
+                            "htf_alignment":breakdown.get("htf_alignment") if isinstance(breakdown,dict) else None,
+                            "required_htf_alignment":breakdown.get("required_htf_alignment") if isinstance(breakdown,dict) else None,
+                            "rr_tp1":signal.get("rr_tp1") if isinstance(signal,dict) else None,
+                            "rr_tp2":signal.get("rr_tp2") if isinstance(signal,dict) else None,
+                        })
+                    return outcome
                 try:
+                    main.evaluate_final_signal=capture_eval
+                    main.professional_signal_quality_gate=capture_professional_gate
                     main.prepare_symbol_data=lambda _symbol, _data=data: _data
                     current_price=float(data["1h"].iloc[-1]["close"])
                     current_close_time=str(data["1h"].iloc[-1]["close_time"])
@@ -838,6 +888,18 @@ def run():
                 finally:
                     main.prepare_symbol_data=original_prepare
                     main.get_live_price=original_live_price
+                    main.evaluate_final_signal=original_eval
+                    main.professional_signal_quality_gate=original_professional_gate
+                if current_trend_row.get("row") is not None:
+                    trace_for_timing=(scan.get("symbol_trace",{}) if isinstance(scan,dict) else {}) or {}
+                    trend_trace_for_timing=trace_for_timing.get("trend",{}) or {}
+                    current_trend_row["row"].update({
+                        "trace_first_rejection":trace_for_timing.get("first_rejection"),
+                        "trace_final_rejection":trace_for_timing.get("final_rejection"),
+                        "risk_rejection":trend_trace_for_timing.get("risk_rejection"),
+                        "trend_professional_rejection_json":json.dumps(trend_trace_for_timing.get("professional_rejection",[]),ensure_ascii=False,default=str),
+                        "trend_trace_json":json.dumps(trend_trace_for_timing,ensure_ascii=False,default=str),
+                    })
                 selected=scan.get("signal") if isinstance(scan,dict) else None
                 higher=scan.get("higher_signals",[]) if isinstance(scan,dict) else []
                 candidates=[x for x in [selected]+(higher if isinstance(higher,list) else []) if isinstance(x,dict) and str(x.get("signal","")).upper() in ("BUY","SELL")]
@@ -896,6 +958,7 @@ def run():
             errors.append({"symbol":sym,"error":str(exc)}); print("ERROR",sym,exc,flush=True)
     columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason"]
     pd.DataFrame(trades,columns=columns).to_csv(OUT/"trades.csv",index=False)
+    pd.DataFrame(trend_timing_rows).to_csv(OUT/"trend-gate-timing.csv",index=False)
     vals=[float(t["net_pct"]) for t in trades]
     portfolio_ledger_self_test(OUT)
     initial_capital=float(os.getenv("BACKTEST_INITIAL_CAPITAL_USDT","1000"))
