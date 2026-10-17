@@ -1,0 +1,129 @@
+name: Retry Gemini Report from Existing Backtest Artifact
+
+on:
+  push:
+    branches:
+      - retry/gemini-report-from-artifact-20261017
+    paths:
+      - '.github/workflows/gemini-retry-existing-artifact.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: gemini-report-retry-39060699692
+  cancel-in-progress: false
+
+jobs:
+  retry-report-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONUNBUFFERED: "1"
+      GEMINI_SOURCE_RUN_ID: "39060699692"
+    steps:
+      - name: Checkout isolated retry branch
+        uses: actions/checkout@v4
+
+      - name: Download the already-completed backtest evidence (no replay)
+        uses: actions/download-artifact@v4
+        with:
+          name: gemini-trend-root-cause-analysis
+          run-id: 39060699692
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: backtest-results
+
+      - name: Retry Gemini transient failures only
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python - <<'PY'
+          import json, os, time, urllib.request, urllib.error
+          from pathlib import Path
+
+          out = Path("backtest-results")
+          evidence_path = out / "gemini-evidence-pack.json"
+          if not evidence_path.exists():
+              raise SystemExit(f"Existing evidence artifact is missing: {evidence_path}")
+          evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+          key = os.environ.get("GEMINI_API_KEY", "").strip()
+          if not key:
+              raise SystemExit("GEMINI_API_KEY secret missing; no Gemini request was sent.")
+
+          prompt = """Act as a skeptical quantitative trading researcher. Analyze the supplied existing evidence for root causes of losing/late TREND:BUY entries, not as a trading recommendation.
+
+          Requirements:
+          1. Separate measured facts from hypotheses.
+          2. Compare losing and winning trades on EMA21 extension in ATR, RSI, room to obstacle, range position, score, ADX and volume. Correlation is not causation.
+          3. Rank likely causes: late entry location, trend/candidate generation, gate rejection, stop/exit behavior, costs, or combinations.
+          4. Explain the limitations of the available trade-level aggregates and per-candle diagnostics.
+          5. Propose at most two minimal falsifiable tests. Do not propose speculative thresholds or a new RSI>72 filter. Preserve score 90, ADX 23, volume 1.35x. Require fixed 180-day window, no lookahead, shared 1000 USDT account, 10 bps fee and 5 bps slippage per side, exact trade-level comparison. Do not edit code or suggest merging.
+          6. Be explicit if current evidence is insufficient to prove causality, and name the exact missing per-candle fields.
+          Output concise Markdown with sections: Findings, What is not proven, Root-cause ranking, Next tests, Safety verdict.
+          """
+
+          payload = {
+              "contents": [{"parts": [{"text": prompt + "\n\nExisting evidence JSON:\n" + json.dumps(evidence, ensure_ascii=False, separators=(",", ":"), default=str)}]}],
+              "generationConfig": {"temperature": 0.1, "maxOutputTokens": 5000}
+          }
+          url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent"
+          retryable = {429, 500, 502, 503, 504}
+          delays = [8, 20, 45, 90]
+          last_error = None
+          result = None
+
+          for attempt in range(1, len(delays) + 2):
+              request = urllib.request.Request(
+                  url,
+                  data=json.dumps(payload).encode("utf-8"),
+                  headers={"Content-Type": "application/json", "x-goog-api-key": key},
+                  method="POST"
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=120) as response:
+                      result = json.loads(response.read().decode("utf-8"))
+                  break
+              except urllib.error.HTTPError as exc:
+                  body = exc.read().decode("utf-8", errors="replace")
+                  last_error = f"HTTP {exc.code}: {body[:1000]}"
+                  if exc.code not in retryable or attempt > len(delays):
+                      print(f"Gemini request failed on attempt {attempt}: HTTP {exc.code}")
+                      raise SystemExit(1)
+                  wait = delays[attempt - 1]
+                  print(f"Transient Gemini HTTP {exc.code}; retry {attempt + 1}/{len(delays) + 1} in {wait}s.")
+                  time.sleep(wait)
+              except (TimeoutError, urllib.error.URLError) as exc:
+                  last_error = type(exc).__name__
+                  if attempt > len(delays):
+                      print(f"Gemini transient network failure after {attempt} attempts: {last_error}")
+                      raise SystemExit(1)
+                  wait = delays[attempt - 1]
+                  print(f"Transient Gemini network failure; retry {attempt + 1}/{len(delays) + 1} in {wait}s.")
+                  time.sleep(wait)
+
+          if result is None:
+              raise SystemExit("Gemini retries exhausted: " + str(last_error))
+          parts = result.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+          report = "\n".join(p.get("text", "") for p in parts if isinstance(p, dict))
+          if not report.strip():
+              raise SystemExit("Gemini returned no analysis text.")
+          (out / "gemini-root-cause-analysis.md").write_text(report, encoding="utf-8")
+          (out / "gemini-retry-status.json").write_text(json.dumps({
+              "source_run_id": os.environ["GEMINI_SOURCE_RUN_ID"],
+              "backtest_reexecuted": False,
+              "attempts_used": attempt,
+              "status": "success"
+          }, indent=2), encoding="utf-8")
+          print("Gemini analysis generated from the existing evidence artifact; the backtest was not rerun.")
+          print(report[:14000])
+          PY
+
+      - name: Preserve existing evidence and retry result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gemini-trend-root-cause-report-retry
+          path: backtest-results/
+          if-no-files-found: error
+          retention-days: 30
