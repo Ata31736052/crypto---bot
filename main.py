@@ -8034,6 +8034,25 @@ def summarize_engine_trace(trace):
     result['stage_counts'] = stage_counts
     return result
 
+def bottom_hunter_secondary_30m_quality(confirm, confirmations):
+    """Return a soft quality bonus for the generic 30M confirmation on Bottom Hunter.
+
+    Bottom Hunter already has its own dedicated 30M reversal check in
+    score_bottom_hunter(). Requiring the generic 6/6 trend-style confirmation
+    again contradicts the policy below and delays/rejects early reversals.
+    The dedicated reversal check and all other professional hard gates remain
+    unchanged; this second confirmation only adds quality points when strong.
+    """
+    confirmations = safe_int(confirmations)
+    if isinstance(confirm, dict) and confirm.get("confirmed") and confirmations >= PRO_BOTTOM_MIN_30M_CONFIRMATIONS:
+        return 3, ""
+    return 0, (
+        "30M secondary confirmation not met "
+        f"(actual={confirmations}; quality bonus requires >={PRO_BOTTOM_MIN_30M_CONFIRMATIONS}); "
+        "dedicated Bottom Hunter reversal confirmation remains primary"
+    )
+
+
 def professional_quality_grade(raw_score, quality_points):
     """Classify setup grade from raw setup score plus evidence points.
 
@@ -8491,8 +8510,9 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         quality += 1
 
     # Trend/breakout require the standard 30M directional confirmation.
-    # Bottom Hunter already has a dedicated 30M reversal test in its own
-    # engine, so here it is a quality boost rather than a second hard gate.
+    # Bottom Hunter has already passed its dedicated 30M reversal check in
+    # score_bottom_hunter(); the generic trend-style confirmation is only an
+    # additional quality bonus and must not become a second hard gate.
     # v50: initialize these locals before the confirmation call so a malformed
     # confirmation result or future branch change can never raise an
     # UnboundLocalError such as the LINK failure seen in Run #75.
@@ -8510,13 +8530,17 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
             reject.append(f"HTF confirmation insufficient ({confirmations})")
         else:
             quality += 3
+    elif mode == "BOTTOM_HUNTER":
+        # Soft bonus only: the engine's dedicated reversal check remains the
+        # hard 30M gate. Missing this second, trend-style confirmation is logged
+        # for diagnosis but does not independently reject an otherwise valid setup.
+        confirmation_bonus, confirmation_note = bottom_hunter_secondary_30m_quality(confirm, confirmations)
+        quality += confirmation_bonus
+        if confirmation_note:
+            signal.setdefault("reasons", []).append(confirmation_note)
     elif (not confirm.get("confirmed") or
-          (mode == "BOTTOM_HUNTER" and confirmations < PRO_BOTTOM_MIN_30M_CONFIRMATIONS) or
-          (mode != "BOTTOM_HUNTER" and side == "SELL" and confirmations < required_confirmations)):
-        if mode == "BOTTOM_HUNTER":
-            reject.append(f"30M reversal confirmation insufficient (actual={confirmations}; required>={PRO_BOTTOM_MIN_30M_CONFIRMATIONS})")
-        else:
-            reject.append(f"30M confirmation insufficient (actual={confirmations}; required>={required_confirmations})")
+          (side == "SELL" and confirmations < required_confirmations)):
+        reject.append(f"30M confirmation insufficient (actual={confirmations}; required>={required_confirmations})")
     else:
         quality += 3
 
@@ -9134,7 +9158,13 @@ def run_v63_14_3_outcome_boundary_self_test():
     assert any(reason.startswith("score 75 < 90") for reason in reject_reasons)
     assert any("reversal ADX too weak" in reason for reason in reject_reasons)
     assert any("reversal volume below professional minimum" in reason for reason in reject_reasons)
-    assert any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
+    # The generic trend-style 30M check is a soft bonus for Bottom Hunter;
+    # its dedicated reversal confirmation remains the primary hard gate.
+    assert not any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
+    assert any("30M secondary confirmation not met" in reason for reason in test_signal["reasons"])
+    assert bottom_hunter_secondary_30m_quality({"confirmed": False}, 3)[0] == 0
+    assert bottom_hunter_secondary_30m_quality({"confirmed": False}, 3)[1]
+    assert bottom_hunter_secondary_30m_quality({"confirmed": True}, 6) == (3, "")
     assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
     return True
 
