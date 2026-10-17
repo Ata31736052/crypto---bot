@@ -947,3 +947,5 @@ def run():
     (OUT/"summary.json").write_text(json.dumps(summary,indent=2),encoding="utf-8"); print(json.dumps(summary,indent=2),flush=True)
     if not trades: raise SystemExit("No trades produced; do not infer profitability.")
 if __name__=="__main__": run()
+
+# Validation-only marker: run the 180-day replay against the current main baseline.
