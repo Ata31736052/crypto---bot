@@ -1,0 +1,72 @@
+name: Gemini API connectivity test
+
+on:
+  push:
+    branches:
+      - "test/gemini-api-connectivity"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gemini-connectivity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Test Gemini API without exposing the key
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          set +x
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          key = os.environ.get("GEMINI_API_KEY", "")
+          if not key:
+              print("FAIL: GEMINI_API_KEY secret is missing or unavailable to this workflow.")
+              sys.exit(1)
+
+          url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent"
+          payload = {
+              "contents": [{
+                  "parts": [{
+                      "text": "Reply with exactly: GEMINI_API_CONNECTION_OK"
+                  }]
+              }]
+          }
+          request = urllib.request.Request(
+              url,
+              data=json.dumps(payload).encode("utf-8"),
+              headers={
+                  "Content-Type": "application/json",
+                  "X-goog-api-key": key,
+              },
+              method="POST",
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=25) as response:
+                  data = json.loads(response.read().decode("utf-8"))
+                  answer = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                  if response.status == 200 and answer:
+                      print("PASS: Gemini API responded successfully.")
+                      print("Model response:", answer[:160])
+                  else:
+                      print("FAIL: API returned HTTP", response.status, "without expected text.")
+                      sys.exit(1)
+          except urllib.error.HTTPError as exc:
+              print("FAIL: Gemini API returned HTTP", exc.code)
+              try:
+                  error = json.loads(exc.read().decode("utf-8"))
+                  print("API error:", str(error.get("error", {}).get("message", "No error detail"))[:300])
+              except Exception:
+                  print("API returned an unreadable error response.")
+              sys.exit(1)
+          except Exception as exc:
+              print("FAIL: request could not complete:", type(exc).__name__)
+              sys.exit(1)
+          PY
