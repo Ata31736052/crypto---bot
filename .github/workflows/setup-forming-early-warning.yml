@@ -7,6 +7,7 @@ on:
     paths:
       - 'main.py'
       - 'setup_forming_scan.py'
+      - 'historical_backtest.py'
       - '.github/workflows/setup-forming-early-warning.yml'
   schedule:
     - cron: '*/10 * * * *'
@@ -49,7 +50,9 @@ jobs:
           assert callable(setup_forming_scan.load_state)
           assert callable(setup_forming_scan.save_state)
           assert setup_forming_scan.dedupe_episode_self_test() is True
-          print("Setup Forming standalone scanner compile and regression tests: PASS")
+          import historical_backtest
+          assert historical_backtest.setup_forming_metrics_self_test() is True
+          print("Setup Forming scanner + one-to-one historical metrics regression tests: PASS")
           PY
 
   scan:
