@@ -1,0 +1,196 @@
+name: Gemini TREND BUY Root-Cause Analysis (Offline)
+
+on:
+  push:
+    branches:
+      - experiment/gemini-trend-root-cause-20261017
+    paths:
+      - '.github/workflows/gemini-trend-root-cause.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gemini-trend-root-cause-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      BACKTEST_DAYS: "180"
+      BACKTEST_SYMBOLS: "ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT"
+      BACKTEST_FEE_BPS: "10"
+      BACKTEST_SLIPPAGE_BPS: "5"
+      BACKTEST_END_TIME: "2026-10-13T13:00:00Z"
+      PYTHONUNBUFFERED: "1"
+      TELEGRAM_TOKEN: ""
+      TELEGRAM_CHAT_ID: ""
+      DRY_RUN: "1"
+      RUN_ONCE: "0"
+    steps:
+      - name: Checkout isolated diagnostic branch
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      - name: Validate offline-only scope
+        run: |
+          python -m py_compile main.py historical_backtest.py portfolio_ledger.py
+          test -n "${GEMINI_API_KEY:-}"
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      - name: Run fixed-window offline backtest
+        run: python historical_backtest.py
+      - name: Build compact evidence and request Gemini analysis
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request, urllib.error
+          from pathlib import Path
+          import pandas as pd
+
+          out = Path("backtest-results")
+          summary_path = out / "summary.json"
+          trades_path = out / "engine-comparison" / "trend-buy" / "portfolio_trades.csv"
+          timing_path = out / "trend-gate-timing.csv"
+          for path in (summary_path, trades_path, timing_path):
+              if not path.exists():
+                  raise SystemExit(f"Required diagnostic output missing: {path}")
+
+          summary = json.loads(summary_path.read_text(encoding="utf-8"))
+          trades = pd.read_csv(trades_path)
+          timing = pd.read_csv(timing_path)
+          if trades.empty:
+              raise SystemExit("TREND:BUY trade dataset is empty; refusing to ask Gemini to infer from no trades.")
+
+          keep = [
+              "symbol", "side", "signal_time", "entry_time", "exit_time", "exit_reason",
+              "net_pct", "score", "strength", "btc_regime", "signal_close", "atr_pct",
+              "rsi", "adx", "volume_ratio", "ema21_extension_atr", "room_to_obstacle_atr",
+              "range_position_20", "bars_held", "portfolio_status", "portfolio_pnl_usdt"
+          ]
+          keep = [c for c in keep if c in trades.columns]
+          trades = trades[keep].copy()
+          trades["net_pct"] = pd.to_numeric(trades["net_pct"], errors="coerce").round(4)
+          for c in ["rsi", "adx", "volume_ratio", "ema21_extension_atr", "room_to_obstacle_atr", "range_position_20", "atr_pct"]:
+              if c in trades:
+                  trades[c] = pd.to_numeric(trades[c], errors="coerce").round(3)
+
+          def stats(frame):
+              if frame.empty:
+                  return {"n": 0}
+              result = {"n": int(len(frame))}
+              if "net_pct" in frame:
+                  result.update({
+                      "mean_net_pct": round(float(frame["net_pct"].mean()), 4),
+                      "median_net_pct": round(float(frame["net_pct"].median()), 4),
+                      "net_pct_sum_non_portfolio_metric": round(float(frame["net_pct"].sum()), 4),
+                      "exit_reasons": {str(k): int(v) for k, v in frame["exit_reason"].value_counts(dropna=False).items()}
+                  })
+              for c in ["score", "rsi", "adx", "volume_ratio", "ema21_extension_atr", "room_to_obstacle_atr", "range_position_20", "bars_held"]:
+                  if c in frame:
+                      s = pd.to_numeric(frame[c], errors="coerce").dropna()
+                      if len(s):
+                          result[c] = {"median": round(float(s.median()), 3), "p25": round(float(s.quantile(.25)), 3), "p75": round(float(s.quantile(.75)), 3)}
+              return result
+
+          losers = trades[pd.to_numeric(trades["net_pct"], errors="coerce") < 0].copy()
+          winners = trades[pd.to_numeric(trades["net_pct"], errors="coerce") > 0].copy()
+          # Keep a representative, deterministic sample; the full aggregate statistics remain included.
+          sample_cols = [c for c in keep if c in trades.columns and c not in ("signal_close",)]
+          loss_sample = losers.sort_values("net_pct").head(20)[sample_cols].to_dict("records")
+          win_sample = winners.sort_values("net_pct", ascending=False).head(15)[sample_cols].to_dict("records")
+
+          cand = timing[timing.get("candidate_generated", pd.Series(False, index=timing.index)).astype(str).str.lower().eq("true")].copy()
+          gate_summary = {
+              "candidate_rows": int(len(cand)),
+              "candidate_sides": {str(k): int(v) for k, v in cand.get("candidate_side", pd.Series(dtype=str)).value_counts(dropna=False).items()},
+              "gate_called_rows": int(cand.get("gate_called", pd.Series(False, index=cand.index)).astype(str).str.lower().eq("true").sum()),
+              "gate_passed_counts": {str(k): int(v) for k, v in cand.get("gate_passed", pd.Series(dtype=str)).value_counts(dropna=False).items()},
+              "first_rejection_counts": {str(k): int(v) for k, v in cand.get("trace_first_rejection", pd.Series(dtype=str)).fillna("NONE").value_counts().head(12).items()},
+              "note": "Diagnostic trace_first_rejection may identify another engine's earlier rejection in the symbol trace; do not treat it as the TREND gate reason without checking gate_reasons_json and gate_mode."
+          }
+          evidence = {
+              "purpose": "Root-cause diagnosis of TREND:BUY late entries and losing trades; diagnostic only",
+              "period": {"start": summary.get("period_start"), "end": summary.get("period_end"), "days": summary.get("days")},
+              "symbols": summary.get("symbols"),
+              "backtest_assumptions": summary.get("assumptions"),
+              "portfolio_summary": summary.get("portfolio"),
+              "trend_buy_portfolio_summary": summary.get("trend_buy_sell_portfolio_comparison", {}).get("TREND:BUY"),
+              "trend_buy_trade_count": int(len(trades)),
+              "losers": stats(losers),
+              "winners": stats(winners),
+              "losing_trade_sample": loss_sample,
+              "winning_trade_sample": win_sample,
+              "trend_gate_diagnostics": gate_summary,
+              "feature_semantics": {
+                  "ema21_extension_atr": "distance of signal close from EMA21 in ATR units; higher positive value may indicate chasing for BUY, but must be tested, not assumed",
+                  "room_to_obstacle_atr": "diagnostic distance to nearest confirmed swing obstacle; diagnostic guard is not enabled in baseline",
+                  "range_position_20": "position within prior 20-candle range",
+                  "bars_held": "outcome after entry, not an entry-time predictor",
+                  "do_not_use_for_entry_features": "No forward returns or exit outcomes are permitted as model inputs to entry decisions. This pack includes only realized trade outcomes for analysis."
+              }
+          }
+          Path("backtest-results/gemini-evidence-pack.json").write_text(json.dumps(evidence, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+
+          key = os.environ.get("GEMINI_API_KEY", "").strip()
+          if not key:
+              raise SystemExit("GEMINI_API_KEY secret missing; no Gemini request was sent.")
+
+          prompt = """Act as a skeptical quantitative trading researcher. Analyze the attached evidence for ROOT CAUSES of losing/late TREND:BUY entries, not as a signal to trade. The backtest is a historical diagnostic, not proof of future profitability.
+
+          Required:
+          1) Separate facts directly supported by counts/statistics from hypotheses.
+          2) Compare losers vs winners on EMA21 extension in ATR, RSI, room to obstacle, range position, score, ADX and volume. Do not claim a feature is causal merely because it differs.
+          3) Identify whether the strongest evidence points to late entry location, trend-regime/candidate-generation failure, stop/exit behavior, costs, or a combination.
+          4) Call out data/measurement limitations, including sample size and that directional future moves are outcomes, not legal entry-time predictors.
+          5) Recommend at most two minimal, falsifiable follow-up tests, with no speculative thresholds. Keep score 90, ADX 23 and volume 1.35x unchanged; do not propose RSI>72 as a new filter. Require same fixed 180-day window, no-lookahead, shared 1000 USDT account, 10 bps fee + 5 bps slippage per side, and exact trade-level comparisons. Do not edit code or suggest merging anything.
+          6) If the current evidence cannot isolate the cause, say exactly what additional per-candle data is needed.
+          Output concise Markdown with sections: Findings, What is not proven, Root-cause ranking, Next tests, Safety verdict.
+          """
+          payload = {
+              "contents": [{"parts": [{"text": prompt + "\n\nEvidence JSON:\n" + json.dumps(evidence, ensure_ascii=False, separators=(",", ":"), default=str)}]}],
+              "generationConfig": {"temperature": 0.1, "maxOutputTokens": 5000}
+          }
+          request = urllib.request.Request(
+              "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
+              data=json.dumps(payload).encode("utf-8"),
+              headers={"Content-Type": "application/json", "x-goog-api-key": key},
+              method="POST"
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=120) as response:
+                  result = json.loads(response.read().decode("utf-8"))
+          except urllib.error.HTTPError as exc:
+              message = exc.read().decode("utf-8", errors="replace")
+              print("Gemini API HTTP error:", exc.code)
+              print(message[:1200])
+              raise SystemExit(1)
+          except Exception as exc:
+              raise SystemExit("Gemini request failed: " + type(exc).__name__)
+
+          parts = result.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+          text = "\n".join(part.get("text", "") for part in parts if isinstance(part, dict))
+          if not text.strip():
+              raise SystemExit("Gemini returned no analysis text.")
+          Path("backtest-results/gemini-root-cause-analysis.md").write_text(text, encoding="utf-8")
+          print("Gemini root-cause analysis completed; key and request headers were not logged.")
+          print(text[:14000])
+          PY
+      - name: Upload evidence and Gemini analysis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gemini-trend-root-cause-analysis
+          path: backtest-results/
+          if-no-files-found: warn
+          retention-days: 30
