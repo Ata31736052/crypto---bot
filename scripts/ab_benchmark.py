@@ -7,7 +7,7 @@ pair is excluded; measured runs alternate B-A-B-A-B-A. Exit non-zero on any
 trade/output mismatch. No live scan, Telegram, or order execution.
 """
 from __future__ import annotations
-import hashlib, json, os, pathlib, shutil, subprocess, sys, time
+import csv, hashlib, json, os, pathlib, shutil, subprocess, sys, time
 from statistics import median
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -195,6 +195,44 @@ for label in ("A", "B"):
     return d'''
     if return_line not in source: raise SystemExit(f"Cannot instrument {label} fetch return")
     source = source.replace(return_line, replacement, 1)
+    if label == "A":
+        # Report-only compatibility shim: compute the same in-trade MAE/MFE
+        # as candidate B. Exclude the exit candle's OHLC extrema because the
+        # intrabar order after the simulated exit is unknowable; use exit_fill
+        # as the terminal observed point. No entry/exit decision is modified.
+        legacy_return = '    return {"symbol":symbol,"side":side,"signal_time":str(signal_time),"entry_time":str(row.open_time),'
+        common_path_metrics = '''    prior_path=h1.iloc[entry_i:xi]
+    prior_highs=pd.to_numeric(prior_path["high"],errors="coerce").to_numpy(dtype=float)
+    prior_lows=pd.to_numeric(prior_path["low"],errors="coerce").to_numpy(dtype=float)
+    if side=="BUY":
+        favorable_points=list(prior_highs)+[float(exit_fill)]
+        adverse_points=list(prior_lows)+[float(exit_fill)]
+        mfe_price=max(0.0,max(favorable_points)-entry)
+        mae_price=max(0.0,entry-min(adverse_points))
+        mfe_bar=favorable_points.index(max(favorable_points))
+        mae_bar=adverse_points.index(min(adverse_points))
+    else:
+        favorable_points=list(prior_lows)+[float(exit_fill)]
+        adverse_points=list(prior_highs)+[float(exit_fill)]
+        mfe_price=max(0.0,entry-min(favorable_points))
+        mae_price=max(0.0,max(adverse_points)-entry)
+        mfe_bar=favorable_points.index(min(favorable_points))
+        mae_bar=adverse_points.index(max(adverse_points))
+'''
+        if source.count(legacy_return) != 1:
+            raise SystemExit("Cannot safely add common MAE/MFE metrics to baseline simulate()")
+        source = source.replace(legacy_return, common_path_metrics + legacy_return, 1)
+        metric_anchor = '"risk_cost_pct":round(risk_cost_pct,4),'
+        metric_fields = '"risk_cost_pct":round(risk_cost_pct,4),"mfe_pct":round(mfe_price/entry*100,5),"mae_pct":round(-mae_price/entry*100,5),"mfe_r":round(mfe_price/risk,5) if risk>0 else None,"mae_r":round(-mae_price/risk,5) if risk>0 else None,"bars_to_mfe":mfe_bar,"bars_to_mae":mae_bar,'
+        if source.count(metric_anchor) != 1:
+            raise SystemExit("Cannot safely add MAE/MFE fields to baseline trade result")
+        source = source.replace(metric_anchor, metric_fields, 1)
+        old_columns = '"net_pct","bars_held"'
+        if source.count(old_columns) != 1:
+            raise SystemExit("Cannot safely extend baseline trade CSV schema with MAE/MFE")
+        source = source.replace(old_columns, '"net_pct","mfe_pct","mae_pct","mfe_r","mae_r","bars_to_mfe","bars_to_mae","bars_held"', 1)
+        if not all(key in source for key in ("mfe_pct", "mae_pct", "bars_to_mfe", "bars_to_mae")):
+            raise SystemExit("Baseline MAE/MFE shim postcondition failed")
     source_path.write_text(source, encoding="utf-8")
 # Verify both revisions can run the exact same harness entrypoint.
 for label in ("A","B"):
@@ -251,6 +289,25 @@ def one(label, phase, ordinal):
     trades_path=path/"backtest-results"/"trades.csv"
     if not summary_path.exists() or not trades_path.exists():
         raise SystemExit(f"{label} run did not produce summary.json and trades.csv; inspect {log_path}")
+    with trades_path.open("r", encoding="utf-8", newline="") as trade_file:
+        trade_reader = csv.DictReader(trade_file)
+        required_path_fields = {"mfe_pct", "mae_pct", "mfe_r", "mae_r", "bars_to_mfe", "bars_to_mae"}
+        missing_path_fields = required_path_fields - set(trade_reader.fieldnames or [])
+        if missing_path_fields:
+            raise SystemExit(f"{label} trade CSV missing comparable path fields: {sorted(missing_path_fields)}")
+        trade_rows = list(trade_reader)
+    def numeric_metric(name):
+        values=[]
+        for trade in trade_rows:
+            try:
+                value=float(trade.get(name, ""))
+                if value == value and abs(value) != float("inf"):
+                    values.append(value)
+            except (TypeError, ValueError):
+                pass
+        return {"count":len(values),"median":round(median(values),5) if values else None,
+                "mean":round(sum(values)/len(values),5) if values else None}
+    path_metrics={name:numeric_metric(name) for name in sorted(required_path_fields)}
     summary=json.loads(summary_path.read_text())
     if not manifest_path.is_file():
         raise SystemExit(f"{run_id} missing raw input manifest; refusing to compare")
@@ -275,6 +332,7 @@ def one(label, phase, ordinal):
             "engine_calls":summary["performance"]["counters"].get("engine_calls"),
             "trade_sha256":hashlib.sha256(trades_path.read_bytes()).hexdigest(),
             "input_manifest_sha256":manifest_sha256,"input_manifest_rows":len(manifest),
+            "path_metrics":path_metrics,
             "summary":summary}
 # Warm the exact response cache; warm-up runs are deliberately not timed samples.
 print("WARMUP A",flush=True); one("A","warmup",1)
@@ -360,6 +418,10 @@ report={
                            "signal_engine":stats(candidate,"engine_seconds"),
                            "instrumented_total":stats(candidate,"total_instrumented_seconds")}},
  "samples":[{k:v for k,v in s.items() if k!="summary"} for s in samples],
+ "in_trade_path_metrics":{"definition":"same simulate-time formula in A and B; entry-to-exit path, exclude exit-candle OHLC extrema, terminal point is simulated exit fill",
+                        "baseline_A":baseline[0]["path_metrics"],
+                        "candidate_B":candidate[0]["path_metrics"],
+                        "note":"MFE/MAE are path diagnostics, not portfolio P&L; compare alongside shared-account outcomes."},
  "trade_sha256":{"baseline_A":baseline_trade_hash,"candidate_B":candidate_trade_hash,"identical_between_versions":baseline_trade_hash==candidate_trade_hash},
  "input_manifest_sha256":next(iter(input_manifest_hashes)),
  "input_manifest_rows":samples[0]["input_manifest_rows"],
