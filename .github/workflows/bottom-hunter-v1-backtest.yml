@@ -27,6 +27,7 @@ jobs:
         run: python -m pip install requests
       - name: Run 180-day shared-capital replay
         env:
+          PYTHONPATH: .
           BH_BACKTEST_DAYS: ${{ github.event.inputs.days || '180' }}
           BH_INITIAL_USDT: "1000"
           BH_RISK_FRACTION: "0.01"
