@@ -50,6 +50,45 @@ def _atr(candles: list[dict[str, Any]], period: int) -> float | None:
     return value if _finite(value) and value > 0 else None
 
 
+def find_early_warning(
+    candles: Iterable[dict[str, Any]],
+    symbol: str,
+    *,
+    decline_bars: int = DEFAULTS["decline_bars"],
+    min_decline_pct: float = DEFAULTS["min_decline_pct"],
+) -> dict[str, Any] | None:
+    """Return a WATCH-only heads-up after a recent decline, before entry confirmation.
+
+    This is not a tradable signal: it deliberately contains no entry, stop, or
+    target levels and must not be routed through the tradable-signal notifier.
+    All input candles must already be closed.
+    """
+    bars = list(candles)
+    if decline_bars < 2 or len(bars) < decline_bars + 1:
+        return None
+    if any(not _valid_candle(c) for c in bars):
+        return None
+
+    start_close = float(bars[-decline_bars - 1]["close"])
+    recent_close = float(bars[-2]["close"])
+    if start_close <= 0:
+        return None
+    decline_pct = (recent_close / start_close - 1.0) * 100.0
+    if decline_pct > -abs(min_decline_pct):
+        return None
+
+    return {
+        "symbol": symbol.upper(),
+        "status": "WATCH",
+        "side": "BUY_CANDIDATE",
+        "timeframe": "1h",
+        "observed_close": recent_close,
+        "decline_pct": decline_pct,
+        "reason": "recent_decline_waiting_for_rebound_confirmation",
+        "tradable": False,
+    }
+
+
 def find_signal(
     candles: Iterable[dict[str, Any]],
     symbol: str,
