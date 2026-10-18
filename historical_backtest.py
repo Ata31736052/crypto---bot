@@ -580,8 +580,8 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
         adverse_points=list(prior_lows)+[float(exit_fill)]
         mfe_price=max(0.0,max(favorable_points)-entry)
         mae_price=max(0.0,entry-min(adverse_points))
-        mfe_bar=int(np.argmax(favorable_points))
-        mae_bar=int(np.argmin(adverse_points))
+        mfe_bar=favorable_points.index(max(favorable_points))
+        mae_bar=adverse_points.index(min(adverse_points))
         signal_close=float(h1.iloc[entry_i-1].close) if entry_i>0 else float("nan")
         directional_gap=((raw_entry/signal_close)-1.0)*100.0 if signal_close>0 else float("nan")
     else:
@@ -589,8 +589,8 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
         adverse_points=list(prior_highs)+[float(exit_fill)]
         mfe_price=max(0.0,entry-min(favorable_points))
         mae_price=max(0.0,max(adverse_points)-entry)
-        mfe_bar=int(np.argmin(favorable_points))
-        mae_bar=int(np.argmax(adverse_points))
+        mfe_bar=favorable_points.index(min(favorable_points))
+        mae_bar=adverse_points.index(max(adverse_points))
         signal_close=float(h1.iloc[entry_i-1].close) if entry_i>0 else float("nan")
         directional_gap=((signal_close/raw_entry)-1.0)*100.0 if signal_close>0 else float("nan")
     return {"symbol":symbol,"side":side,"signal_time":str(signal_time),"entry_time":str(row.open_time),
