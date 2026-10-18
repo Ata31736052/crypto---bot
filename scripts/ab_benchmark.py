@@ -152,35 +152,43 @@ for label in ("A", "B"):
     if "def _ab_record_input(" not in source:
         source = source.replace("def fetch(", MANIFEST_HELPER + "\ndef fetch(", 1)
     if label == "A":
-        sig = "def fetch(symbol, tf, start_ms, end_ms):"
-        if sig not in source: raise SystemExit("Cannot safely patch baseline fetch signature")
-        source = source.replace(sig, "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, signal_boundary_ms=None):", 1)
-        old_filters = (
-            '    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])',
-            '    d=d[d.close_time < pd.Timestamp.now(tz="UTC")].dropna(subset=["open","high","low","close","volume"])',
-        )
-        new_filter = '''    boundary=pd.to_datetime(signal_boundary_ms if signal_boundary_ms is not None else end_ms,unit="ms",utc=True)
+        # Older baselines need a compatibility shim. If the selected baseline
+        # already implements the fixed-window and boundary-aware fetch API,
+        # leave its execution policy intact instead of trying to patch it again.
+        legacy_sig = "def fetch(symbol, tf, start_ms, end_ms):"
+        modern_sig = "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, now=None, signal_boundary_ms=None):"
+        if legacy_sig in source:
+            source = source.replace(legacy_sig, "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, signal_boundary_ms=None):", 1)
+            old_filters = (
+                '    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])',
+                '    d=d[d.close_time < pd.Timestamp.now(tz="UTC")].dropna(subset=["open","high","low","close","volume"])',
+            )
+            new_filter = '''    boundary=pd.to_datetime(signal_boundary_ms if signal_boundary_ms is not None else end_ms,unit="ms",utc=True)
     data_cutoff=pd.to_datetime(end_ms,unit="ms",utc=True)
     d=d[(d.close_time < data_cutoff) | ((tf == "1h") & include_boundary_open & (d.open_time == boundary))]
     d=d.dropna(subset=["open","high","low","close","volume"])'''
-        matched_filters = [line for line in old_filters if line in source]
-        if len(matched_filters) != 1:
-            raise SystemExit(
-                "Cannot safely normalize baseline end-boundary policy: "
-                f"expected exactly one known filter, found {len(matched_filters)}"
-            )
-        source = source.replace(matched_filters[0], new_filter, 1)
-        if new_filter not in source:
-            raise SystemExit("Baseline boundary normalization postcondition failed")
-        source = source.replace('fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000))', 'fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000),include_boundary_open=(tf=="1h"))')
-        source = source.replace('raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000)) for tf in ("1h","30m","4h","1d")}',
+            matched_filters = [line for line in old_filters if line in source]
+            if len(matched_filters) != 1:
+                raise SystemExit(
+                    "Cannot safely normalize legacy baseline end-boundary policy: "
+                    f"expected exactly one known filter, found {len(matched_filters)}"
+                )
+            source = source.replace(matched_filters[0], new_filter, 1)
+            if new_filter not in source:
+                raise SystemExit("Legacy baseline boundary normalization postcondition failed")
+            source = source.replace('fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000))', 'fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000),include_boundary_open=(tf=="1h"))')
+            source = source.replace('raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000)) for tf in ("1h","30m","4h","1d")}',
 '''raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),
-                          int((end+pd.Timedelta(hours=73)).timestamp()*1000) if tf=="1h" else int(end.timestamp()*1000),
-                          include_boundary_open=(tf=="1h"),
-                          signal_boundary_ms=int(end.timestamp()*1000) if tf=="1h" else None)
-                  for tf in ("1h","30m","4h","1d")}''')
-        source = source.replace('                c=h1.iloc[i]; close_time=c.close_time',
-                                '                c=h1.iloc[i]; close_time=c.close_time\n                if c.open_time >= end: break', 1)
+                           int((end+pd.Timedelta(hours=73)).timestamp()*1000) if tf=="1h" else int(end.timestamp()*1000),
+                           include_boundary_open=(tf=="1h"),
+                           signal_boundary_ms=int(end.timestamp()*1000) if tf=="1h" else None)
+                   for tf in ("1h","30m","4h","1d")}''')
+            source = source.replace('                c=h1.iloc[i]; close_time=c.close_time',
+                                    '                c=h1.iloc[i]; close_time=c.close_time\n                if c.open_time >= end: break', 1)
+        elif modern_sig in source and "BACKTEST_END_TIME" in source and "signal_boundary_ms" in source:
+            print("A_BASELINE_ALREADY_HAS_FIXED_WINDOW_AND_BOUNDARY_API: no compatibility shim needed", flush=True)
+        else:
+            raise SystemExit("Cannot safely patch baseline: unsupported fetch signature or missing fixed-window boundary support")
     return_line = '    return d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]'
     replacement = '''    d=d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]
     _ab_record_input(symbol, tf, d)
