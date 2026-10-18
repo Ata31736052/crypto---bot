@@ -9136,7 +9136,11 @@ def run_v63_14_3_outcome_boundary_self_test():
     assert any(reason.startswith("score 75 < 90") for reason in reject_reasons)
     assert any("reversal ADX too weak" in reason for reason in reject_reasons)
     assert any("reversal volume below professional minimum" in reason for reason in reject_reasons)
-    assert any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
+    # Bottom Hunter has its own 30M reversal check; the second trend-style
+    # confirmation is a quality bonus, not an independent hard rejection.
+    assert not any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
+    # The separate higher-timeframe alignment requirement remains a hard gate.
+    assert any("higher-timeframe alignment insufficient" in reason for reason in reject_reasons)
     assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
     return True
 
