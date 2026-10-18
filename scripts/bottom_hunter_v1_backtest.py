@@ -71,6 +71,7 @@ def main():
         if qty <= 0: continue
         tp1, tp2 = sig["take_profit_1"], sig["take_profit_2"]
         remaining, realized, exit_time, reason = qty, 0.0, None, "TIME_END"
+        tp1_done = False
         for j in range(idx, len(bars)):
             b = bars[j]
             if b["open_time"] >= end: break
@@ -80,14 +81,16 @@ def main():
             if b["open"] >= tp2:
                 px = b["open"]*(1-SLIP_BPS/10000); realized += remaining*(px-entry); exit_time=b["open_time"]; reason="TP2_GAP"; break
             if b["low"] <= stop:
-                px = stop*(1-SLIP_BPS/10000); realized += remaining*(px-entry); exit_time=b["open_time"]; reason="STOP"; break
-            if b["high"] >= tp2:
-                px = tp2*(1-SLIP_BPS/10000); realized += remaining*(px-entry); exit_time=b["open_time"]; reason="TP2"; break
-            if b["high"] >= tp1 and remaining > 0:
+                px = stop*(1-SLIP_BPS/10000); realized += remaining*(px-entry); exit_time=b["close_time"]; reason="STOP"; break
+            # Take TP1 only once. If both targets are reached in the same candle,
+            # realize half at TP1 and the remainder at TP2 (unless stop was touched).
+            if not tp1_done and b["high"] >= tp1 and remaining > 0:
                 partial = remaining*0.5
                 px = tp1*(1-SLIP_BPS/10000); realized += partial*(px-entry); remaining -= partial
-                # Move no stop: avoid optimistic breakeven assumption.
-                if remaining <= qty*1e-9: break
+                tp1_done = True
+            if b["high"] >= tp2 and remaining > 0:
+                px = tp2*(1-SLIP_BPS/10000); realized += remaining*(px-entry); remaining = 0.0
+                exit_time=b["close_time"]; reason="TP2"; break
         if exit_time is None:
             last = next((b for b in reversed(bars[idx:]) if b["open_time"] < end), None)
             if last is None: continue
