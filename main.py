@@ -8510,13 +8510,15 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
             reject.append(f"HTF confirmation insufficient ({confirmations})")
         else:
             quality += 3
+    elif mode == "BOTTOM_HUNTER":
+        # Bottom Hunter already evaluates a dedicated 30M reversal signal in
+        # score_bottom_hunter(). Keep this second, trend-oriented confirmation
+        # as a quality bonus only; it must not become a second hard gate.
+        if confirm.get("confirmed") and confirmations >= PRO_BOTTOM_MIN_30M_CONFIRMATIONS:
+            quality += 3
     elif (not confirm.get("confirmed") or
-          (mode == "BOTTOM_HUNTER" and confirmations < PRO_BOTTOM_MIN_30M_CONFIRMATIONS) or
-          (mode != "BOTTOM_HUNTER" and side == "SELL" and confirmations < required_confirmations)):
-        if mode == "BOTTOM_HUNTER":
-            reject.append(f"30M reversal confirmation insufficient (actual={confirmations}; required>={PRO_BOTTOM_MIN_30M_CONFIRMATIONS})")
-        else:
-            reject.append(f"30M confirmation insufficient (actual={confirmations}; required>={required_confirmations})")
+          (side == "SELL" and confirmations < required_confirmations)):
+        reject.append(f"30M confirmation insufficient (actual={confirmations}; required>={required_confirmations})")
     else:
         quality += 3
 
