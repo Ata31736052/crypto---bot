@@ -1,7 +1,7 @@
 import math
 import unittest
 
-from bottom_hunter_v1.core import find_signal
+from bottom_hunter_v1.core import find_early_warning, find_signal
 
 
 def make_bars():
@@ -50,6 +50,28 @@ class BottomHunterTests(unittest.TestCase):
 
     def test_insufficient_history_is_rejected(self):
         self.assertIsNone(find_signal(make_bars()[:10], "ETHUSDT"))
+
+    def test_early_warning_is_separate_from_tradable_entry(self):
+        bars = make_bars()
+        # Remove the bullish break: this must remain a warning, not an entry.
+        bars[-1]["close"] = bars[-1]["open"] * 0.999
+        warning = find_early_warning(bars, "ETHUSDT", min_decline_pct=1.0)
+        self.assertIsNotNone(warning)
+        self.assertEqual(warning["status"], "WATCH")
+        self.assertFalse(warning["tradable"])
+        self.assertNotIn("stop_loss", warning)
+        self.assertNotIn("take_profit_1", warning)
+        self.assertIsNone(find_signal(bars, "ETHUSDT", min_decline_pct=1.0))
+
+    def test_early_warning_requires_real_decline(self):
+        bars = make_bars()
+        # Flatten the pre-signal history so there is no meaningful decline.
+        for bar in bars[:-1]:
+            bar["open"] = 100.0
+            bar["high"] = 100.2
+            bar["low"] = 99.8
+            bar["close"] = 100.0
+        self.assertIsNone(find_early_warning(bars, "ETHUSDT", min_decline_pct=1.0))
 
 
 if __name__ == "__main__":
