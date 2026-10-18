@@ -278,11 +278,10 @@ sequence=[("B",1),("A",1),("B",2),("A",2),("B",3),("A",3)]
 for label, ordinal in sequence:
     print(f"MEASURE {label} {ordinal}",flush=True)
     samples.append(one(label,"measured",ordinal))
-# Require byte-identical trade rows and equivalent key output metrics across
-# all runs. Exact CSV equality is stricter than merely matching trade counts.
+# Check determinism within each revision; A-vs-B differences are expected
+# for a strategy-changing PR and must be measured, not treated as harness failure.
 baseline=[s for s in samples if s["label"]=="A"]
 candidate=[s for s in samples if s["label"]=="B"]
-trade_hashes={s["trade_sha256"] for s in samples}
 input_manifest_hashes={s["input_manifest_sha256"] for s in samples}
 if len(input_manifest_hashes) != 1:
     (OUT/"input-mismatch.json").write_text(json.dumps({
@@ -296,20 +295,26 @@ def comparable(s):
             "symbols":x["symbols"],"candidate_trade_count":x["candidate_trade_count"],
             "portfolio":x["portfolio"],"engine_breakdown":x["engine_breakdown"],
             "diagnostics":x["diagnostics"]}
-summary_hashes={json.dumps(comparable(s),sort_keys=True,default=str) for s in samples}
-if len(trade_hashes)!=1 or len(summary_hashes)!=1:
-    (OUT/"mismatch.json").write_text(json.dumps({
-        "trade_hashes":[s["trade_sha256"] for s in samples],
-        "summaries":[{"label":s["label"],"phase":s["phase"],"ordinal":s["ordinal"],
-                      "summary":comparable(s)} for s in samples]},indent=2,default=str))
-    raise SystemExit("OUTPUT MISMATCH: do not merge; see mismatch.json")
+def assert_repeatable(rows, label):
+    trade_hashes={s["trade_sha256"] for s in rows}
+    summary_hashes={json.dumps(comparable(s),sort_keys=True,default=str) for s in rows}
+    if len(trade_hashes)!=1 or len(summary_hashes)!=1:
+        (OUT/f"repeatability-mismatch-{label}.json").write_text(json.dumps({
+            "label":label,
+            "trade_hashes":[s["trade_sha256"] for s in rows],
+            "summaries":[{"ordinal":s["ordinal"],"summary":comparable(s)} for s in rows]
+        },indent=2,default=str))
+        raise SystemExit(f"REPEATABILITY FAILURE within {label}; see repeatability-mismatch-{label}.json")
+    return next(iter(trade_hashes))
+baseline_trade_hash=assert_repeatable(baseline,"A")
+candidate_trade_hash=assert_repeatable(candidate,"B")
 def stats(rows,key):
     values=[float(r[key]) for r in rows]
     return {"samples":values,"median":round(median(values),4),
             "min":round(min(values),4),"max":round(max(values),4),
             "range":round(max(values)-min(values),4)}
 report={
- "status":"PASS_OUTPUTS_IDENTICAL",
+ "status":"PASS_REPEATABILITY_A_AND_B; STRATEGY_DIFFERENCES_REPORTED",
  "base_sha":BASE_SHA,"candidate_sha":CANDIDATE_SHA,
  "configuration":{"days":ENV["BACKTEST_DAYS"],"symbols":ENV["BACKTEST_SYMBOLS"],
                   "fee_bps_per_side":ENV["BACKTEST_FEE_BPS"],
@@ -323,7 +328,7 @@ report={
                            "signal_engine":stats(candidate,"engine_seconds"),
                            "instrumented_total":stats(candidate,"total_instrumented_seconds")}},
  "samples":[{k:v for k,v in s.items() if k!="summary"} for s in samples],
- "trade_sha256":next(iter(trade_hashes)),
+ "trade_sha256":{"baseline_A":baseline_trade_hash,"candidate_B":candidate_trade_hash,"identical_between_versions":baseline_trade_hash==candidate_trade_hash},
  "input_manifest_sha256":next(iter(input_manifest_hashes)),
  "input_manifest_rows":samples[0]["input_manifest_rows"],
  "notes":["Separate signal-window and outcome-window OHLCV hashes and row counts are fingerprinted before indicator preparation and must match across all samples.",
@@ -341,4 +346,4 @@ report["signal_engine_median_improvement_pct"]=round(
 ) if report["timings"]["baseline_A"]["signal_engine"]["median"] else None
 (OUT/"report.json").write_text(json.dumps(report,indent=2,default=str),encoding="utf-8")
 print(json.dumps({k:v for k,v in report.items() if k not in ("samples",)},indent=2,default=str),flush=True)
-print("A/B benchmark: PASS (identical outputs)",flush=True)
+print("A/B benchmark: PASS (repeatability checked separately within A and B; A-vs-B differences reported)",flush=True)
