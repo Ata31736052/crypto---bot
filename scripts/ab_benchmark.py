@@ -313,8 +313,32 @@ def stats(rows,key):
     return {"samples":values,"median":round(median(values),4),
             "min":round(min(values),4),"max":round(max(values),4),
             "range":round(max(values)-min(values),4)}
+def outcome_metrics(rows):
+    # Repeatability is already verified, so the first sample represents this revision.
+    x=rows[0]["summary"]
+    p=x.get("portfolio",{})
+    return {
+        "period_start":x.get("period_start"),"period_end":x.get("period_end"),
+        "candidate_trade_count":x.get("candidate_trade_count"),
+        "accepted_trades":p.get("accepted_trades"),
+        "rejected_trades":p.get("rejected_trades"),
+        "net_pnl_usdt":p.get("net_pnl_usdt"),
+        "net_return_pct":p.get("net_return_pct"),
+        "max_drawdown_pct":p.get("max_drawdown_pct"),
+        "final_equity_usdt":p.get("final_equity_usdt"),
+    }
+outcome_A=outcome_metrics(baseline)
+outcome_B=outcome_metrics(candidate)
+outcome_delta={}
+for key in ("candidate_trade_count","accepted_trades","rejected_trades","net_pnl_usdt",
+            "net_return_pct","max_drawdown_pct","final_equity_usdt"):
+    a,b=outcome_A.get(key),outcome_B.get(key)
+    if isinstance(a,(int,float)) and isinstance(b,(int,float)):
+        outcome_delta[key]=round(b-a,6)
 report={
  "status":"PASS_REPEATABILITY_A_AND_B; STRATEGY_DIFFERENCES_REPORTED",
+ "portfolio_outcome_comparison":{"baseline_A":outcome_A,"candidate_B":outcome_B,
+                                 "candidate_minus_baseline":outcome_delta},
  "base_sha":BASE_SHA,"candidate_sha":CANDIDATE_SHA,
  "configuration":{"days":ENV["BACKTEST_DAYS"],"symbols":ENV["BACKTEST_SYMBOLS"],
                   "fee_bps_per_side":ENV["BACKTEST_FEE_BPS"],
