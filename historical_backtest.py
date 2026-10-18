@@ -566,6 +566,25 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
     for k in range(entry_i, xi+1):
         candle=h1.iloc[k]
         path.append({"time":str(candle.close_time),"price":float(exit_fill if k==xi else candle.close)})
+    # Outcome-only path diagnostics. Signal generation remains limited to candles
+    # closed before entry_i; these fields are never fed back into signal decisions.
+    path_frame=h1.iloc[entry_i:xi+1]
+    highs=pd.to_numeric(path_frame["high"],errors="coerce")
+    lows=pd.to_numeric(path_frame["low"],errors="coerce")
+    if side=="BUY":
+        mfe_price=max(0.0,float(highs.max())-entry)
+        mae_price=max(0.0,entry-float(lows.min()))
+        mfe_bar=int(highs.to_numpy().argmax())
+        mae_bar=int(lows.to_numpy().argmin())
+        signal_close=float(h1.iloc[entry_i-1].close) if entry_i>0 else float("nan")
+        directional_gap=((raw_entry/signal_close)-1.0)*100.0 if signal_close>0 else float("nan")
+    else:
+        mfe_price=max(0.0,entry-float(lows.min()))
+        mae_price=max(0.0,float(highs.max())-entry)
+        mfe_bar=int(lows.to_numpy().argmin())
+        mae_bar=int(highs.to_numpy().argmax())
+        signal_close=float(h1.iloc[entry_i-1].close) if entry_i>0 else float("nan")
+        directional_gap=((signal_close/raw_entry)-1.0)*100.0 if signal_close>0 else float("nan")
     return {"symbol":symbol,"side":side,"signal_time":str(signal_time),"entry_time":str(row.open_time),
             "raw_entry":raw_entry,"entry":entry,"stop_loss":sl,"tp1":tp1,"tp2":tp2,
             "exit_time":str(h1.iloc[xi].close_time),"raw_exit":raw_exit,"exit":exit_fill,
@@ -573,6 +592,11 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
             "fee_cost_pct":round(fee_cost_pct,4),"slippage_cost_pct":round(slippage_cost_pct,4),
             "slippage_bps_per_side":SLIPPAGE_BPS,"cost_pct":round(fee_cost_pct,4),
             "risk_cost_pct":round(risk_cost_pct,4),"net_pct":round(gross-fee_cost_pct,4),
+            "entry_gap_directional_pct":round(directional_gap,5) if math.isfinite(directional_gap) else None,
+            "mfe_pct":round(mfe_price/entry*100,5),"mae_pct":round(-mae_price/entry*100,5),
+            "mfe_r":round(mfe_price/risk,5) if risk>0 else None,
+            "mae_r":round(-mae_price/risk,5) if risk>0 else None,
+            "bars_to_mfe":mfe_bar,"bars_to_mae":mae_bar,
             "bars_held":xi-entry_i,"score":score,"strength":strength,"_path":path},xi
 
 def closed_prefix(df, decision_time, limit=None):
@@ -894,7 +918,7 @@ def run():
                     print(f"TRADE {sym} {side} {trade['signal_time']} engine={trade['engine']} net={trade['net_pct']}% {trade['exit_reason']}",flush=True)
         except Exception as exc:
             errors.append({"symbol":sym,"error":str(exc)}); print("ERROR",sym,exc,flush=True)
-    columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason"]
+    columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","entry_gap_directional_pct","mfe_pct","mae_pct","mfe_r","mae_r","bars_to_mfe","bars_to_mae","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason"]
     pd.DataFrame(trades,columns=columns).to_csv(OUT/"trades.csv",index=False)
     vals=[float(t["net_pct"]) for t in trades]
     portfolio_ledger_self_test(OUT)
