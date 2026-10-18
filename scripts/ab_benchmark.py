@@ -321,16 +321,77 @@ def one(label, phase, ordinal):
     # Do not copy a file onto itself (shutil raises SameFileError).
     if summary.get("status") != "COMPLETED" or summary.get("errors"):
         raise SystemExit(f"{label} backtest has errors; refusing to compare; inspect {log_path}")
-    # Store full outputs per sample to compare and inspect after the workflow.
+    # Archive the shared-cash ledger too: aggregate summary values alone cannot
+    # explain cash competition, rejected entries, sizing, or equity/drawdown paths.
+    ledger_names=("portfolio_trades.csv","portfolio_equity.csv","per_symbol.csv")
+    ledger_paths={name:path/"backtest-results"/name for name in ledger_names}
+    missing_ledger=[name for name,file_path in ledger_paths.items() if not file_path.is_file()]
+    if missing_ledger:
+        raise SystemExit(f"{label} run missing shared-cash ledger outputs: {missing_ledger}; refusing to compare")
+
+    with ledger_paths["portfolio_trades.csv"].open("r",encoding="utf-8",newline="") as ledger_file:
+        ledger_reader=csv.DictReader(ledger_file)
+        required_ledger_fields={"symbol","side","entry_time","exit_time","portfolio_status",
+                                "portfolio_reject_reason","position_notional_usdt",
+                                "risk_budget_usdt","portfolio_pnl_usdt"}
+        missing_fields=required_ledger_fields-set(ledger_reader.fieldnames or [])
+        if missing_fields:
+            raise SystemExit(f"{label} portfolio ledger missing fields: {sorted(missing_fields)}")
+        ledger_rows=list(ledger_reader)
+    with ledger_paths["portfolio_equity.csv"].open("r",encoding="utf-8",newline="") as equity_file:
+        equity_reader=csv.DictReader(equity_file)
+        required_equity_fields={"time","cash_usdt","open_positions","open_notional_usdt",
+                                "equity_usdt","drawdown_pct","capital_utilization_pct",
+                                "gross_exposure_pct_equity"}
+        missing_fields=required_equity_fields-set(equity_reader.fieldnames or [])
+        if missing_fields:
+            raise SystemExit(f"{label} equity ledger missing fields: {sorted(missing_fields)}")
+        equity_rows=list(equity_reader)
+    if not equity_rows:
+        raise SystemExit(f"{label} equity ledger is empty; refusing to compare")
+
+    portfolio_summary=summary.get("portfolio",{})
+    accepted_rows=[row for row in ledger_rows if row.get("portfolio_status")=="ACCEPTED"]
+    rejected_rows=[row for row in ledger_rows if row.get("portfolio_status")=="REJECTED"]
+    if len(ledger_rows)!=int(portfolio_summary.get("candidate_trades",-1)):
+        raise SystemExit(f"{label} ledger candidate count does not reconcile to summary")
+    if len(accepted_rows)!=int(portfolio_summary.get("accepted_trades",-1)) or len(rejected_rows)!=int(portfolio_summary.get("rejected_trades",-1)):
+        raise SystemExit(f"{label} ledger accepted/rejected counts do not reconcile to summary")
+    try:
+        ledger_pnl=sum(float(row["portfolio_pnl_usdt"] or 0) for row in accepted_rows)
+        summary_pnl=float(portfolio_summary["net_pnl_usdt"])
+        if abs(ledger_pnl-summary_pnl)>0.001:
+            raise SystemExit(f"{label} accepted-trade PnL {ledger_pnl:.6f} does not reconcile to portfolio PnL {summary_pnl:.6f}")
+        for row in equity_rows:
+            cash=float(row["cash_usdt"])
+            equity=float(row["equity_usdt"])
+            drawdown=float(row["drawdown_pct"])
+            if not all(map(lambda value: value==value and abs(value)!=float("inf"),(cash,equity,drawdown))):
+                raise SystemExit(f"{label} equity ledger contains a non-finite value")
+            if cash < -0.000001 or drawdown < -0.000001:
+                raise SystemExit(f"{label} equity ledger violates cash or drawdown bounds")
+    except (KeyError,TypeError,ValueError) as exc:
+        raise SystemExit(f"{label} ledger contains invalid numeric accounting fields: {exc}")
+
+    ledger_sha256={name:hashlib.sha256(file_path.read_bytes()).hexdigest()
+                   for name,file_path in ledger_paths.items()}
+    # Store every ledger with each measured sample; upload-artifact then preserves
+    # the per-trade acceptance/rejection trail and timestamped account equity.
     sample=OUT/f"{phase}-{label}-{ordinal}"
     sample.mkdir(exist_ok=True)
     shutil.copy2(summary_path,sample/"summary.json")
     shutil.copy2(trades_path,sample/"trades.csv")
+    for name,file_path in ledger_paths.items():
+        shutil.copy2(file_path,sample/name)
     return {"label":label,"phase":phase,"ordinal":ordinal,"wall_seconds":round(wall,4),
             "engine_seconds":summary["performance"]["stage_seconds"].get("signal_engine",0),
             "total_instrumented_seconds":summary["performance"]["total_instrumented_seconds"],
             "engine_calls":summary["performance"]["counters"].get("engine_calls"),
             "trade_sha256":hashlib.sha256(trades_path.read_bytes()).hexdigest(),
+            "ledger_sha256":ledger_sha256,
+            "ledger_counts":{"candidates":len(ledger_rows),"accepted":len(accepted_rows),
+                             "rejected":len(rejected_rows),"equity_points":len(equity_rows)},
+            "ledger_reconciled":True,
             "input_manifest_sha256":manifest_sha256,"input_manifest_rows":len(manifest),
             "path_metrics":path_metrics,
             "summary":summary}
@@ -364,16 +425,19 @@ def comparable(s):
 def assert_repeatable(rows, label):
     trade_hashes={s["trade_sha256"] for s in rows}
     summary_hashes={json.dumps(comparable(s),sort_keys=True,default=str) for s in rows}
-    if len(trade_hashes)!=1 or len(summary_hashes)!=1:
+    ledger_hashes={json.dumps(s.get("ledger_sha256",{}),sort_keys=True) for s in rows}
+    if len(trade_hashes)!=1 or len(summary_hashes)!=1 or len(ledger_hashes)!=1:
         (OUT/f"repeatability-mismatch-{label}.json").write_text(json.dumps({
             "label":label,
             "trade_hashes":[s["trade_sha256"] for s in rows],
+            "ledger_hashes":[s.get("ledger_sha256",{}) for s in rows],
             "summaries":[{"ordinal":s["ordinal"],"summary":comparable(s)} for s in rows]
         },indent=2,default=str))
         raise SystemExit(f"REPEATABILITY FAILURE within {label}; see repeatability-mismatch-{label}.json")
-    return next(iter(trade_hashes))
-baseline_trade_hash=assert_repeatable(baseline,"A")
-candidate_trade_hash=assert_repeatable(candidate,"B")
+    return {"trades":next(iter(trade_hashes)),
+            "ledger":rows[0].get("ledger_sha256",{})}
+baseline_hashes=assert_repeatable(baseline,"A")
+candidate_hashes=assert_repeatable(candidate,"B")
 def stats(rows,key):
     values=[float(r[key]) for r in rows]
     return {"samples":values,"median":round(median(values),4),
@@ -422,7 +486,10 @@ report={
                         "baseline_A":baseline[0]["path_metrics"],
                         "candidate_B":candidate[0]["path_metrics"],
                         "note":"MFE/MAE are path diagnostics, not portfolio P&L; compare alongside shared-account outcomes."},
- "trade_sha256":{"baseline_A":baseline_trade_hash,"candidate_B":candidate_trade_hash,"identical_between_versions":baseline_trade_hash==candidate_trade_hash},
+ "trade_sha256":{"baseline_A":baseline_hashes["trades"],"candidate_B":candidate_hashes["trades"],"identical_between_versions":baseline_hashes["trades"]==candidate_hashes["trades"]},
+ "portfolio_ledger":{"baseline_A":baseline_hashes["ledger"],"candidate_B":candidate_hashes["ledger"],
+                     "identical_between_versions":baseline_hashes["ledger"]==candidate_hashes["ledger"],
+                     "note":"A-vs-B ledger differences are expected when strategy trades differ; each revision's ledger hashes must repeat exactly across its three measured runs."},
  "input_manifest_sha256":next(iter(input_manifest_hashes)),
  "input_manifest_rows":samples[0]["input_manifest_rows"],
  "notes":["Separate signal-window and outcome-window OHLCV hashes and row counts are fingerprinted before indicator preparation and must match across all samples.",
