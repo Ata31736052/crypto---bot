@@ -567,22 +567,30 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
         candle=h1.iloc[k]
         path.append({"time":str(candle.close_time),"price":float(exit_fill if k==xi else candle.close)})
     # Outcome-only path diagnostics. Signal generation remains limited to candles
-    # closed before entry_i; these fields are never fed back into signal decisions.
-    path_frame=h1.iloc[entry_i:xi+1]
-    highs=pd.to_numeric(path_frame["high"],errors="coerce")
-    lows=pd.to_numeric(path_frame["low"],errors="coerce")
+    # MAE/MFE are diagnostic only. OHLC cannot reveal the intrabar path of the
+    # exit candle, so exclude that candle's full high/low (which may occur after
+    # the SL/TP exit) and use the actual simulated exit fill as the terminal point.
+    # Earlier fully observed candles remain eligible. This is intentionally
+    # conservative and avoids look-ahead from post-exit extrema.
+    prior_path=h1.iloc[entry_i:xi]
+    prior_highs=pd.to_numeric(prior_path["high"],errors="coerce").to_numpy(dtype=float)
+    prior_lows=pd.to_numeric(prior_path["low"],errors="coerce").to_numpy(dtype=float)
     if side=="BUY":
-        mfe_price=max(0.0,float(highs.max())-entry)
-        mae_price=max(0.0,entry-float(lows.min()))
-        mfe_bar=int(highs.to_numpy().argmax())
-        mae_bar=int(lows.to_numpy().argmin())
+        favorable_points=list(prior_highs)+[float(exit_fill)]
+        adverse_points=list(prior_lows)+[float(exit_fill)]
+        mfe_price=max(0.0,max(favorable_points)-entry)
+        mae_price=max(0.0,entry-min(adverse_points))
+        mfe_bar=int(np.argmax(favorable_points))
+        mae_bar=int(np.argmin(adverse_points))
         signal_close=float(h1.iloc[entry_i-1].close) if entry_i>0 else float("nan")
         directional_gap=((raw_entry/signal_close)-1.0)*100.0 if signal_close>0 else float("nan")
     else:
-        mfe_price=max(0.0,entry-float(lows.min()))
-        mae_price=max(0.0,float(highs.max())-entry)
-        mfe_bar=int(lows.to_numpy().argmin())
-        mae_bar=int(highs.to_numpy().argmax())
+        favorable_points=list(prior_lows)+[float(exit_fill)]
+        adverse_points=list(prior_highs)+[float(exit_fill)]
+        mfe_price=max(0.0,entry-min(favorable_points))
+        mae_price=max(0.0,max(adverse_points)-entry)
+        mfe_bar=int(np.argmin(favorable_points))
+        mae_bar=int(np.argmax(adverse_points))
         signal_close=float(h1.iloc[entry_i-1].close) if entry_i>0 else float("nan")
         directional_gap=((signal_close/raw_entry)-1.0)*100.0 if signal_close>0 else float("nan")
     return {"symbol":symbol,"side":side,"signal_time":str(signal_time),"entry_time":str(row.open_time),
