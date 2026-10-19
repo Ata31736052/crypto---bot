@@ -799,8 +799,8 @@ def summarize_setup_forming(episodes, frames_by_symbol, actionable_signals, fee_
             row["matching_entry_time"] = sig["signal_time"]
             row["matching_entry_fill"] = entry_fill
 
-    def horizon_stats(horizon):
-        complete = [r for r in rows if r.get(f"full_{horizon}h") and r.get(f"mfe_{horizon}h_pct") is not None]
+    def horizon_stats(horizon, cohort):
+        complete = [r for r in cohort if r.get(f"full_{horizon}h") and r.get(f"mfe_{horizon}h_pct") is not None]
         mfe = [r[f"mfe_{horizon}h_pct"] for r in complete]
         mae = [r[f"mae_{horizon}h_pct"] for r in complete]
         net_mfe = [r[f"net_mfe_{horizon}h_pct"] for r in complete]
@@ -809,13 +809,43 @@ def summarize_setup_forming(episodes, frames_by_symbol, actionable_signals, fee_
             "median_max_favorable_excursion_pct": round(statistics.median(mfe), 4) if mfe else None,
             "median_max_adverse_excursion_pct": round(statistics.median(mae), 4) if mae else None,
             "pct_with_favorable_excursion_exceeding_round_trip_cost": round(sum(x > 0 for x in net_mfe) / len(net_mfe) * 100, 2) if net_mfe else None,
+            "pct_reaching_3pct_favorable_excursion": round(sum(x >= 3.0 for x in mfe) / len(mfe) * 100, 2) if mfe else None,
         }
     matched = [r for r in rows if r.get("matching_entry_within_24h")]
+    # Stratify using facts known at the first warning candle only. Never use
+    # retrospective episode duration as a cohort filter: that leaks future data.
+    cohort_keys = sorted({
+        (str(r.get("side", "UNKNOWN")), int(r.get("evidence_count", 0)))
+        for r in rows
+    })
+    by_side_and_initial_evidence = {}
+    for side, evidence_count in cohort_keys:
+        cohort = [r for r in rows
+                  if str(r.get("side", "UNKNOWN")) == side
+                  and int(r.get("evidence_count", 0)) == evidence_count]
+        complete24 = [r for r in cohort if r.get("full_24h")]
+        outcomes = [r.get("barrier_outcome_24h") for r in complete24]
+        group_matched = [r for r in cohort if r.get("matching_entry_within_24h")]
+        key = f"{side}_evidence_{evidence_count}"
+        by_side_and_initial_evidence[key] = {
+            "episode_count": len(cohort),
+            "complete_24h_episodes": len(complete24),
+            "horizons": {f"{h}h": horizon_stats(h, cohort) for h in (6, 12, 24)},
+            "favorable_first_1pct_count": outcomes.count("FAVORABLE_FIRST_1PCT"),
+            "adverse_first_1pct_count": outcomes.count("ADVERSE_FIRST_1PCT"),
+            "no_barrier_24h_count": outcomes.count("NO_BARRIER_24H"),
+            "favorable_first_1pct_pct": round(outcomes.count("FAVORABLE_FIRST_1PCT") / len(complete24) * 100, 2) if complete24 else None,
+            "adverse_first_1pct_pct": round(outcomes.count("ADVERSE_FIRST_1PCT") / len(complete24) * 100, 2) if complete24 else None,
+            "matched_to_same_side_actionable_entry_within_24h": len(group_matched),
+            "median_warning_to_entry_hours": round(statistics.median([r["entry_lead_hours"] for r in group_matched]), 3) if group_matched else None,
+            "median_warning_price_advantage_at_entry_pct": round(statistics.median([r["warning_price_advantage_pct"] for r in group_matched]), 4) if group_matched else None,
+        }
     return {
         "warning_candle_count": int(sum(int(ep.get("warning_candles_in_episode", 1)) for ep in episodes)),
         "episode_count": len(rows),
         "round_trip_cost_estimate_pct": round(cost_pct, 4),
-        "horizons": {f"{h}h": horizon_stats(h) for h in (6, 12, 24)},
+        "horizons": {f"{h}h": horizon_stats(h, rows) for h in (6, 12, 24)},
+        "by_side_and_initial_evidence": by_side_and_initial_evidence,
         "episodes_with_same_side_entry_within_24h": len(matched),
         "median_hours_warning_to_entry": round(statistics.median([r["entry_lead_hours"] for r in matched]), 3) if matched else None,
         "median_warning_price_advantage_at_entry_pct": round(statistics.median([r["warning_price_advantage_pct"] for r in matched]), 4) if matched else None,
@@ -828,7 +858,7 @@ def summarize_setup_forming(episodes, frames_by_symbol, actionable_signals, fee_
                for name in ("FAVORABLE_FIRST_1PCT", "ADVERSE_FIRST_1PCT", "NO_BARRIER_24H")},
             "incomplete_episodes_excluded": sum(not r.get("full_24h", False) for r in rows),
         },
-        "interpretation": "Excursion statistics are descriptive, not realized strategy returns. Barrier counts include only episodes with a complete 24h forward window; same-candle +/-1% conflict is counted adverse-first. Entry matching is deduplicated and one-to-one. Estimated round-trip fee+slippage is deducted from MFE only.",
+        "interpretation": "Excursion statistics are descriptive, not realized strategy returns. Barrier counts include only episodes with a complete 24h forward window; same-candle +/-1% conflict is counted adverse-first. Entry matching is deduplicated and one-to-one. Estimated round-trip fee+slippage is deducted from MFE only. Cohorts use side and evidence_count measured on the first warning candle; retrospective episode duration is deliberately excluded. The 3% statistic is favorable excursion touched at any time in the horizon, not a guaranteed or executable profit.",
         "episodes": rows,
     }
 
