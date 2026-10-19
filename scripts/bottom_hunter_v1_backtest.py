@@ -38,6 +38,18 @@ def fetch(symbol, start_ms, end_ms):
     return [{"open_time": int(x[0]), "close_time": int(x[6]), "open": float(x[1]), "high": float(x[2]), "low": float(x[3]), "close": float(x[4]), "volume": float(x[5])} for x in rows if int(x[6]) < end_ms]
 
 
+def return_pct_at_index(bars, index, lookback_bars):
+    """Causal close-to-close return using only candles closed by the signal time."""
+    prior = index - lookback_bars
+    if index < 0 or prior < 0:
+        return None
+    old_close = float(bars[prior]["close"])
+    new_close = float(bars[index]["close"])
+    if old_close <= 0:
+        return None
+    return (new_close / old_close - 1.0) * 100.0
+
+
 def size_position(equity, entry, stop, risk_fraction, max_notional, fee_bps):
     """Size a long spot position by risk, notional, and cash including entry fee."""
     risk_per_unit = entry - stop
@@ -64,6 +76,8 @@ def main():
         series[symbol] = bars
 
     events, warnings = [], []
+    btc_bars = series.get("BTCUSDT", [])
+    btc_index_by_close = {bar["close_time"]: i for i, bar in enumerate(btc_bars)}
     for symbol, bars in series.items():
         for i, bar in enumerate(bars):
             if bar["open_time"] < start or bar["close_time"] >= end or i + 1 >= len(bars):
@@ -74,7 +88,15 @@ def main():
                 warnings.append({"symbol": symbol, "signal_time": bar["close_time"], "decline_pct": w["decline_pct"]})
             sig = find_signal(history, symbol)
             if sig:
-                events.append({"symbol": symbol, "signal_time": bar["close_time"], "entry_time": bars[i + 1]["open_time"], "entry_bar_index": i + 1, "bars": bars, "signal": sig})
+                btc_idx = btc_index_by_close.get(bar["close_time"], -1)
+                events.append({
+                    "symbol": symbol, "signal_time": bar["close_time"],
+                    "entry_time": bars[i + 1]["open_time"], "entry_bar_index": i + 1,
+                    "bars": bars, "signal": sig,
+                    # Diagnostic-only, strictly causal market context; never gates entries.
+                    "btc_24h_return_pct": return_pct_at_index(btc_bars, btc_idx, 24),
+                    "btc_7d_return_pct": return_pct_at_index(btc_bars, btc_idx, 168),
+                })
     events.sort(key=lambda e: (e["entry_time"], e["symbol"]))
 
     equity, peak, max_dd, available_time = INITIAL, INITIAL, 0.0, 0
@@ -161,6 +183,10 @@ def main():
         available_time = exit_time
         trades.append({
             "symbol": e["symbol"], "signal_time": e["signal_time"], "entry_time": e["entry_time"], "exit_time": exit_time,
+            "decline_pct": round(float(sig.get("decline_pct", 0.0)), 5),
+            "volume_ratio": round(float(sig.get("volume_ratio", 0.0)), 5),
+            "btc_24h_return_pct": round(e["btc_24h_return_pct"], 5) if e["btc_24h_return_pct"] is not None else "",
+            "btc_7d_return_pct": round(e["btc_7d_return_pct"], 5) if e["btc_7d_return_pct"] is not None else "",
             "hold_hours": round(max(0, (exit_time - e["entry_time"]) / 3600000), 3),
             "signal_close": round(signal_close, 10), "entry": round(entry, 10),
             "entry_gap_pct": round(entry_gap_pct, 5), "stop": round(stop, 10),
