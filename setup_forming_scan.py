@@ -13,18 +13,15 @@ import main
 
 
 STATE_PATH = Path("setup_forming_state.json")
-MAX_STATE_AGE_SECONDS = 3 * 24 * 60 * 60
+def _clean_state(payload):
+    """Keep valid episode keys until a successful scan ends that episode.
 
-
-def load_state(now=None):
-    now = int(now if now is not None else time.time())
-    try:
-        payload = json.loads(STATE_PATH.read_text(encoding="utf-8"))
-        if not isinstance(payload, dict):
-            return {}
-    except (OSError, ValueError, TypeError):
+    Expiring by sent_epoch caused a still-active same-side setup to send again
+    every three days. A successful scan clears the key when no setup remains;
+    API/data failures deliberately do not clear it.
+    """
+    if not isinstance(payload, dict):
         return {}
-    cutoff = now - MAX_STATE_AGE_SECONDS
     clean = {}
     for key, value in payload.items():
         if not isinstance(value, dict) or "|" in str(key):
@@ -33,9 +30,19 @@ def load_state(now=None):
             sent_epoch = int(value.get("sent_epoch", 0) or 0)
         except (TypeError, ValueError, OverflowError):
             continue
-        if sent_epoch >= cutoff and value.get("side") in ("BUY_WATCH", "SELL_WATCH"):
+        if sent_epoch > 0 and value.get("side") in ("BUY_WATCH", "SELL_WATCH"):
             clean[str(key).upper()] = value
     return clean
+
+
+def load_state(now=None):
+    # 'now' is retained for compatibility with callers/tests; episode validity
+    # is based on whether a successful scan still detects the same setup.
+    try:
+        payload = json.loads(STATE_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return {}
+    return _clean_state(payload)
 
 
 def save_state(state):
@@ -51,7 +58,10 @@ def is_new_episode(state, symbol, side):
 
 
 def dedupe_episode_self_test():
-    state = {"ETHUSDT": {"side": "BUY_WATCH", "sent_epoch": 100, "candle_time": "t1"}}
+    # A still-active setup must remain deduplicated even if its first warning
+    # was sent more than three days ago.
+    state = _clean_state({"ETHUSDT": {"side": "BUY_WATCH", "sent_epoch": 100, "candle_time": "t1"}})
+    assert "ETHUSDT" in state
     assert is_new_episode(state, "ETHUSDT", "BUY_WATCH") is False
     assert is_new_episode(state, "ETHUSDT", "SELL_WATCH") is True
     state.pop("ETHUSDT", None)
