@@ -2,6 +2,7 @@ import math
 import unittest
 
 from bottom_hunter_v1.core import find_early_warning, find_signal
+from scripts.bottom_hunter_v1_backtest import size_position
 
 
 def make_bars():
@@ -31,6 +32,20 @@ def make_bars():
 
 
 class BottomHunterTests(unittest.TestCase):
+    def test_position_size_never_exceeds_spot_cash_including_entry_fee(self):
+        equity, entry, stop, fee_bps = 100.0, 10.0, 9.0, 10.0
+        qty = size_position(equity, entry, stop, 0.01, 1000.0, fee_bps)
+        self.assertLessEqual(qty * entry * (1 + fee_bps / 10000), equity + 1e-9)
+        self.assertLessEqual(qty * (entry - stop), equity * 0.01 + 1e-9)
+
+    def test_position_size_respects_notional_cap(self):
+        qty = size_position(1000.0, 10.0, 9.99, 0.01, 50.0, 10.0)
+        self.assertLessEqual(qty * 10.0, 50.0 + 1e-9)
+
+    def test_invalid_position_inputs_return_zero(self):
+        self.assertEqual(size_position(0, 10, 9, 0.01, 100, 10), 0.0)
+        self.assertEqual(size_position(100, 10, 11, 0.01, 100, 10), 0.0)
+
     def test_valid_rebound_returns_levels(self):
         signal = find_signal(make_bars(), "ETHUSDT", min_decline_pct=1.0)
         self.assertIsNotNone(signal)
