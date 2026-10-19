@@ -38,6 +38,20 @@ def fetch(symbol, start_ms, end_ms):
     return [{"open_time": int(x[0]), "close_time": int(x[6]), "open": float(x[1]), "high": float(x[2]), "low": float(x[3]), "close": float(x[4]), "volume": float(x[5])} for x in rows if int(x[6]) < end_ms]
 
 
+def size_position(equity, entry, stop, risk_fraction, max_notional, fee_bps):
+    """Size a long spot position by risk, notional, and cash including entry fee."""
+    risk_per_unit = entry - stop
+    if not all(map(lambda x: x > 0 and x < float("inf"), (equity, entry, risk_per_unit))):
+        return 0.0
+    if risk_fraction <= 0 or max_notional <= 0 or fee_bps < 0:
+        return 0.0
+    fee_rate = fee_bps / 10000
+    by_risk = equity * risk_fraction / risk_per_unit
+    by_notional = max_notional / entry
+    by_cash = equity / (entry * (1 + fee_rate))
+    return max(0.0, min(by_risk, by_notional, by_cash))
+
+
 def main():
     end = int(datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0).timestamp() * 1000)
     start = end - DAYS * 24 * 3600000
@@ -81,10 +95,12 @@ def main():
         tp1, tp2 = entry + risk_per_unit * 1.8, entry + risk_per_unit * 2.4
         signal_close = float(sig["signal_close"])
         entry_gap_pct = (entry / signal_close - 1) * 100 if signal_close else 0.0
-        qty = min(equity * RISK_FRACTION / risk_per_unit, MAX_NOTIONAL / entry)
+        qty = size_position(equity, entry, stop, RISK_FRACTION, MAX_NOTIONAL, FEE_BPS)
         if qty <= 0:
             continue
 
+        equity_before_trade = equity
+        entry_fee = qty * entry * FEE_BPS / 10000
         remaining, realized, exit_notional = qty, 0.0, 0.0
         exit_time, reason, tp1_done = None, None, False
         highest_high, lowest_low = entry, entry
@@ -94,6 +110,13 @@ def main():
                 break
             highest_high = max(highest_high, b["high"])
             lowest_low = min(lowest_low, b["low"])
+
+            # Mark the open position to the candle low before resolving intrabar events.
+            # This deliberately conservative estimate captures adverse excursions that
+            # closed-trade-only drawdown misses. It does not assume a favorable intrabar path.
+            mark_at_low = equity_before_trade + realized + remaining * (b["low"] - entry) - entry_fee - exit_notional * FEE_BPS / 10000
+            if peak > 0:
+                max_dd = max(max_dd, (peak - mark_at_low) / peak)
 
             # Conservative OHLC assumption: if stop and target are both touched, stop wins.
             if b["open"] <= stop:
@@ -130,7 +153,6 @@ def main():
             exit_time = last["close_time"]
             reason = "TIME_END_AFTER_TP1" if tp1_done else "TIME_END"
 
-        entry_fee = qty * entry * FEE_BPS / 10000
         fees = entry_fee + exit_notional * FEE_BPS / 10000
         net = realized - fees
         equity += net
@@ -158,7 +180,9 @@ def main():
         "end_utc": datetime.fromtimestamp(end / 1000, timezone.utc).isoformat(),
         "symbols": SYMBOLS, "initial_usdt": INITIAL, "final_usdt": round(equity, 6),
         "net_pnl_usdt": round(net, 6), "return_pct": round(net / INITIAL * 100, 4),
-        "max_drawdown_pct": round(max_dd * 100, 4), "trades": len(trades), "wins": wins,
+        "max_drawdown_pct": round(max_dd * 100, 4),
+        "max_drawdown_method": "conservative intratrade candle-low mark-to-market versus prior realized-equity peak; not an intrabar tick-accurate curve",
+        "trades": len(trades), "wins": wins,
         "win_rate_pct": round(wins / len(trades) * 100, 3) if trades else 0,
         "watch_warnings": len(warnings), "skipped_overlapping_signals": len(events) - len(trades),
         "fee_bps_each_side": FEE_BPS, "slippage_bps_each_side": SLIP_BPS,
@@ -166,7 +190,9 @@ def main():
         "execution_model": "next-open entry; stop remains structural; TP targets recalculated from actual entry and actual risk",
         "caveats": [
             "Research only; historical replay is not proof of future performance.",
-            "Single shared position at a time; conservative stop-first ordering when stop and target are touched in one candle.",
+            "Single shared position at a time; quantity capped by risk, max notional, and available cash including entry fee.",
+            "Drawdown includes conservative candle-low mark-to-market while a position is open; OHLC data cannot resolve exact intrabar path.",
+            "Conservative stop-first ordering when stop and target are touched in one candle.",
             "TP1 takes half off; stop is not moved to breakeven.",
             "MAE/MFE are candle-extreme estimates and do not resolve intrabar path.",
             "No live orders are placed."
