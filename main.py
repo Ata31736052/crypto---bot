@@ -8937,7 +8937,6 @@ def analyze_one_symbol(symbol, btc_regime):
         if df_1h is None or df_30m is None:
             return {"ok": False, "symbol": symbol, "signal": None, "error": "Required 1H/30M data unavailable"}
 
-        setup_forming = detect_setup_forming_1h(symbol, df_1h)
         mtf_context = get_mtf_context(data)
         bottom_diagnostic = {}
         trace = {
@@ -9159,7 +9158,7 @@ def analyze_one_symbol(symbol, btc_regime):
             trace["status"] = "ACCEPTED"
             trace["selected"] = {"engine": selected.get("engine"), "side": selected.get("signal"), "score": selected.get("score")}
             trace["final_rejection"] = None
-            return {"ok": True, "symbol": symbol, "signal": selected, "higher_signals": higher_signals, "bottom_diagnostic": bottom_diagnostic, "symbol_trace": trace, "setup_forming": setup_forming}
+            return {"ok": True, "symbol": symbol, "signal": selected, "higher_signals": higher_signals, "bottom_diagnostic": bottom_diagnostic, "symbol_trace": trace}
         # Final rejection is deliberately distinct from first_rejection.
         final_reasons = []
         for engine_name in ("trend", "reversal", "breakout"):
@@ -9171,7 +9170,7 @@ def analyze_one_symbol(symbol, btc_regime):
             else:
                 final_reasons = ["NO_QUALIFIED_ENGINE"]
         trace["final_rejection"] = list(dict.fromkeys(str(x) for x in final_reasons))[:12]
-        return {"ok": True, "symbol": symbol, "signal": None, "higher_signals": higher_signals, "reason": "No qualified Trend, Reversal or Breakout setup", "bottom_diagnostic": bottom_diagnostic, "symbol_trace": trace, "setup_forming": setup_forming}
+        return {"ok": True, "symbol": symbol, "signal": None, "higher_signals": higher_signals, "reason": "No qualified Trend, Reversal or Breakout setup", "bottom_diagnostic": bottom_diagnostic, "symbol_trace": trace}
     except Exception as e:
         log(f"Symbol error {symbol}: {e}")
         if DEBUG_MODE: traceback.print_exc()
@@ -9652,7 +9651,6 @@ def scan_market():
 
     candidates = []
     symbol_trace_records = []
-    setup_forming_warnings = []
 
     for index, symbol in enumerate(
         coins,
@@ -9680,10 +9678,6 @@ def scan_market():
             continue
 
         scan["checked"] += 1
-
-        watch = result.get("setup_forming")
-        if isinstance(watch, dict):
-            setup_forming_warnings.append(watch)
 
         trace = result.get("symbol_trace")
         if isinstance(trace, dict):
@@ -9748,10 +9742,6 @@ def scan_market():
         for higher_signal in result.get("higher_signals", []):
             if higher_signal.get("strength") == "STRONG":
                 scan["strong_signals"] += 1
-
-    # Setup Forming delivery is intentionally handled ONLY by setup_forming_scan.py.
-    # Keep this main 1H/30M signal scan entry-focused to prevent duplicate warning
-    # sends from two independent state files and schedules.
 
     # =====================================================
     # 5. SORT / SEPARATE BOTTOM HUNTER
