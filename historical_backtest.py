@@ -919,7 +919,7 @@ def run():
     else:
         end = pd.Timestamp.now(tz="UTC").floor("h")
     start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
-    trades=[]; engine_candidate_trades={}; primary_buy_trades=[]; early_buy_trades=[]; errors=[]; setup_episodes=[]; setup_frames={}; actionable_signals=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}; anti_chase_diagnostics={"rule":"BUY only: reject if directional 12h move at signal close is >= 3.0% OR EMA21 extension is >2.0 ATR; no live-engine changes","evaluated_buy_signals":0,"rejected_late_buy_signals":0,"rejected_by_12h_move":0,"rejected_by_ema21_extension":0,"rejected_by_both":0,"rejection_examples":[]}
+    trades=[]; engine_candidate_trades={}; primary_buy_trades=[]; move_filtered_buy_trades=[]; extension_filtered_buy_trades=[]; early_buy_trades=[]; errors=[]; setup_episodes=[]; setup_frames={}; actionable_signals=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}; anti_chase_diagnostics={"rule":"BUY only: reject if directional 12h move at signal close is >= 3.0% OR EMA21 extension is >2.0 ATR; no live-engine changes","evaluated_buy_signals":0,"rejected_late_buy_signals":0,"rejected_by_12h_move":0,"rejected_by_ema21_extension":0,"rejected_by_both":0,"rejection_examples":[]}
     perf={"stage_seconds":{},"counters":{"candle_steps":0,"timeframe_index_lookups":0,"rows_materialized":0,"btc_regime_lookups":0,"engine_calls":0}}
     # ENGINE_INTERNAL_PROFILE: profile exactly one real production-engine invocation.
     # This is offline-only instrumentation; no signal, score, or trade decision is changed.
@@ -969,6 +969,8 @@ def run():
             idx=max(220,int(h1.open_time.searchsorted(start)))
             baseline_last_exit=idx-1
             primary_buy_last_exit=idx-1
+            move_filtered_buy_last_exit=idx-1
+            extension_filtered_buy_last_exit=idx-1
             early_buy_last_exit=idx-1
             engine_last_exit={}
             last_setup_side = None
@@ -1212,8 +1214,10 @@ def run():
     # separate shared-cash accounts. Only the experimental stream excludes BUYs after >=3%
     # directional 12h extension; it does not affect baseline trades or live Telegram signals.
     primary_buy_portfolio=portfolio_ledger(primary_buy_trades,OUT/"anti-chase-buy"/"baseline",initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
-    early_buy_portfolio=portfolio_ledger(early_buy_trades,OUT/"anti-chase-buy"/"filtered",initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
-    anti_chase_comparison={"rule":anti_chase_diagnostics["rule"],"baseline_buy_candidate_trades":len(primary_buy_trades),"filtered_buy_candidate_trades":len(early_buy_trades),"removed_buy_trades":len(primary_buy_trades)-len(early_buy_trades),"diagnostics":anti_chase_diagnostics,"baseline_buy_portfolio":primary_buy_portfolio,"filtered_buy_portfolio":early_buy_portfolio,"status":"EXPERIMENTAL_COMPARISON_ONLY; not enabled in live engine"}
+    move_filtered_buy_portfolio=portfolio_ledger(move_filtered_buy_trades,OUT/"anti-chase-buy"/"move_12h_only",initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
+    extension_filtered_buy_portfolio=portfolio_ledger(extension_filtered_buy_trades,OUT/"anti-chase-buy"/"ema21_extension_only",initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
+    early_buy_portfolio=portfolio_ledger(early_buy_trades,OUT/"anti-chase-buy"/"combined_or",initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
+    anti_chase_comparison={"rule":anti_chase_diagnostics["rule"],"baseline_buy_candidate_trades":len(primary_buy_trades),"move_12h_only":{"candidate_trades":len(move_filtered_buy_trades),"portfolio":move_filtered_buy_portfolio},"ema21_extension_only":{"candidate_trades":len(extension_filtered_buy_trades),"portfolio":extension_filtered_buy_portfolio},"combined_or":{"candidate_trades":len(early_buy_trades),"portfolio":early_buy_portfolio},"diagnostics":anti_chase_diagnostics,"baseline_buy_portfolio":primary_buy_portfolio,"status":"EXPERIMENTAL_COMPARISON_ONLY; not enabled in live engine"}
     # Run a separate, explicitly experimental comparison. The baseline remains unchanged;
     # this does not activate the obstacle guard in main.py or the live Telegram scanner.
     guarded_trades=[t for t in trades if bool(t.get("entry_guard_allowed",True))]
