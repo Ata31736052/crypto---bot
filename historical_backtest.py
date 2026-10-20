@@ -1116,34 +1116,38 @@ def run():
                         engine_candidate_trades.setdefault(engine_name,[]).append(engine_trade)
                         engine_last_exit[engine_name]=engine_exit_i
 
-                # Controlled BUY-only counterfactuals use independent exit clocks.
-                # Baseline and live signal logic are unchanged; the experiment tests only
-                # one ex-ante late-entry rule using information available at signal time.
+                # Isolated BUY-only counterfactuals. Each stream has its own exit clock.
+                # This separates the 12h-move rule from the EMA-extension rule; no live logic changes.
                 result=max(candidates,key=lambda x:(float(x.get("professional_quality_score",0) or 0),float(x.get("score",0) or 0),1 if x.get("strength")=="STRONG" else 0))
                 side=str(result.get("signal","NO_SIGNAL")).upper()
                 location_diag=signal_diagnostics(data["1h"],side)
                 if side == "BUY":
+                    move12=location_diag.get("directional_move_12h_pct")
+                    extension=location_diag.get("ema21_extension_atr")
+                    reject_move=move12 is not None and pd.notna(move12) and float(move12) >= 3.0
+                    reject_extension=extension is not None and pd.notna(extension) and float(extension) > 2.0
                     if i > primary_buy_last_exit:
                         buy_trade,buy_exit_i=simulate(sym,side,c.open_time,i+1,h1,float(c.get("atr",0) or 0),result.get("score",0),result.get("strength",""),result)
                         if buy_trade:
-                            buy_trade.update(location_diag)
-                            buy_trade["engine"]=str(result.get("engine",result.get("signal_mode","UNKNOWN"))).upper()
-                            buy_trade["signal_mode"]=result.get("signal_mode","UNKNOWN")
-                            buy_trade["btc_regime"]=btc_regime.get("combined","UNKNOWN")
-                            primary_buy_trades.append(buy_trade)
-                            primary_buy_last_exit=buy_exit_i
+                            buy_trade.update(location_diag); buy_trade["engine"]=str(result.get("engine",result.get("signal_mode","UNKNOWN"))).upper(); buy_trade["signal_mode"]=result.get("signal_mode","UNKNOWN"); buy_trade["btc_regime"]=btc_regime.get("combined","UNKNOWN")
+                            primary_buy_trades.append(buy_trade); primary_buy_last_exit=buy_exit_i
+                    if i > move_filtered_buy_last_exit:
+                        if not reject_move:
+                            move_trade,move_exit_i=simulate(sym,side,c.open_time,i+1,h1,float(c.get("atr",0) or 0),result.get("score",0),result.get("strength",""),result)
+                            if move_trade:
+                                move_trade.update(location_diag); move_trade["engine"]=str(result.get("engine",result.get("signal_mode","UNKNOWN"))).upper(); move_trade["signal_mode"]=result.get("signal_mode","UNKNOWN"); move_trade["btc_regime"]=btc_regime.get("combined","UNKNOWN")
+                                move_filtered_buy_trades.append(move_trade); move_filtered_buy_last_exit=move_exit_i
+                    if i > extension_filtered_buy_last_exit:
+                        if not reject_extension:
+                            extension_trade,extension_exit_i=simulate(sym,side,c.open_time,i+1,h1,float(c.get("atr",0) or 0),result.get("score",0),result.get("strength",""),result)
+                            if extension_trade:
+                                extension_trade.update(location_diag); extension_trade["engine"]=str(result.get("engine",result.get("signal_mode","UNKNOWN"))).upper(); extension_trade["signal_mode"]=result.get("signal_mode","UNKNOWN"); extension_trade["btc_regime"]=btc_regime.get("combined","UNKNOWN")
+                                extension_filtered_buy_trades.append(extension_trade); extension_filtered_buy_last_exit=extension_exit_i
                     if i > early_buy_last_exit:
                         anti_chase_diagnostics["evaluated_buy_signals"] += 1
-                        move12=location_diag.get("directional_move_12h_pct")
-                        extension=location_diag.get("ema21_extension_atr")
-                        reject_move=move12 is not None and pd.notna(move12) and float(move12) >= 3.0
-                        reject_extension=extension is not None and pd.notna(extension) and float(extension) > 2.0
-                        if reject_move:
-                            anti_chase_diagnostics["rejected_by_12h_move"] += 1
-                        if reject_extension:
-                            anti_chase_diagnostics["rejected_by_ema21_extension"] += 1
-                        if reject_move and reject_extension:
-                            anti_chase_diagnostics["rejected_by_both"] += 1
+                        if reject_move: anti_chase_diagnostics["rejected_by_12h_move"] += 1
+                        if reject_extension: anti_chase_diagnostics["rejected_by_ema21_extension"] += 1
+                        if reject_move and reject_extension: anti_chase_diagnostics["rejected_by_both"] += 1
                         if reject_move or reject_extension:
                             anti_chase_diagnostics["rejected_late_buy_signals"] += 1
                             if len(anti_chase_diagnostics["rejection_examples"]) < 20:
@@ -1151,12 +1155,8 @@ def run():
                         else:
                             early_trade,early_exit_i=simulate(sym,side,c.open_time,i+1,h1,float(c.get("atr",0) or 0),result.get("score",0),result.get("strength",""),result)
                             if early_trade:
-                                early_trade.update(location_diag)
-                                early_trade["engine"]=str(result.get("engine",result.get("signal_mode","UNKNOWN"))).upper()
-                                early_trade["signal_mode"]=result.get("signal_mode","UNKNOWN")
-                                early_trade["btc_regime"]=btc_regime.get("combined","UNKNOWN")
-                                early_buy_trades.append(early_trade)
-                                early_buy_last_exit=early_exit_i
+                                early_trade.update(location_diag); early_trade["engine"]=str(result.get("engine",result.get("signal_mode","UNKNOWN"))).upper(); early_trade["signal_mode"]=result.get("signal_mode","UNKNOWN"); early_trade["btc_regime"]=btc_regime.get("combined","UNKNOWN")
+                                early_buy_trades.append(early_trade); early_buy_last_exit=early_exit_i
                 # Primary baseline remains the production-style single strongest candidate.
                 if i <= baseline_last_exit:
                     continue
