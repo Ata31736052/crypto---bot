@@ -797,6 +797,41 @@ def run():
                 current_trend_row={"row":None}
                 row_now=data["1h"].iloc[-1]
                 feature_names=("close","ema9","ema21","ema50","ema200","adx","plus_di","minus_di","rsi","volume_ratio","atr_percent","macd_hist","distance_ema21","rolling_vwap","bb_position","atr")
+                def forward_excursion_metrics(side):
+                    # Label only with candles strictly after the closed signal candle.
+                    # The next candle open is the assumed entry; costs match the backtest.
+                    result={}
+                    future=h1.iloc[i+1:i+25]
+                    entry=float(future.iloc[0]["open"]) if len(future) else float("nan")
+                    cost_pct=2.0*(FEE_BPS+SLIPPAGE_BPS)/100.0
+                    for horizon in (6,12,24):
+                        window=future.iloc[:horizon]
+                        complete=len(window)==horizon and math.isfinite(entry) and entry>0
+                        prefix=f"fwd_{horizon}h"
+                        if not complete:
+                            result.update({f"{prefix}_mfe_pct":None,f"{prefix}_mae_pct":None,
+                                           f"{prefix}_net_mfe_after_roundtrip_cost_pct":None,
+                                           f"{prefix}_net_mae_after_roundtrip_cost_pct":None,
+                                           f"{prefix}_complete":False})
+                            continue
+                        high=float(pd.to_numeric(window["high"],errors="coerce").max())
+                        low=float(pd.to_numeric(window["low"],errors="coerce").min())
+                        if side=="BUY":
+                            mfe=(high/entry-1.0)*100.0
+                            mae=(low/entry-1.0)*100.0
+                        elif side=="SELL":
+                            mfe=(entry/low-1.0)*100.0 if low>0 else None
+                            mae=(entry/high-1.0)*100.0 if high>0 else None
+                        else:
+                            mfe=mae=None
+                        result.update({f"{prefix}_mfe_pct":round(mfe,5) if mfe is not None else None,
+                                       f"{prefix}_mae_pct":round(mae,5) if mae is not None else None,
+                                       f"{prefix}_net_mfe_after_roundtrip_cost_pct":round(mfe-cost_pct,5) if mfe is not None else None,
+                                       f"{prefix}_net_mae_after_roundtrip_cost_pct":round(mae-cost_pct,5) if mae is not None else None,
+                                       f"{prefix}_complete":True})
+                    result["forward_entry_open"]=round(entry,10) if math.isfinite(entry) else None
+                    result["forward_roundtrip_cost_pct"]=round(cost_pct,5)
+                    return result
                 def capture_eval(*args, **kwargs):
                     candidate=original_eval(*args, **kwargs)
                     if isinstance(candidate,dict):
@@ -811,6 +846,7 @@ def run():
                             "trend_diagnostic_json":json.dumps(candidate.get("trend_diagnostic",{}),ensure_ascii=False,default=str),
                             "gate_called":False,"gate_passed":None,"gate_reasons_json":"[]",
                         }
+                        row.update(forward_excursion_metrics(side))
                         for feature in feature_names:
                             row[feature]=row_now.get(feature)
                         trend_timing_rows.append(row)
