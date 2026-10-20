@@ -716,7 +716,7 @@ def run():
     else:
         end = pd.Timestamp.now(tz="UTC").floor("h")
     start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
-    trades=[]; engine_candidate_trades={}; errors=[]; trend_timing_rows=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
+    trades=[]; engine_candidate_trades={}; errors=[]; trend_timing_rows=[]; trend_gate_counterfactual_trades=[]; trend_gate_counterfactual_last_exit={}; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
     perf={"stage_seconds":{},"counters":{"candle_steps":0,"timeframe_index_lookups":0,"rows_materialized":0,"btc_regime_lookups":0,"engine_calls":0}}
     # ENGINE_INTERNAL_PROFILE: profile exactly one real production-engine invocation.
     # This is offline-only instrumentation; no signal, score, or trade decision is changed.
@@ -845,6 +845,8 @@ def run():
                             "candidate_warnings_json":json.dumps(candidate.get("warnings",[]),ensure_ascii=False,default=str),
                             "trend_diagnostic_json":json.dumps(candidate.get("trend_diagnostic",{}),ensure_ascii=False,default=str),
                             "gate_called":False,"gate_passed":None,"gate_reasons_json":"[]",
+                            "candidate_entry":candidate.get("entry",candidate.get("price")),"candidate_stop_loss":candidate.get("stop_loss"),
+                            "candidate_atr":candidate.get("atr") or row_now.get("atr"),"candidate_engine":candidate.get("engine",candidate.get("signal_mode","TREND")),
                         }
                         row.update(forward_excursion_metrics(side))
                         for feature in feature_names:
@@ -936,6 +938,43 @@ def run():
                         "trend_professional_rejection_json":json.dumps(trend_trace_for_timing.get("professional_rejection",[]),ensure_ascii=False,default=str),
                         "trend_trace_json":json.dumps(trend_trace_for_timing,ensure_ascii=False,default=str),
                     })
+                # Diagnostic-only counterfactual: replay candidates rejected solely by the TREND HTF gate.
+                # Same next-1H-open execution, simulate(), costs and portfolio ledger as normal trades.
+                # Does not change production selection or Telegram behavior.
+                timing_row=current_trend_row.get("row")
+                if timing_row and timing_row.get("gate_called") and timing_row.get("gate_passed") is False:
+                    try:
+                        gate_reasons=json.loads(timing_row.get("gate_reasons_json") or "[]")
+                    except (TypeError, ValueError):
+                        gate_reasons=[]
+                    reason_text=[str(x).lower() for x in gate_reasons]
+                    htf_only=bool(reason_text) and all(
+                        ("htf" in reason or "higher timeframe" in reason or "higher-timeframe" in reason)
+                        for reason in reason_text
+                    )
+                    side=str(timing_row.get("candidate_side") or "").upper()
+                    if htf_only and side in ("BUY","SELL") and i+1 < len(h1):
+                        lock_key=(sym,side)
+                        if i > trend_gate_counterfactual_last_exit.get(lock_key,idx-1):
+                            atr_value=timing_row.get("candidate_atr")
+                            try: atr_value=float(atr_value)
+                            except (TypeError,ValueError): atr_value=0.0
+                            signal_obj={"entry":timing_row.get("candidate_entry"),
+                                        "stop_loss":timing_row.get("candidate_stop_loss"),
+                                        "signal_mode":"TREND"}
+                            cf_trade,cf_exit_i=simulate(
+                                sym,side,close_time,i+1,h1,atr_value,
+                                float(timing_row.get("candidate_score") or 0),
+                                str(timing_row.get("candidate_strength") or ""),
+                                signal_obj,evaluation_time=end+pd.Timedelta(hours=73)
+                            )
+                            if cf_trade is not None:
+                                cf_trade.update({"engine":"TREND_HTF_ONLY_REJECTED",
+                                                 "signal_mode":"TREND",
+                                                 "btc_regime":btc_regime.get("combined"),
+                                                 "counterfactual_reason":"HTF_ONLY_GATE_REJECTION"})
+                                trend_gate_counterfactual_trades.append(cf_trade)
+                                trend_gate_counterfactual_last_exit[lock_key]=cf_exit_i
                 selected=scan.get("signal") if isinstance(scan,dict) else None
                 higher=scan.get("higher_signals",[]) if isinstance(scan,dict) else []
                 candidates=[x for x in [selected]+(higher if isinstance(higher,list) else []) if isinstance(x,dict) and str(x.get("signal","")).upper() in ("BUY","SELL")]
@@ -995,6 +1034,27 @@ def run():
     columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason"]
     pd.DataFrame(trades,columns=columns).to_csv(OUT/"trades.csv",index=False)
     pd.DataFrame(trend_timing_rows).to_csv(OUT/"trend-gate-timing.csv",index=False)
+    pd.DataFrame(trend_gate_counterfactual_trades).to_csv(OUT/"trend-gate-htf-only-counterfactual-trades.csv",index=False)
+    # Side-specific ledgers make the HTF-only rejected cohort comparable with accepted TREND:BUY/SELL.
+    trend_gate_counterfactual_portfolios={}
+    initial_capital=float(os.getenv("BACKTEST_INITIAL_CAPITAL_USDT","1000"))
+    risk_pct=float(os.getenv("BACKTEST_RISK_PCT","1.0"))
+    max_position_pct=float(os.getenv("BACKTEST_MAX_POSITION_PCT","100"))
+    for counterfactual_side in ("BUY","SELL"):
+        side_trades=[t for t in trend_gate_counterfactual_trades if str(t.get("side","")).upper()==counterfactual_side]
+        key=f"TREND_HTF_ONLY_REJECTED:{counterfactual_side}"
+        if side_trades:
+            trend_gate_counterfactual_portfolios[key]=portfolio_ledger(
+                side_trades,OUT/"engine-comparison"/("trend-htf-only-"+counterfactual_side.lower()),
+                initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct
+            )
+        else:
+            trend_gate_counterfactual_portfolios[key]={
+                "initial_capital_usdt":initial_capital,"final_equity_usdt":initial_capital,
+                "net_pnl_usdt":0.0,"net_return_pct":0.0,"max_drawdown_pct":0.0,
+                "candidate_trades":0,"accepted_trades":0,"rejected_trades":0,
+                "note":"No eligible HTF-only counterfactual trades in this window."
+            }
     vals=[float(t["net_pct"]) for t in trades]
     portfolio_ledger_self_test(OUT)
     initial_capital=float(os.getenv("BACKTEST_INITIAL_CAPITAL_USDT","1000"))
@@ -1042,7 +1102,7 @@ def run():
     perf["total_instrumented_seconds"]=round(sum(perf["stage_seconds"].values()),4)
     # Linux GitHub-hosted runners report ru_maxrss in KiB; diagnostics only.
     perf["peak_rss_kib"]=int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-    summary={"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"trend_buy_sell_portfolio_comparison":trend_side_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"adverse slippage applied to entry and exit fill prices; round-trip fees deducted separately; sizing reserves fees plus estimated round-trip slippage","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
+    summary={"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"trend_buy_sell_portfolio_comparison":trend_side_portfolios,"trend_gate_htf_only_counterfactual_portfolios":trend_gate_counterfactual_portfolios,"trend_gate_htf_only_counterfactual_trade_count":len(trend_gate_counterfactual_trades),"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"adverse slippage applied to entry and exit fill prices; round-trip fees deducted separately; sizing reserves fees plus estimated round-trip slippage","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
     (OUT/"summary.json").write_text(json.dumps(summary,indent=2),encoding="utf-8"); print(json.dumps(summary,indent=2),flush=True)
     if not trades: raise SystemExit("No trades produced; do not infer profitability.")
 if __name__=="__main__": run()
