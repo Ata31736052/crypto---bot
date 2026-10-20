@@ -919,7 +919,7 @@ def run():
     else:
         end = pd.Timestamp.now(tz="UTC").floor("h")
     start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
-    trades=[]; engine_candidate_trades={}; primary_buy_trades=[]; early_buy_trades=[]; errors=[]; setup_episodes=[]; setup_frames={}; actionable_signals=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}; primary_buy_last_exit=idx-1 if False else -1; early_buy_last_exit=idx-1 if False else -1; anti_chase_diagnostics={"rule":"BUY only: reject if directional 12h move at signal close is >= 3.0%; no live-engine changes","evaluated_buy_signals":0,"rejected_late_buy_signals":0,"rejection_examples":[]}
+    trades=[]; engine_candidate_trades={}; primary_buy_trades=[]; early_buy_trades=[]; errors=[]; setup_episodes=[]; setup_frames={}; actionable_signals=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}; anti_chase_diagnostics={"rule":"BUY only: reject if directional 12h move at signal close is >= 3.0%; no live-engine changes","evaluated_buy_signals":0,"rejected_late_buy_signals":0,"rejection_examples":[]}
     perf={"stage_seconds":{},"counters":{"candle_steps":0,"timeframe_index_lookups":0,"rows_materialized":0,"btc_regime_lookups":0,"engine_calls":0}}
     # ENGINE_INTERNAL_PROFILE: profile exactly one real production-engine invocation.
     # This is offline-only instrumentation; no signal, score, or trade decision is changed.
@@ -968,6 +968,8 @@ def run():
             setup_indicator_frame = main.add_indicators(h1)
             idx=max(220,int(h1.open_time.searchsorted(start)))
             baseline_last_exit=idx-1
+            primary_buy_last_exit=idx-1
+            early_buy_last_exit=idx-1
             engine_last_exit={}
             last_setup_side = None
             for i in replay_signal_indices(h1, idx, end):
