@@ -7,7 +7,7 @@ pair is excluded; measured runs alternate B-A-B-A-B-A. Exit non-zero on any
 trade/output mismatch. No live scan, Telegram, or order execution.
 """
 from __future__ import annotations
-import hashlib, json, os, pathlib, shutil, subprocess, sys, time
+import csv, hashlib, json, os, pathlib, shutil, subprocess, sys, time
 from statistics import median
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -152,41 +152,87 @@ for label in ("A", "B"):
     if "def _ab_record_input(" not in source:
         source = source.replace("def fetch(", MANIFEST_HELPER + "\ndef fetch(", 1)
     if label == "A":
-        sig = "def fetch(symbol, tf, start_ms, end_ms):"
-        if sig not in source: raise SystemExit("Cannot safely patch baseline fetch signature")
-        source = source.replace(sig, "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, signal_boundary_ms=None):", 1)
-        old_filters = (
-            '    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])',
-            '    d=d[d.close_time < pd.Timestamp.now(tz="UTC")].dropna(subset=["open","high","low","close","volume"])',
-        )
-        new_filter = '''    boundary=pd.to_datetime(signal_boundary_ms if signal_boundary_ms is not None else end_ms,unit="ms",utc=True)
+        # Older baselines need a compatibility shim. If the selected baseline
+        # already implements the fixed-window and boundary-aware fetch API,
+        # leave its execution policy intact instead of trying to patch it again.
+        legacy_sig = "def fetch(symbol, tf, start_ms, end_ms):"
+        modern_sig = "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, now=None, signal_boundary_ms=None):"
+        if legacy_sig in source:
+            source = source.replace(legacy_sig, "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, signal_boundary_ms=None):", 1)
+            old_filters = (
+                '    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])',
+                '    d=d[d.close_time < pd.Timestamp.now(tz="UTC")].dropna(subset=["open","high","low","close","volume"])',
+            )
+            new_filter = '''    boundary=pd.to_datetime(signal_boundary_ms if signal_boundary_ms is not None else end_ms,unit="ms",utc=True)
     data_cutoff=pd.to_datetime(end_ms,unit="ms",utc=True)
     d=d[(d.close_time < data_cutoff) | ((tf == "1h") & include_boundary_open & (d.open_time == boundary))]
     d=d.dropna(subset=["open","high","low","close","volume"])'''
-        matched_filters = [line for line in old_filters if line in source]
-        if len(matched_filters) != 1:
-            raise SystemExit(
-                "Cannot safely normalize baseline end-boundary policy: "
-                f"expected exactly one known filter, found {len(matched_filters)}"
-            )
-        source = source.replace(matched_filters[0], new_filter, 1)
-        if new_filter not in source:
-            raise SystemExit("Baseline boundary normalization postcondition failed")
-        source = source.replace('fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000))', 'fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000),include_boundary_open=(tf=="1h"))')
-        source = source.replace('raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000)) for tf in ("1h","30m","4h","1d")}',
+            matched_filters = [line for line in old_filters if line in source]
+            if len(matched_filters) != 1:
+                raise SystemExit(
+                    "Cannot safely normalize legacy baseline end-boundary policy: "
+                    f"expected exactly one known filter, found {len(matched_filters)}"
+                )
+            source = source.replace(matched_filters[0], new_filter, 1)
+            if new_filter not in source:
+                raise SystemExit("Legacy baseline boundary normalization postcondition failed")
+            source = source.replace('fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000))', 'fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000),include_boundary_open=(tf=="1h"))')
+            source = source.replace('raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000)) for tf in ("1h","30m","4h","1d")}',
 '''raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),
-                          int((end+pd.Timedelta(hours=73)).timestamp()*1000) if tf=="1h" else int(end.timestamp()*1000),
-                          include_boundary_open=(tf=="1h"),
-                          signal_boundary_ms=int(end.timestamp()*1000) if tf=="1h" else None)
-                  for tf in ("1h","30m","4h","1d")}''')
-        source = source.replace('                c=h1.iloc[i]; close_time=c.close_time',
-                                '                c=h1.iloc[i]; close_time=c.close_time\n                if c.open_time >= end: break', 1)
+                           int((end+pd.Timedelta(hours=73)).timestamp()*1000) if tf=="1h" else int(end.timestamp()*1000),
+                           include_boundary_open=(tf=="1h"),
+                           signal_boundary_ms=int(end.timestamp()*1000) if tf=="1h" else None)
+                   for tf in ("1h","30m","4h","1d")}''')
+            source = source.replace('                c=h1.iloc[i]; close_time=c.close_time',
+                                    '                c=h1.iloc[i]; close_time=c.close_time\n                if c.open_time >= end: break', 1)
+        elif modern_sig in source and "BACKTEST_END_TIME" in source and "signal_boundary_ms" in source:
+            print("A_BASELINE_ALREADY_HAS_FIXED_WINDOW_AND_BOUNDARY_API: no compatibility shim needed", flush=True)
+        else:
+            raise SystemExit("Cannot safely patch baseline: unsupported fetch signature or missing fixed-window boundary support")
     return_line = '    return d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]'
     replacement = '''    d=d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]
     _ab_record_input(symbol, tf, d)
     return d'''
     if return_line not in source: raise SystemExit(f"Cannot instrument {label} fetch return")
     source = source.replace(return_line, replacement, 1)
+    if label == "A":
+        # Report-only compatibility shim: compute the same in-trade MAE/MFE
+        # as candidate B. Exclude the exit candle's OHLC extrema because the
+        # intrabar order after the simulated exit is unknowable; use exit_fill
+        # as the terminal observed point. No entry/exit decision is modified.
+        legacy_return = '    return {"symbol":symbol,"side":side,"signal_time":str(signal_time),"entry_time":str(row.open_time),'
+        common_path_metrics = '''    prior_path=h1.iloc[entry_i:xi]
+    prior_highs=pd.to_numeric(prior_path["high"],errors="coerce").to_numpy(dtype=float)
+    prior_lows=pd.to_numeric(prior_path["low"],errors="coerce").to_numpy(dtype=float)
+    if side=="BUY":
+        favorable_points=list(prior_highs)+[float(exit_fill)]
+        adverse_points=list(prior_lows)+[float(exit_fill)]
+        mfe_price=max(0.0,max(favorable_points)-entry)
+        mae_price=max(0.0,entry-min(adverse_points))
+        mfe_bar=favorable_points.index(max(favorable_points))
+        mae_bar=adverse_points.index(min(adverse_points))
+    else:
+        favorable_points=list(prior_lows)+[float(exit_fill)]
+        adverse_points=list(prior_highs)+[float(exit_fill)]
+        mfe_price=max(0.0,entry-min(favorable_points))
+        mae_price=max(0.0,max(adverse_points)-entry)
+        mfe_bar=favorable_points.index(min(favorable_points))
+        mae_bar=adverse_points.index(max(adverse_points))
+'''
+        if source.count(legacy_return) != 1:
+            raise SystemExit("Cannot safely add common MAE/MFE metrics to baseline simulate()")
+        source = source.replace(legacy_return, common_path_metrics + legacy_return, 1)
+        metric_anchor = '"risk_cost_pct":round(risk_cost_pct,4),'
+        metric_fields = '"risk_cost_pct":round(risk_cost_pct,4),"mfe_pct":round(mfe_price/entry*100,5),"mae_pct":round(-mae_price/entry*100,5),"mfe_r":round(mfe_price/risk,5) if risk>0 else None,"mae_r":round(-mae_price/risk,5) if risk>0 else None,"bars_to_mfe":mfe_bar,"bars_to_mae":mae_bar,'
+        if source.count(metric_anchor) != 1:
+            raise SystemExit("Cannot safely add MAE/MFE fields to baseline trade result")
+        source = source.replace(metric_anchor, metric_fields, 1)
+        old_columns = '"net_pct","bars_held"'
+        if source.count(old_columns) != 1:
+            raise SystemExit("Cannot safely extend baseline trade CSV schema with MAE/MFE")
+        source = source.replace(old_columns, '"net_pct","mfe_pct","mae_pct","mfe_r","mae_r","bars_to_mfe","bars_to_mae","bars_held"', 1)
+        if not all(key in source for key in ("mfe_pct", "mae_pct", "bars_to_mfe", "bars_to_mae")):
+            raise SystemExit("Baseline MAE/MFE shim postcondition failed")
     source_path.write_text(source, encoding="utf-8")
 # Verify both revisions can run the exact same harness entrypoint.
 for label in ("A","B"):
@@ -243,6 +289,25 @@ def one(label, phase, ordinal):
     trades_path=path/"backtest-results"/"trades.csv"
     if not summary_path.exists() or not trades_path.exists():
         raise SystemExit(f"{label} run did not produce summary.json and trades.csv; inspect {log_path}")
+    with trades_path.open("r", encoding="utf-8", newline="") as trade_file:
+        trade_reader = csv.DictReader(trade_file)
+        required_path_fields = {"mfe_pct", "mae_pct", "mfe_r", "mae_r", "bars_to_mfe", "bars_to_mae"}
+        missing_path_fields = required_path_fields - set(trade_reader.fieldnames or [])
+        if missing_path_fields:
+            raise SystemExit(f"{label} trade CSV missing comparable path fields: {sorted(missing_path_fields)}")
+        trade_rows = list(trade_reader)
+    def numeric_metric(name):
+        values=[]
+        for trade in trade_rows:
+            try:
+                value=float(trade.get(name, ""))
+                if value == value and abs(value) != float("inf"):
+                    values.append(value)
+            except (TypeError, ValueError):
+                pass
+        return {"count":len(values),"median":round(median(values),5) if values else None,
+                "mean":round(sum(values)/len(values),5) if values else None}
+    path_metrics={name:numeric_metric(name) for name in sorted(required_path_fields)}
     summary=json.loads(summary_path.read_text())
     if not manifest_path.is_file():
         raise SystemExit(f"{run_id} missing raw input manifest; refusing to compare")
@@ -256,17 +321,79 @@ def one(label, phase, ordinal):
     # Do not copy a file onto itself (shutil raises SameFileError).
     if summary.get("status") != "COMPLETED" or summary.get("errors"):
         raise SystemExit(f"{label} backtest has errors; refusing to compare; inspect {log_path}")
-    # Store full outputs per sample to compare and inspect after the workflow.
+    # Archive the shared-cash ledger too: aggregate summary values alone cannot
+    # explain cash competition, rejected entries, sizing, or equity/drawdown paths.
+    ledger_names=("portfolio_trades.csv","portfolio_equity.csv","per_symbol.csv")
+    ledger_paths={name:path/"backtest-results"/name for name in ledger_names}
+    missing_ledger=[name for name,file_path in ledger_paths.items() if not file_path.is_file()]
+    if missing_ledger:
+        raise SystemExit(f"{label} run missing shared-cash ledger outputs: {missing_ledger}; refusing to compare")
+
+    with ledger_paths["portfolio_trades.csv"].open("r",encoding="utf-8",newline="") as ledger_file:
+        ledger_reader=csv.DictReader(ledger_file)
+        required_ledger_fields={"symbol","side","entry_time","exit_time","portfolio_status",
+                                "portfolio_reject_reason","position_notional_usdt",
+                                "risk_budget_usdt","portfolio_pnl_usdt"}
+        missing_fields=required_ledger_fields-set(ledger_reader.fieldnames or [])
+        if missing_fields:
+            raise SystemExit(f"{label} portfolio ledger missing fields: {sorted(missing_fields)}")
+        ledger_rows=list(ledger_reader)
+    with ledger_paths["portfolio_equity.csv"].open("r",encoding="utf-8",newline="") as equity_file:
+        equity_reader=csv.DictReader(equity_file)
+        required_equity_fields={"time","cash_usdt","open_positions","open_notional_usdt",
+                                "equity_usdt","drawdown_pct","capital_utilization_pct",
+                                "gross_exposure_pct_equity"}
+        missing_fields=required_equity_fields-set(equity_reader.fieldnames or [])
+        if missing_fields:
+            raise SystemExit(f"{label} equity ledger missing fields: {sorted(missing_fields)}")
+        equity_rows=list(equity_reader)
+    if not equity_rows:
+        raise SystemExit(f"{label} equity ledger is empty; refusing to compare")
+
+    portfolio_summary=summary.get("portfolio",{})
+    accepted_rows=[row for row in ledger_rows if row.get("portfolio_status")=="ACCEPTED"]
+    rejected_rows=[row for row in ledger_rows if row.get("portfolio_status")=="REJECTED"]
+    if len(ledger_rows)!=int(portfolio_summary.get("candidate_trades",-1)):
+        raise SystemExit(f"{label} ledger candidate count does not reconcile to summary")
+    if len(accepted_rows)!=int(portfolio_summary.get("accepted_trades",-1)) or len(rejected_rows)!=int(portfolio_summary.get("rejected_trades",-1)):
+        raise SystemExit(f"{label} ledger accepted/rejected counts do not reconcile to summary")
+    try:
+        ledger_pnl=sum(float(row["portfolio_pnl_usdt"] or 0) for row in accepted_rows)
+        summary_pnl=float(portfolio_summary["net_pnl_usdt"])
+        if abs(ledger_pnl-summary_pnl)>0.001:
+            raise SystemExit(f"{label} accepted-trade PnL {ledger_pnl:.6f} does not reconcile to portfolio PnL {summary_pnl:.6f}")
+        for row in equity_rows:
+            cash=float(row["cash_usdt"])
+            equity=float(row["equity_usdt"])
+            drawdown=float(row["drawdown_pct"])
+            if not all(map(lambda value: value==value and abs(value)!=float("inf"),(cash,equity,drawdown))):
+                raise SystemExit(f"{label} equity ledger contains a non-finite value")
+            if cash < -0.000001 or drawdown < -0.000001:
+                raise SystemExit(f"{label} equity ledger violates cash or drawdown bounds")
+    except (KeyError,TypeError,ValueError) as exc:
+        raise SystemExit(f"{label} ledger contains invalid numeric accounting fields: {exc}")
+
+    ledger_sha256={name:hashlib.sha256(file_path.read_bytes()).hexdigest()
+                   for name,file_path in ledger_paths.items()}
+    # Store every ledger with each measured sample; upload-artifact then preserves
+    # the per-trade acceptance/rejection trail and timestamped account equity.
     sample=OUT/f"{phase}-{label}-{ordinal}"
     sample.mkdir(exist_ok=True)
     shutil.copy2(summary_path,sample/"summary.json")
     shutil.copy2(trades_path,sample/"trades.csv")
+    for name,file_path in ledger_paths.items():
+        shutil.copy2(file_path,sample/name)
     return {"label":label,"phase":phase,"ordinal":ordinal,"wall_seconds":round(wall,4),
             "engine_seconds":summary["performance"]["stage_seconds"].get("signal_engine",0),
             "total_instrumented_seconds":summary["performance"]["total_instrumented_seconds"],
             "engine_calls":summary["performance"]["counters"].get("engine_calls"),
             "trade_sha256":hashlib.sha256(trades_path.read_bytes()).hexdigest(),
+            "ledger_sha256":ledger_sha256,
+            "ledger_counts":{"candidates":len(ledger_rows),"accepted":len(accepted_rows),
+                             "rejected":len(rejected_rows),"equity_points":len(equity_rows)},
+            "ledger_reconciled":True,
             "input_manifest_sha256":manifest_sha256,"input_manifest_rows":len(manifest),
+            "path_metrics":path_metrics,
             "summary":summary}
 # Warm the exact response cache; warm-up runs are deliberately not timed samples.
 print("WARMUP A",flush=True); one("A","warmup",1)
@@ -278,11 +405,10 @@ sequence=[("B",1),("A",1),("B",2),("A",2),("B",3),("A",3)]
 for label, ordinal in sequence:
     print(f"MEASURE {label} {ordinal}",flush=True)
     samples.append(one(label,"measured",ordinal))
-# Require byte-identical trade rows and equivalent key output metrics across
-# all runs. Exact CSV equality is stricter than merely matching trade counts.
+# Check determinism within each revision; A-vs-B differences are expected
+# for a strategy-changing PR and must be measured, not treated as harness failure.
 baseline=[s for s in samples if s["label"]=="A"]
 candidate=[s for s in samples if s["label"]=="B"]
-trade_hashes={s["trade_sha256"] for s in samples}
 input_manifest_hashes={s["input_manifest_sha256"] for s in samples}
 if len(input_manifest_hashes) != 1:
     (OUT/"input-mismatch.json").write_text(json.dumps({
@@ -296,20 +422,53 @@ def comparable(s):
             "symbols":x["symbols"],"candidate_trade_count":x["candidate_trade_count"],
             "portfolio":x["portfolio"],"engine_breakdown":x["engine_breakdown"],
             "diagnostics":x["diagnostics"]}
-summary_hashes={json.dumps(comparable(s),sort_keys=True,default=str) for s in samples}
-if len(trade_hashes)!=1 or len(summary_hashes)!=1:
-    (OUT/"mismatch.json").write_text(json.dumps({
-        "trade_hashes":[s["trade_sha256"] for s in samples],
-        "summaries":[{"label":s["label"],"phase":s["phase"],"ordinal":s["ordinal"],
-                      "summary":comparable(s)} for s in samples]},indent=2,default=str))
-    raise SystemExit("OUTPUT MISMATCH: do not merge; see mismatch.json")
+def assert_repeatable(rows, label):
+    trade_hashes={s["trade_sha256"] for s in rows}
+    summary_hashes={json.dumps(comparable(s),sort_keys=True,default=str) for s in rows}
+    ledger_hashes={json.dumps(s.get("ledger_sha256",{}),sort_keys=True) for s in rows}
+    if len(trade_hashes)!=1 or len(summary_hashes)!=1 or len(ledger_hashes)!=1:
+        (OUT/f"repeatability-mismatch-{label}.json").write_text(json.dumps({
+            "label":label,
+            "trade_hashes":[s["trade_sha256"] for s in rows],
+            "ledger_hashes":[s.get("ledger_sha256",{}) for s in rows],
+            "summaries":[{"ordinal":s["ordinal"],"summary":comparable(s)} for s in rows]
+        },indent=2,default=str))
+        raise SystemExit(f"REPEATABILITY FAILURE within {label}; see repeatability-mismatch-{label}.json")
+    return {"trades":next(iter(trade_hashes)),
+            "ledger":rows[0].get("ledger_sha256",{})}
+baseline_hashes=assert_repeatable(baseline,"A")
+candidate_hashes=assert_repeatable(candidate,"B")
 def stats(rows,key):
     values=[float(r[key]) for r in rows]
     return {"samples":values,"median":round(median(values),4),
             "min":round(min(values),4),"max":round(max(values),4),
             "range":round(max(values)-min(values),4)}
+def outcome_metrics(rows):
+    # Repeatability is already verified, so the first sample represents this revision.
+    x=rows[0]["summary"]
+    p=x.get("portfolio",{})
+    return {
+        "period_start":x.get("period_start"),"period_end":x.get("period_end"),
+        "candidate_trade_count":x.get("candidate_trade_count"),
+        "accepted_trades":p.get("accepted_trades"),
+        "rejected_trades":p.get("rejected_trades"),
+        "net_pnl_usdt":p.get("net_pnl_usdt"),
+        "net_return_pct":p.get("net_return_pct"),
+        "max_drawdown_pct":p.get("max_drawdown_pct"),
+        "final_equity_usdt":p.get("final_equity_usdt"),
+    }
+outcome_A=outcome_metrics(baseline)
+outcome_B=outcome_metrics(candidate)
+outcome_delta={}
+for key in ("candidate_trade_count","accepted_trades","rejected_trades","net_pnl_usdt",
+            "net_return_pct","max_drawdown_pct","final_equity_usdt"):
+    a,b=outcome_A.get(key),outcome_B.get(key)
+    if isinstance(a,(int,float)) and isinstance(b,(int,float)):
+        outcome_delta[key]=round(b-a,6)
 report={
- "status":"PASS_OUTPUTS_IDENTICAL",
+ "status":"PASS_REPEATABILITY_A_AND_B; STRATEGY_DIFFERENCES_REPORTED",
+ "portfolio_outcome_comparison":{"baseline_A":outcome_A,"candidate_B":outcome_B,
+                                 "candidate_minus_baseline":outcome_delta},
  "base_sha":BASE_SHA,"candidate_sha":CANDIDATE_SHA,
  "configuration":{"days":ENV["BACKTEST_DAYS"],"symbols":ENV["BACKTEST_SYMBOLS"],
                   "fee_bps_per_side":ENV["BACKTEST_FEE_BPS"],
@@ -323,7 +482,14 @@ report={
                            "signal_engine":stats(candidate,"engine_seconds"),
                            "instrumented_total":stats(candidate,"total_instrumented_seconds")}},
  "samples":[{k:v for k,v in s.items() if k!="summary"} for s in samples],
- "trade_sha256":next(iter(trade_hashes)),
+ "in_trade_path_metrics":{"definition":"same simulate-time formula in A and B; entry-to-exit path, exclude exit-candle OHLC extrema, terminal point is simulated exit fill",
+                        "baseline_A":baseline[0]["path_metrics"],
+                        "candidate_B":candidate[0]["path_metrics"],
+                        "note":"MFE/MAE are path diagnostics, not portfolio P&L; compare alongside shared-account outcomes."},
+ "trade_sha256":{"baseline_A":baseline_hashes["trades"],"candidate_B":candidate_hashes["trades"],"identical_between_versions":baseline_hashes["trades"]==candidate_hashes["trades"]},
+ "portfolio_ledger":{"baseline_A":baseline_hashes["ledger"],"candidate_B":candidate_hashes["ledger"],
+                     "identical_between_versions":baseline_hashes["ledger"]==candidate_hashes["ledger"],
+                     "note":"A-vs-B ledger differences are expected when strategy trades differ; each revision's ledger hashes must repeat exactly across its three measured runs."},
  "input_manifest_sha256":next(iter(input_manifest_hashes)),
  "input_manifest_rows":samples[0]["input_manifest_rows"],
  "notes":["Separate signal-window and outcome-window OHLCV hashes and row counts are fingerprinted before indicator preparation and must match across all samples.",
@@ -341,4 +507,4 @@ report["signal_engine_median_improvement_pct"]=round(
 ) if report["timings"]["baseline_A"]["signal_engine"]["median"] else None
 (OUT/"report.json").write_text(json.dumps(report,indent=2,default=str),encoding="utf-8")
 print(json.dumps({k:v for k,v in report.items() if k not in ("samples",)},indent=2,default=str),flush=True)
-print("A/B benchmark: PASS (identical outputs)",flush=True)
+print("A/B benchmark: PASS (repeatability checked separately within A and B; A-vs-B differences reported)",flush=True)
