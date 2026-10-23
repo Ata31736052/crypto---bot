@@ -1,0 +1,44 @@
+name: Bottom Hunter v1 historical backtest
+on:
+  pull_request:
+    paths:
+      - "bottom_hunter_v1/**"
+      - "tests/**"
+      - "scripts/bottom_hunter_v1_backtest.py"
+      - ".github/workflows/bottom-hunter-v1-backtest.yml"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Historical replay days (30-365)"
+        required: false
+        default: "180"
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install requests
+      - name: Run 180-day shared-capital replay
+        env:
+          PYTHONPATH: .
+          BH_BACKTEST_DAYS: ${{ github.event.inputs.days || '180' }}
+          BH_INITIAL_USDT: "1000"
+          BH_RISK_FRACTION: "0.01"
+          BH_MAX_NOTIONAL_USDT: "1000"
+          BH_FEE_BPS: "10"
+          BH_SLIPPAGE_BPS: "5"
+        run: python scripts/bottom_hunter_v1_backtest.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bottom-hunter-v1-180d-results
+          path: bottom-hunter-results/
+          if-no-files-found: warn
+          retention-days: 30
