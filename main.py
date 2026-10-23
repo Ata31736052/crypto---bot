@@ -8838,6 +8838,15 @@ def analyze_one_symbol(symbol, btc_regime):
                         trace["first_rejection"] = "TREND:PROFESSIONAL_REJECT"
                     trend_signal = None
 
+        # COUNTERFACTUAL EXPERIMENT ONLY: suppress all accepted 1H TREND candidates.
+        # REVERSAL/Bottom Hunter, BREAKOUT, and higher-timeframe signals remain eligible.
+        # Do not merge into production without reviewing the 180-day A/B results.
+        if trend_signal and str(trend_signal.get("signal", "")).upper() in ("BUY", "SELL"):
+            trace["trend"]["counterfactual_rejection"] = "EXPERIMENT_DISABLE_ALL_TREND"
+            if trace["first_rejection"] is None:
+                trace["first_rejection"] = "TREND:COUNTERFACTUAL_DISABLED_ALL"
+            trend_signal = None
+
         bottom_signal = score_bottom_hunter(df_1h, df_30m, btc_regime, diagnostic=bottom_diagnostic, mtf_context=mtf_context)
         trace["reversal"] = {
             "candidate": bool(bottom_signal),
