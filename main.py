@@ -8781,6 +8781,144 @@ def _log_selected_engine_diagnostic(signal):
     )
     return True
 
+
+# =========================================================
+# SETUP FORMING: EARLY WARNING ONLY (1H CLOSED CANDLES)
+# =========================================================
+def detect_setup_forming_1h(symbol, df, now_ms=None):
+    """Return an early directional WATCH, never an entry signal.
+
+    Uses only fully closed 1H candles and local 1H evidence. Daily/4H
+    alignment and the entry-quality gates are deliberately not prerequisites.
+    """
+    required = ("open_time", "close_time", "close", "ema9", "macd_hist", "rsi")
+    if df is None or not isinstance(df, pd.DataFrame) or len(df) < 3:
+        return None
+    if any(column not in df.columns for column in required):
+        return None
+    now_ms = int(now_ms if now_ms is not None else time.time() * 1000)
+    try:
+        # Production get_klines() converts timestamps to UTC pandas datetimes;
+        # deterministic tests may supply raw Binance millisecond integers.
+        # Normalize both forms to epoch milliseconds before filtering. Using
+        # pd.to_numeric() directly on Timestamp objects silently yielded NaN
+        # for every row, disabling all real Setup Forming warnings.
+        close_series = df["close_time"]
+        if pd.api.types.is_numeric_dtype(close_series):
+            close_ms = pd.to_numeric(close_series, errors="coerce")
+        else:
+            close_dt = pd.to_datetime(close_series, errors="coerce", utc=True)
+            close_ms = close_dt.astype("int64") // 1_000_000
+            close_ms = close_ms.where(close_dt.notna(), np.nan)
+        closed = df.loc[close_ms <= now_ms].copy()
+        if len(closed) < 3:
+            return None
+        last3 = closed.tail(3)
+        prev, last = last3.iloc[-2], last3.iloc[-1]
+        vals = {}
+        for name in ("close", "ema9", "macd_hist", "rsi"):
+            vals[name] = [safe_float(x, float("nan")) for x in last3[name].tolist()]
+        if not all(np.isfinite(x) for series in vals.values() for x in series):
+            return None
+        close, ema9 = vals["close"][-1], vals["ema9"][-1]
+        macd = vals["macd_hist"]
+        rsi = vals["rsi"]
+        bull_evidence = [
+            close > ema9,
+            vals["ema9"][-1] > vals["ema9"][-2],
+            vals["ema9"][-2] > vals["ema9"][-3],
+            macd[-1] > macd[-2],
+            rsi[-1] > rsi[-2],
+        ]
+        bear_evidence = [
+            close < ema9,
+            vals["ema9"][-1] < vals["ema9"][-2],
+            vals["ema9"][-2] < vals["ema9"][-3],
+            macd[-1] < macd[-2],
+            rsi[-1] < rsi[-2],
+        ]
+        # A watch requires directional price location plus 2 of 4 supporting
+        # early clues. This is intentionally looser than entry qualification.
+        if bull_evidence[0] and sum(bull_evidence) >= 3:
+            side, count = "BUY_WATCH", sum(bull_evidence)
+        elif bear_evidence[0] and sum(bear_evidence) >= 3:
+            side, count = "SELL_WATCH", sum(bear_evidence)
+        else:
+            return None
+        raw_open_time = last["open_time"]
+        if isinstance(raw_open_time, (pd.Timestamp, datetime)):
+            candle_time = pd.to_datetime(raw_open_time, utc=True).isoformat()
+        else:
+            candle_time = pd.to_datetime(int(raw_open_time), unit="ms", utc=True).isoformat()
+        return {
+            "symbol": str(symbol).upper(),
+            "side": side,
+            "candle_time": candle_time,
+            "close": close,
+            "evidence_count": count,
+            "message_type": "SETUP_FORMING",
+        }
+    except Exception:
+        return None
+
+
+def format_setup_forming_warning(watch):
+    """Human-readable alert with no entry instruction or trade levels."""
+    side_label = "Potential bullish setup" if watch.get("side") == "BUY_WATCH" else "Potential bearish setup"
+    price = safe_float(watch.get("close"), 0.0)
+    return (
+        "🔔 <b>SETUP FORMING — EARLY WARNING</b>\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        f"🪙 <b>{telegram_escape(watch.get('symbol', 'UNKNOWN'))}</b>\n"
+        f"📍 {side_label} detected on the 1H timeframe\n"
+        f"💰 Last closed-candle price: {price:.8g}\n"
+        f"🧩 Early clues: {safe_int(watch.get('evidence_count', 0))}/5\n\n"
+        "⚠️ Watch only — NOT a BUY/SELL entry signal.\n"
+        "Wait for the separate entry system to confirm conditions."
+    )
+
+
+def run_setup_forming_self_test():
+    """Deterministic regression tests: direction, closed-candle and no-entry semantics."""
+    base = pd.DataFrame({
+        "open_time": [1000, 2000, 3000, 4000],
+        "close_time": [1500, 2500, 3500, 4500],
+        "close": [10.0, 10.1, 10.2, 10.3],
+        "ema9": [9.8, 9.9, 10.0, 10.1],
+        "macd_hist": [-0.3, -0.2, -0.1, 0.0],
+        "rsi": [45.0, 46.0, 47.0, 48.0],
+    })
+    bullish = detect_setup_forming_1h("TESTUSDT", base, now_ms=5000)
+    assert bullish and bullish["side"] == "BUY_WATCH"
+    assert bullish["message_type"] == "SETUP_FORMING"
+    # A not-yet-closed last candle must not influence the result.
+    open_candle = base.copy()
+    open_candle.loc[3, "close_time"] = 6000
+    ignored = detect_setup_forming_1h("TESTUSDT", open_candle, now_ms=5000)
+    assert ignored and ignored["candle_time"] == pd.to_datetime(3000, unit="ms", utc=True).isoformat(), "incomplete candle influenced the warning"
+    bearish = base.copy()
+    bearish["close"] = [10.3, 10.2, 10.1, 10.0]
+    bearish["ema9"] = [10.4, 10.3, 10.2, 10.1]
+    bearish["macd_hist"] = [0.3, 0.2, 0.1, 0.0]
+    bearish["rsi"] = [55.0, 54.0, 53.0, 52.0]
+    result = detect_setup_forming_1h("TESTUSDT", bearish, now_ms=5000)
+    assert result and result["side"] == "SELL_WATCH"
+
+    # Production get_klines() uses UTC Timestamp columns, not raw ms integers.
+    # This regression test ensures the live data representation is accepted.
+    timestamp_frame = base.copy()
+    timestamp_frame["open_time"] = pd.to_datetime(timestamp_frame["open_time"], unit="ms", utc=True)
+    timestamp_frame["close_time"] = pd.to_datetime(timestamp_frame["close_time"], unit="ms", utc=True)
+    timestamp_watch = detect_setup_forming_1h("TESTUSDT", timestamp_frame, now_ms=5000)
+    assert timestamp_watch and timestamp_watch["side"] == "BUY_WATCH"
+    assert timestamp_watch["candle_time"] == pd.to_datetime(4000, unit="ms", utc=True).isoformat()
+
+    message = format_setup_forming_warning(bullish)
+    assert "NOT a BUY/SELL entry signal" in message
+    assert "Stop loss" not in message and "Take profit" not in message
+    return True
+
+
 def analyze_one_symbol(symbol, btc_regime):
     """Run Trend, Reversal and Breakout independently; select the strongest
     valid 1H engine while also returning independent 4H/Daily signals.
