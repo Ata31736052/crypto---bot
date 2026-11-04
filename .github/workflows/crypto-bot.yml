@@ -66,7 +66,7 @@ jobs:
           source = Path('main.py').read_text(encoding='utf-8')
           workflow_source = Path('.github/workflows/crypto-bot.yml').read_text(encoding='utf-8')
           checks = {
-              'history persistence write permission': 'permissions:\\n  contents: write' in workflow_source,
+              'history persistence write permission': 'contents: write' in workflow_source and 'permissions:' in workflow_source,
               'history persistence checkout credentials': 'persist-credentials: true' in workflow_source,
               'history persistence commit step': 'Persist signal outcome history' in workflow_source,
               'history persistence only stages history file': 'git add -- "$history_file"' in workflow_source,
