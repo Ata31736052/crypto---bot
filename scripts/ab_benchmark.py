@@ -151,7 +151,9 @@ for label in ("A", "B"):
     source = source_path.read_text(encoding="utf-8")
     if "def _ab_record_input(" not in source:
         source = source.replace("def fetch(", MANIFEST_HELPER + "\ndef fetch(", 1)
-    if label == "A":
+    # Newer baselines already implement fixed end-time and execution-boundary semantics; do not force the legacy shim onto them.
+    has_native_boundary = ("def replay_signal_indices(" in source and "def validate_boundary_execution_candle(" in source and "BACKTEST_END_TIME" in source and "include_boundary_open=False" in source)
+    if label == "A" and not has_native_boundary:
         sig = "def fetch(symbol, tf, start_ms, end_ms):"
         if sig not in source: raise SystemExit("Cannot safely patch baseline fetch signature")
         source = source.replace(sig, "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, signal_boundary_ms=None):", 1)
