@@ -6,6 +6,7 @@ on:
       - 'main.py'
       - 'historical_backtest.py'
       - 'portfolio_ledger.py'
+      - 'setup_forming_scan.py'
       - 'scripts/ab_benchmark.py'
       - '.github/workflows/ab-benchmark.yml'
   pull_request:
@@ -14,6 +15,7 @@ on:
       - 'main.py'
       - 'historical_backtest.py'
       - 'portfolio_ledger.py'
+      - 'setup_forming_scan.py'
       - 'scripts/ab_benchmark.py'
       - '.github/workflows/ab-benchmark.yml'
 permissions:
@@ -26,7 +28,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
-      AB_BASE_SHA: 6dd8090de95878f5ec013577c73eb99d4ceb59cd
+      # Compare the PR candidate with the exact base revision for this PR.
+      # Keep the historical fixed baseline only for non-PR push runs.
+      AB_BASE_SHA: ${{ github.event.pull_request.base.sha || '6dd8090de95878f5ec013577c73eb99d4ceb59cd' }}
       AB_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       AB_REPEATS: "3"
       BACKTEST_DAYS: "180"

@@ -76,6 +76,7 @@ jobs:
               'score-grade diagnostic regression test': 'def run_v63_14_10_score_grade_diagnostic_self_test():' in source and 'grade_basis=raw_score+quality_points' in source,
               'analytics scope self-test': 'def run_v63_14_11_analytics_scope_self_test():' in source and 'performance groups below use FINAL records only' in source,
               'outcome coverage self-test': 'def run_v63_14_14_finalization_metrics_self_test():' in source,
+              'Setup Forming early-warning self-test exists': 'def run_setup_forming_self_test():' in source and 'def detect_setup_forming_1h(' in source,
               'missing hourly candles fail closed': 'def _outcome_window_has_complete_candles(' in source,
               'finalization requires valid metrics': 'horizon_metrics_complete' in source and 'observation_complete and horizon_metrics_complete' in source,
               'invalid metrics regression self-test': 'invalid 8H metric window was finalized' in source,
@@ -126,6 +127,7 @@ jobs:
               ('v63.14.10 score-grade diagnostic', main.run_v63_14_10_score_grade_diagnostic_self_test),
               ('v63.14.11 analytics scope', main.run_v63_14_11_analytics_scope_self_test),
               ('v63.14.13 outcome candle coverage', main.run_v63_14_14_finalization_metrics_self_test),
+              ('Setup Forming early warning', main.run_setup_forming_self_test),
           ]
           for label, test in tests:
               assert test() is True, f'{label} failed'
