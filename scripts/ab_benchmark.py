@@ -282,7 +282,7 @@ for label, ordinal in sequence:
 # all runs. Exact CSV equality is stricter than merely matching trade counts.
 baseline=[s for s in samples if s["label"]=="A"]
 candidate=[s for s in samples if s["label"]=="B"]
-trade_hashes={s["trade_sha256"] for s in samples}
+trade_hashes={label:{s["trade_sha256"] for s in samples if s["label"]==label} for label in ("A","B")}
 input_manifest_hashes={s["input_manifest_sha256"] for s in samples}
 if len(input_manifest_hashes) != 1:
     (OUT/"input-mismatch.json").write_text(json.dumps({
@@ -297,7 +297,8 @@ def comparable(s):
             "portfolio":x["portfolio"],"engine_breakdown":x["engine_breakdown"],
             "diagnostics":x["diagnostics"]}
 summary_hashes={json.dumps(comparable(s),sort_keys=True,default=str) for s in samples}
-if len(trade_hashes)!=1 or len(summary_hashes)!=1:
+summary_hashes_by_label={label:{json.dumps(comparable(s),sort_keys=True,default=str) for s in samples if s["label"]==label} for label in ("A","B")}
+if any(len(v)!=1 for v in trade_hashes.values()) or any(len(v)!=1 for v in summary_hashes_by_label.values()):
     (OUT/"mismatch.json").write_text(json.dumps({
         "trade_hashes":[s["trade_sha256"] for s in samples],
         "summaries":[{"label":s["label"],"phase":s["phase"],"ordinal":s["ordinal"],
@@ -323,10 +324,11 @@ report={
                            "signal_engine":stats(candidate,"engine_seconds"),
                            "instrumented_total":stats(candidate,"total_instrumented_seconds")}},
  "samples":[{k:v for k,v in s.items() if k!="summary"} for s in samples],
- "trade_sha256":next(iter(trade_hashes)),
+ "trade_sha256_by_revision":{label:next(iter(values)) for label,values in trade_hashes.items()},
  "input_manifest_sha256":next(iter(input_manifest_hashes)),
  "input_manifest_rows":samples[0]["input_manifest_rows"],
- "notes":["Separate signal-window and outcome-window OHLCV hashes and row counts are fingerprinted before indicator preparation and must match across all samples.",
+ "notes":["Exact trade rows and summary outputs must repeat identically within A (baseline) and within B (candidate); A and B are expected to differ when strategy code changes.",
+          "Separate signal-window and outcome-window OHLCV hashes and row counts are fingerprinted before indicator preparation and must match across all samples.",
           "Both baseline and candidate fetch the same 73-hour post-boundary 1H outcome window; replay stops at the fixed signal boundary.",
           "Baseline is benchmark-shimmed to the candidate's exclusive end boundary, retaining the boundary-open execution candle only for 1H.",
           "Same GitHub-hosted runner and Python environment for all samples.",
@@ -341,4 +343,4 @@ report["signal_engine_median_improvement_pct"]=round(
 ) if report["timings"]["baseline_A"]["signal_engine"]["median"] else None
 (OUT/"report.json").write_text(json.dumps(report,indent=2,default=str),encoding="utf-8")
 print(json.dumps({k:v for k,v in report.items() if k not in ("samples",)},indent=2,default=str),flush=True)
-print("A/B benchmark: PASS (identical outputs)",flush=True)
+print("A/B benchmark: PASS (deterministic within each revision; shared inputs)",flush=True)
