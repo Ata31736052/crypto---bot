@@ -107,7 +107,10 @@ PRO_MIN_SIDE_SCORE_GAP = 5
 # v59: Early-reversal signals are now treated as actionable trades, not
 # educational/anticipation signals. Require real participation, directional
 # energy and multi-timeframe confirmation before Telegram delivery.
-PRO_BOTTOM_MIN_ADX = 23.0
+# Bottom Hunter is an early-reversal engine: use the existing reversal-specific
+# ADX floor rather than the stricter trend-strength floor. Trend/Breakout/SELL
+# thresholds remain unchanged.
+PRO_BOTTOM_MIN_ADX = PRO_MIN_REVERSAL_ADX
 PRO_BOTTOM_MIN_VOLUME_RATIO = 1.35
 PRO_BOTTOM_MIN_30M_CONFIRMATIONS = 6
 PRO_BOTTOM_REQUIRE_HTF_ALIGNMENT = 1
@@ -8055,7 +8058,7 @@ def run_v63_14_10_score_grade_diagnostic_self_test():
     # Preserve strict production thresholds; diagnostics must never loosen them.
     assert PRO_MIN_SCORE == 90
     assert PRO_SELL_MIN_SCORE == 92
-    assert PRO_BOTTOM_MIN_ADX == 23.0
+    assert PRO_BOTTOM_MIN_ADX == PRO_MIN_REVERSAL_ADX == 18.0
     assert PRO_BOTTOM_MIN_VOLUME_RATIO == 1.35
     # High capped quality index cannot disguise a low raw setup score.
     assert professional_quality_grade(80, 16) == "C"
@@ -8510,13 +8513,15 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
             reject.append(f"HTF confirmation insufficient ({confirmations})")
         else:
             quality += 3
+    elif mode == "BOTTOM_HUNTER":
+        # The Bottom Hunter already evaluates dedicated 30M reversal evidence
+        # in score_bottom_hunter(). Keep this second, trend-style confirmation
+        # as a quality bonus, not a duplicate hard rejection.
+        if confirm.get("confirmed") and confirmations >= PRO_BOTTOM_MIN_30M_CONFIRMATIONS:
+            quality += 3
     elif (not confirm.get("confirmed") or
-          (mode == "BOTTOM_HUNTER" and confirmations < PRO_BOTTOM_MIN_30M_CONFIRMATIONS) or
-          (mode != "BOTTOM_HUNTER" and side == "SELL" and confirmations < required_confirmations)):
-        if mode == "BOTTOM_HUNTER":
-            reject.append(f"30M reversal confirmation insufficient (actual={confirmations}; required>={PRO_BOTTOM_MIN_30M_CONFIRMATIONS})")
-        else:
-            reject.append(f"30M confirmation insufficient (actual={confirmations}; required>={required_confirmations})")
+          (side == "SELL" and confirmations < required_confirmations)):
+        reject.append(f"30M confirmation insufficient (actual={confirmations}; required>={required_confirmations})")
     else:
         quality += 3
 
@@ -9134,7 +9139,10 @@ def run_v63_14_3_outcome_boundary_self_test():
     assert any(reason.startswith("score 75 < 90") for reason in reject_reasons)
     assert any("reversal ADX too weak" in reason for reason in reject_reasons)
     assert any("reversal volume below professional minimum" in reason for reason in reject_reasons)
-    assert any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
+    # The duplicate trend-style 30M check is now a bonus for Bottom Hunter.
+    assert not any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
+    # Independent higher-timeframe alignment remains a hard requirement.
+    assert any("higher-timeframe alignment insufficient" in reason for reason in reject_reasons)
     assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
     return True
 
@@ -9295,7 +9303,7 @@ def run_v63_14_diagnostic_trace_self_test():
 def run_v63_12_root_fix3_self_test():
     # Grade is classification only: A must not be rejected merely for not being A+.
     assert "grade_gate" == "grade_gate"
-    assert PRO_BOTTOM_MIN_ADX >= 23.0
+    assert PRO_BOTTOM_MIN_ADX == PRO_MIN_REVERSAL_ADX == 18.0
     assert PRO_BOTTOM_MIN_VOLUME_RATIO >= 1.35
     # Exact configured R:R boundaries remain valid; below boundary remains invalid.
     assert TP1_RR + RR_EPSILON >= 1.80
