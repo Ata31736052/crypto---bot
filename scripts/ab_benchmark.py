@@ -153,25 +153,32 @@ for label in ("A", "B"):
         source = source.replace("def fetch(", MANIFEST_HELPER + "\ndef fetch(", 1)
     if label == "A":
         sig = "def fetch(symbol, tf, start_ms, end_ms):"
-        if sig not in source: raise SystemExit("Cannot safely patch baseline fetch signature")
-        source = source.replace(sig, "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, signal_boundary_ms=None):", 1)
-        old_filters = (
-            '    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])',
-            '    d=d[d.close_time < pd.Timestamp.now(tz="UTC")].dropna(subset=["open","high","low","close","volume"])',
-        )
-        new_filter = '''    boundary=pd.to_datetime(signal_boundary_ms if signal_boundary_ms is not None else end_ms,unit="ms",utc=True)
+        compatible_sig = "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, now=None, signal_boundary_ms=None):"
+        if sig in source:
+            source = source.replace(sig, "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, signal_boundary_ms=None):", 1)
+            old_filters = (
+                '    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])',
+                '    d=d[d.close_time < pd.Timestamp.now(tz="UTC")].dropna(subset=["open","high","low","close","volume"])',
+            )
+            new_filter = '''    boundary=pd.to_datetime(signal_boundary_ms if signal_boundary_ms is not None else end_ms,unit="ms",utc=True)
     data_cutoff=pd.to_datetime(end_ms,unit="ms",utc=True)
     d=d[(d.close_time < data_cutoff) | ((tf == "1h") & include_boundary_open & (d.open_time == boundary))]
     d=d.dropna(subset=["open","high","low","close","volume"])'''
-        matched_filters = [line for line in old_filters if line in source]
-        if len(matched_filters) != 1:
-            raise SystemExit(
-                "Cannot safely normalize baseline end-boundary policy: "
-                f"expected exactly one known filter, found {len(matched_filters)}"
-            )
-        source = source.replace(matched_filters[0], new_filter, 1)
-        if new_filter not in source:
-            raise SystemExit("Baseline boundary normalization postcondition failed")
+            matched_filters = [line for line in old_filters if line in source]
+            if len(matched_filters) != 1:
+                raise SystemExit(
+                    "Cannot safely normalize baseline end-boundary policy: "
+                    f"expected exactly one known filter, found {len(matched_filters)}"
+                )
+            source = source.replace(matched_filters[0], new_filter, 1)
+            if new_filter not in source:
+                raise SystemExit("Baseline boundary normalization postcondition failed")
+        elif compatible_sig in source and "signal_boundary_ms" in source and "include_boundary_open" in source:
+            # The baseline already implements the exclusive signal boundary and
+            # execution-only boundary-open candle. Preserve its implementation.
+            pass
+        else:
+            raise SystemExit("Baseline fetch signature/boundary policy is unsupported; refusing unsafe patch")
         source = source.replace('fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000))', 'fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000),include_boundary_open=(tf=="1h"))')
         source = source.replace('raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000)) for tf in ("1h","30m","4h","1d")}',
 '''raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),
