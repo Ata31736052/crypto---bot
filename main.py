@@ -8522,18 +8522,45 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
 
     # SOFT/HARD macro context: missing HTF data is tolerated, but an explicit
     # opposite 4H/Daily regime does not receive a quality bonus.
+    # Diagnostic-only: classify each context frame without changing the
+    # original alignment count or any pass/fail threshold.
     htf_align = 0
-    for frame in context_frames:
-        if frame is None or frame.empty:
+    htf_diagnostics = []
+    if mode == "4H_SIGNAL" or signal_tf == "4h":
+        htf_labels = ("Daily",)
+    elif mode == "DAILY_SIGNAL" or signal_tf == "1d":
+        htf_labels = ("4H",)
+    else:
+        htf_labels = ("4H", "Daily")
+    for frame_index, frame in enumerate(context_frames):
+        label = htf_labels[frame_index] if frame_index < len(htf_labels) else f"HTF{frame_index + 1}"
+        if frame is None or getattr(frame, "empty", True):
+            htf_diagnostics.append(f"{label}=MISSING")
             continue
         rr = frame.iloc[-1]
+        raw_values = [rr.get("close"), rr.get("ema9"), rr.get("ema21"), rr.get("ema200")]
+        values_valid = all(
+            value is not None and np.isfinite(safe_float(value, float("nan"))) and safe_float(value, float("nan")) > 0
+            for value in raw_values
+        )
         c = safe_float(rr.get("close")); e9 = safe_float(rr.get("ema9")); e21 = safe_float(rr.get("ema21")); e200 = safe_float(rr.get("ema200"))
         aligned = (c > e200 and e9 > e21) if side == "BUY" else (c < e200 and e9 < e21)
         if aligned:
             htf_align += 1
+        if not values_valid:
+            status = "INVALID"
+        elif len(frame) < 50:
+            status = "SHORT_DATA"
+        elif aligned:
+            status = "ALIGNED"
+        elif ((c < e200 and e9 < e21) if side == "BUY" else (c > e200 and e9 > e21)):
+            status = "OPPOSED"
+        else:
+            status = "NEUTRAL"
+        htf_diagnostics.append(label + "=" + status)
     required_htf = PRO_BOTTOM_REQUIRE_HTF_ALIGNMENT if mode == "BOTTOM_HUNTER" else (PRO_SELL_MIN_HTF_ALIGNMENT if side == "SELL" else PRO_MIN_HTF_ALIGNMENT)
     if htf_align < required_htf:
-        reject.append(f"higher-timeframe alignment insufficient ({htf_align}/{required_htf})")
+        reject.append(f"higher-timeframe alignment insufficient ({htf_align}/{required_htf}); " + ", ".join(htf_diagnostics))
     elif htf_align >= 2:
         quality += 3
     elif htf_align == 1:
