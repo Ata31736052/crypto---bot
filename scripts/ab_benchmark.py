@@ -310,7 +310,7 @@ def stats(rows,key):
             "min":round(min(values),4),"max":round(max(values),4),
             "range":round(max(values)-min(values),4)}
 report={
- "status":"PASS_OUTPUTS_IDENTICAL",
+ "status":"PASS_DETERMINISTIC_PER_REVISION",
  "base_sha":BASE_SHA,"candidate_sha":CANDIDATE_SHA,
  "configuration":{"days":ENV["BACKTEST_DAYS"],"symbols":ENV["BACKTEST_SYMBOLS"],
                   "fee_bps_per_side":ENV["BACKTEST_FEE_BPS"],
