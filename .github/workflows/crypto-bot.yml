@@ -9,7 +9,7 @@ on:
       timezone: 'Asia/Tehran'
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: crypto-signal-bot
@@ -32,7 +32,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
@@ -219,8 +219,47 @@ jobs:
           }
           echo "Required scan diagnostics files: PASS"
 
-      - name: Persist signal outcome history
+      - name: Upload signal history for persistence
         if: success() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: signal-history-${{ github.run_id }}
+          path: signals_history.json
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Upload scan diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crypto-bot-diagnostics-v63.14.15-${{ github.run_number }}
+          path: |
+            professional_diagnostics.txt
+            symbol_diagnostics.txt
+            workflow-diagnostics/pr-workflow-diagnostics.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  persist-history:
+    needs: scan
+    if: success() && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout target branch for history persistence
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          persist-credentials: true
+
+      - name: Download validated signal history
+        uses: actions/download-artifact@v4
+        with:
+          name: signal-history-${{ github.run_id }}
+
+      - name: Validate and persist signal outcome history
         shell: bash
         run: |
           set -euo pipefail
@@ -242,15 +281,3 @@ jobs:
           git rebase "origin/$GITHUB_REF_NAME"
           git push origin "HEAD:$GITHUB_REF_NAME"
           echo "Signal history persisted to $GITHUB_REF_NAME."
-
-      - name: Upload scan diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: crypto-bot-diagnostics-v63.14.15-${{ github.run_number }}
-          path: |
-            professional_diagnostics.txt
-            symbol_diagnostics.txt
-            workflow-diagnostics/pr-workflow-diagnostics.txt
-          if-no-files-found: error
-          retention-days: 7
