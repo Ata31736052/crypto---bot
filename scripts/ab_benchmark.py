@@ -153,25 +153,32 @@ for label in ("A", "B"):
         source = source.replace("def fetch(", MANIFEST_HELPER + "\ndef fetch(", 1)
     if label == "A":
         sig = "def fetch(symbol, tf, start_ms, end_ms):"
-        if sig not in source: raise SystemExit("Cannot safely patch baseline fetch signature")
-        source = source.replace(sig, "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, signal_boundary_ms=None):", 1)
-        old_filters = (
-            '    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])',
-            '    d=d[d.close_time < pd.Timestamp.now(tz="UTC")].dropna(subset=["open","high","low","close","volume"])',
-        )
-        new_filter = '''    boundary=pd.to_datetime(signal_boundary_ms if signal_boundary_ms is not None else end_ms,unit="ms",utc=True)
+        compatible_sig = "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, now=None, signal_boundary_ms=None):"
+        if sig in source:
+            source = source.replace(sig, "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, signal_boundary_ms=None):", 1)
+            old_filters = (
+                '    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])',
+                '    d=d[d.close_time < pd.Timestamp.now(tz="UTC")].dropna(subset=["open","high","low","close","volume"])',
+            )
+            new_filter = '''    boundary=pd.to_datetime(signal_boundary_ms if signal_boundary_ms is not None else end_ms,unit="ms",utc=True)
     data_cutoff=pd.to_datetime(end_ms,unit="ms",utc=True)
     d=d[(d.close_time < data_cutoff) | ((tf == "1h") & include_boundary_open & (d.open_time == boundary))]
     d=d.dropna(subset=["open","high","low","close","volume"])'''
-        matched_filters = [line for line in old_filters if line in source]
-        if len(matched_filters) != 1:
-            raise SystemExit(
-                "Cannot safely normalize baseline end-boundary policy: "
-                f"expected exactly one known filter, found {len(matched_filters)}"
-            )
-        source = source.replace(matched_filters[0], new_filter, 1)
-        if new_filter not in source:
-            raise SystemExit("Baseline boundary normalization postcondition failed")
+            matched_filters = [line for line in old_filters if line in source]
+            if len(matched_filters) != 1:
+                raise SystemExit(
+                    "Cannot safely normalize baseline end-boundary policy: "
+                    f"expected exactly one known filter, found {len(matched_filters)}"
+                )
+            source = source.replace(matched_filters[0], new_filter, 1)
+            if new_filter not in source:
+                raise SystemExit("Baseline boundary normalization postcondition failed")
+        elif compatible_sig in source and "signal_boundary_ms" in source and "include_boundary_open" in source:
+            # The baseline already implements the exclusive signal boundary and
+            # execution-only boundary-open candle. Preserve its implementation.
+            pass
+        else:
+            raise SystemExit("Baseline fetch signature/boundary policy is unsupported; refusing unsafe patch")
         source = source.replace('fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000))', 'fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000),include_boundary_open=(tf=="1h"))')
         source = source.replace('raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000)) for tf in ("1h","30m","4h","1d")}',
 '''raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),
@@ -282,7 +289,7 @@ for label, ordinal in sequence:
 # all runs. Exact CSV equality is stricter than merely matching trade counts.
 baseline=[s for s in samples if s["label"]=="A"]
 candidate=[s for s in samples if s["label"]=="B"]
-trade_hashes={s["trade_sha256"] for s in samples}
+trade_hashes={label:{s["trade_sha256"] for s in samples if s["label"]==label} for label in ("A","B")}
 input_manifest_hashes={s["input_manifest_sha256"] for s in samples}
 if len(input_manifest_hashes) != 1:
     (OUT/"input-mismatch.json").write_text(json.dumps({
@@ -297,7 +304,8 @@ def comparable(s):
             "portfolio":x["portfolio"],"engine_breakdown":x["engine_breakdown"],
             "diagnostics":x["diagnostics"]}
 summary_hashes={json.dumps(comparable(s),sort_keys=True,default=str) for s in samples}
-if len(trade_hashes)!=1 or len(summary_hashes)!=1:
+summary_hashes_by_label={label:{json.dumps(comparable(s),sort_keys=True,default=str) for s in samples if s["label"]==label} for label in ("A","B")}
+if any(len(v)!=1 for v in trade_hashes.values()) or any(len(v)!=1 for v in summary_hashes_by_label.values()):
     (OUT/"mismatch.json").write_text(json.dumps({
         "trade_hashes":[s["trade_sha256"] for s in samples],
         "summaries":[{"label":s["label"],"phase":s["phase"],"ordinal":s["ordinal"],
@@ -309,7 +317,7 @@ def stats(rows,key):
             "min":round(min(values),4),"max":round(max(values),4),
             "range":round(max(values)-min(values),4)}
 report={
- "status":"PASS_OUTPUTS_IDENTICAL",
+ "status":"PASS_DETERMINISTIC_PER_REVISION",
  "base_sha":BASE_SHA,"candidate_sha":CANDIDATE_SHA,
  "configuration":{"days":ENV["BACKTEST_DAYS"],"symbols":ENV["BACKTEST_SYMBOLS"],
                   "fee_bps_per_side":ENV["BACKTEST_FEE_BPS"],
@@ -323,10 +331,11 @@ report={
                            "signal_engine":stats(candidate,"engine_seconds"),
                            "instrumented_total":stats(candidate,"total_instrumented_seconds")}},
  "samples":[{k:v for k,v in s.items() if k!="summary"} for s in samples],
- "trade_sha256":next(iter(trade_hashes)),
+ "trade_sha256_by_revision":{label:next(iter(values)) for label,values in trade_hashes.items()},
  "input_manifest_sha256":next(iter(input_manifest_hashes)),
  "input_manifest_rows":samples[0]["input_manifest_rows"],
- "notes":["Separate signal-window and outcome-window OHLCV hashes and row counts are fingerprinted before indicator preparation and must match across all samples.",
+ "notes":["Exact trade rows and summary outputs must repeat identically within A (baseline) and within B (candidate); A and B are expected to differ when strategy code changes.",
+          "Separate signal-window and outcome-window OHLCV hashes and row counts are fingerprinted before indicator preparation and must match across all samples.",
           "Both baseline and candidate fetch the same 73-hour post-boundary 1H outcome window; replay stops at the fixed signal boundary.",
           "Baseline is benchmark-shimmed to the candidate's exclusive end boundary, retaining the boundary-open execution candle only for 1H.",
           "Same GitHub-hosted runner and Python environment for all samples.",
@@ -341,4 +350,4 @@ report["signal_engine_median_improvement_pct"]=round(
 ) if report["timings"]["baseline_A"]["signal_engine"]["median"] else None
 (OUT/"report.json").write_text(json.dumps(report,indent=2,default=str),encoding="utf-8")
 print(json.dumps({k:v for k,v in report.items() if k not in ("samples",)},indent=2,default=str),flush=True)
-print("A/B benchmark: PASS (identical outputs)",flush=True)
+print("A/B benchmark: PASS (deterministic within each revision; shared inputs)",flush=True)
