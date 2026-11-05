@@ -4448,7 +4448,8 @@ def evaluate_final_signal(
 
         "candle_time": str(
             row["open_time"]
-        )
+        ),
+        "candidate_created_at": now_iran().isoformat()
     })
 
     return result
@@ -5964,13 +5965,16 @@ def send_signal_to_telegram(
         signal_mode = str(signal.get("signal_mode", "TREND")).upper()
         signal_tf = str(signal.get("signal_timeframe", TIMEFRAME_MAIN)).lower()
         tf_label = "4H" if signal_mode == "4H_SIGNAL" or signal_tf == "4h" else ("DAILY" if signal_mode == "DAILY_SIGNAL" or signal_tf == "1d" else "1H")
+        timing = signal_timing_metadata(signal)
         log(
             f"Telegram signal sent: "
             f"{signal.get('symbol')} "
             f"{signal.get('signal')} "
             f"TF={tf_label} "
             f"Mode={signal_mode} "
-            f"Score={signal.get('score')}"
+            f"Score={signal.get('score')} "
+            f"CandidateToSendSec={timing.get('candidate_to_send_seconds')} "
+            f"CloseLatencyMin={timing.get('latency_from_close_minutes')}"
         )
 
     return success
@@ -6369,9 +6373,12 @@ def mark_signal_sent(
             0
         ),
 
+        "candidate_created_at": signal.get("candidate_created_at"),
         "candle_time": signal.get(
             "candle_time"
         ),
+
+        **signal_timing_metadata(signal),
 
         "sent_at": now_iran().isoformat()
     }
@@ -6396,6 +6403,55 @@ def mark_signal_sent(
             )
 
     return True
+
+
+def signal_timing_metadata(signal, observed_at=None):
+    """Return candle-close and candidate-to-send timing for audit only.
+
+    candle_time remains the candle OPEN time for duplicate-key compatibility.
+    """
+    signal = signal if isinstance(signal, dict) else {}
+    observed_value = observed_at if observed_at is not None else now_iran()
+    result = {
+        "candle_close_time": None,
+        "latency_from_close_minutes": None,
+        "candidate_to_send_seconds": None,
+    }
+    try:
+        observed = pd.to_datetime(observed_value, utc=True, errors="raise")
+    except (TypeError, ValueError, OverflowError):
+        return result
+
+    candidate_created = signal.get("candidate_created_at")
+    if candidate_created:
+        try:
+            created = pd.to_datetime(candidate_created, utc=True, errors="raise")
+            result["candidate_to_send_seconds"] = round(
+                (observed - created).total_seconds(), 3
+            )
+        except (TypeError, ValueError, OverflowError):
+            pass
+
+    candle_open = signal.get("candle_time")
+    timeframe = str(signal.get("signal_timeframe", TIMEFRAME_MAIN)).strip().lower()
+    durations = {
+        "1m": 1, "3m": 3, "5m": 5, "15m": 15, "30m": 30,
+        "1h": 60, "2h": 120, "4h": 240, "6h": 360,
+        "8h": 480, "12h": 720, "1d": 1440, "1w": 10080,
+    }
+    minutes = durations.get(timeframe)
+    if not candle_open or minutes is None:
+        return result
+    try:
+        opened = pd.to_datetime(candle_open, utc=True, errors="raise")
+        closed = opened + pd.Timedelta(minutes=minutes)
+        result["candle_close_time"] = closed.isoformat()
+        result["latency_from_close_minutes"] = round(
+            (observed - closed).total_seconds() / 60.0, 3
+        )
+    except (TypeError, ValueError, OverflowError):
+        pass
+    return result
 
 
 # =========================================================
@@ -6493,9 +6549,13 @@ def add_signal_to_history(
         ),
         
 
+        "candidate_created_at": signal.get("candidate_created_at"),
         "candle_time": signal.get(
             "candle_time"
         ),
+
+        "signal_timeframe": signal.get("signal_timeframe", TIMEFRAME_MAIN),
+        **signal_timing_metadata(signal),
 
         # Outcome tracker fields. These are filled by future scans and do
         # not affect signal generation or Telegram delivery.
@@ -7998,6 +8058,7 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
         "mtf_adjustment": mtf_adjustment,
         "reasons": reasons,
         "candle_time": str(row.get("open_time")),
+        "candidate_created_at": now_iran().isoformat(),
         "bottom_warning": "Early reversal setup; exact bottom is not confirmed."
     }
 
@@ -8293,6 +8354,7 @@ def build_breakout_signal(symbol, data, breakout, btc_regime=None):
         "btc_regime": btc_regime.get("combined","UNKNOWN") if btc_regime else "UNKNOWN",
         "reasons": breakout.get("reasons",[]) + ([btc.get("reason")] if btc.get("reason") else []),
         "candle_time": str(data["1h"].iloc[-1].get("open_time")),
+        "candidate_created_at": now_iran().isoformat(),
     }
 
 def professional_signal_quality_gate(signal, data, btc_regime=None):
