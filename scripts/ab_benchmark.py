@@ -278,44 +278,88 @@ sequence=[("B",1),("A",1),("B",2),("A",2),("B",3),("A",3)]
 for label, ordinal in sequence:
     print(f"MEASURE {label} {ordinal}",flush=True)
     samples.append(one(label,"measured",ordinal))
-# Require byte-identical trade rows and equivalent key output metrics across
-# all runs. Exact CSV equality is stricter than merely matching trade counts.
+# The two revisions may intentionally implement different strategies. Require
+# exact repeatability WITHIN each revision, and identical raw OHLCV inputs
+# ACROSS all runs; report A-vs-B strategy differences instead of treating them
+# as an infrastructure failure. Pure performance-only changes should add a
+# separate assertion that A and B trades are identical.
 baseline=[s for s in samples if s["label"]=="A"]
 candidate=[s for s in samples if s["label"]=="B"]
-trade_hashes={s["trade_sha256"] for s in samples}
 input_manifest_hashes={s["input_manifest_sha256"] for s in samples}
 if len(input_manifest_hashes) != 1:
     (OUT/"input-mismatch.json").write_text(json.dumps({
-        "status":"INPUT_MISMATCH_ABORTED_BEFORE_TIMING_COMPARISON",
+        "status":"INPUT_MISMATCH_ABORTED_BEFORE_COMPARISON",
         "manifests":[{"label":s["label"],"phase":s["phase"],"ordinal":s["ordinal"],
                      "sha256":s["input_manifest_sha256"],"rows":s["input_manifest_rows"]} for s in samples]},indent=2))
-    raise SystemExit("INPUT MISMATCH: raw OHLCV manifests differ; do not compare timings")
+    raise SystemExit("INPUT MISMATCH: raw OHLCV manifests differ; do not compare revisions")
 def comparable(s):
     x=s["summary"]
     return {"period_start":x["period_start"],"period_end":x["period_end"],
             "symbols":x["symbols"],"candidate_trade_count":x["candidate_trade_count"],
             "portfolio":x["portfolio"],"engine_breakdown":x["engine_breakdown"],
             "diagnostics":x["diagnostics"]}
-summary_hashes={json.dumps(comparable(s),sort_keys=True,default=str) for s in samples}
-if len(trade_hashes)!=1 or len(summary_hashes)!=1:
-    (OUT/"mismatch.json").write_text(json.dumps({
-        "trade_hashes":[s["trade_sha256"] for s in samples],
+def signature(s):
+    return json.dumps(comparable(s),sort_keys=True,default=str)
+repeatability = {}
+for label, rows in (("A", baseline), ("B", candidate)):
+    trade_hashes={r["trade_sha256"] for r in rows}
+    summary_hashes={signature(r) for r in rows}
+    repeatability[label]={
+        "runs":len(rows),
+        "trade_outputs_identical":len(trade_hashes)==1,
+        "summary_outputs_identical":len(summary_hashes)==1,
+        "trade_sha256":sorted(trade_hashes),
+        "summary_sha256":[hashlib.sha256(x.encode()).hexdigest() for x in sorted(summary_hashes)]
+    }
+if len(baseline) != REPEATS or len(candidate) != REPEATS or any(
+    not repeatability[label]["trade_outputs_identical"] or
+    not repeatability[label]["summary_outputs_identical"] for label in ("A","B")
+):
+    (OUT/"repeatability-mismatch.json").write_text(json.dumps({
+        "status":"NON_REPEATABLE_REVISION_OUTPUTS",
+        "repeatability":repeatability,
         "summaries":[{"label":s["label"],"phase":s["phase"],"ordinal":s["ordinal"],
-                      "summary":comparable(s)} for s in samples]},indent=2,default=str))
-    raise SystemExit("OUTPUT MISMATCH: do not merge; see mismatch.json")
+                      "trade_sha256":s["trade_sha256"],"summary":comparable(s)} for s in samples]
+    },indent=2,default=str))
+    raise SystemExit("REPEATABILITY FAILURE: at least one revision produced inconsistent repeated outputs")
 def stats(rows,key):
     values=[float(r[key]) for r in rows]
     return {"samples":values,"median":round(median(values),4),
             "min":round(min(values),4),"max":round(max(values),4),
             "range":round(max(values)-min(values),4)}
+def revision_metrics(rows):
+    summary=rows[0]["summary"]
+    portfolio=summary["portfolio"]
+    return {
+        "trade_sha256":rows[0]["trade_sha256"],
+        "summary_sha256":hashlib.sha256(signature(rows[0]).encode()).hexdigest(),
+        "candidate_trade_count":summary["candidate_trade_count"],
+        "portfolio":{k:portfolio.get(k) for k in (
+            "initial_capital_usdt","final_equity_usdt","net_pnl_usdt","net_return_pct",
+            "max_drawdown_pct","candidate_trades","accepted_trades","rejected_trades")},
+        "engine_breakdown":summary.get("engine_breakdown",{})
+    }
+a_metrics=revision_metrics(baseline)
+b_metrics=revision_metrics(candidate)
+a_port=a_metrics["portfolio"]
+b_port=b_metrics["portfolio"]
+delta_keys=("net_pnl_usdt","net_return_pct","max_drawdown_pct","candidate_trades","accepted_trades","rejected_trades")
+delta={k:round(float(b_port[k])-float(a_port[k]),6) if isinstance(a_port.get(k),(int,float)) and isinstance(b_port.get(k),(int,float)) else None for k in delta_keys}
+between_revision_outputs_identical=(a_metrics["trade_sha256"]==b_metrics["trade_sha256"] and a_metrics["summary_sha256"]==b_metrics["summary_sha256"])
 report={
- "status":"PASS_OUTPUTS_IDENTICAL",
+ "status":"PASS_REPEATABILITY_A_AND_B; OUTPUTS_IDENTICAL" if between_revision_outputs_identical else "PASS_REPEATABILITY_A_AND_B; STRATEGY_DIFFERENCES_REPORTED",
  "base_sha":BASE_SHA,"candidate_sha":CANDIDATE_SHA,
  "configuration":{"days":ENV["BACKTEST_DAYS"],"symbols":ENV["BACKTEST_SYMBOLS"],
                   "fee_bps_per_side":ENV["BACKTEST_FEE_BPS"],
                   "slippage_bps_per_side":ENV["BACKTEST_SLIPPAGE_BPS"],
                   "fixed_end_time":ENV["BACKTEST_END_TIME"],"python":sys.version},
  "order":["B1","A1","B2","A2","B3","A3"],
+ "inputs":{"manifest_sha256":next(iter(input_manifest_hashes)),
+           "manifest_rows":samples[0]["input_manifest_rows"],
+           "identical_across_all_runs":True},
+ "repeatability":repeatability,
+ "outputs_identical_between_revisions":between_revision_outputs_identical,
+ "strategy_comparison":{"baseline_A":a_metrics,"candidate_B":b_metrics,"delta_B_minus_A":delta},
  "timings":{"baseline_A":{"wall":stats(baseline,"wall_seconds"),
                           "signal_engine":stats(baseline,"engine_seconds"),
                           "instrumented_total":stats(baseline,"total_instrumented_seconds")},
@@ -323,16 +367,12 @@ report={
                            "signal_engine":stats(candidate,"engine_seconds"),
                            "instrumented_total":stats(candidate,"total_instrumented_seconds")}},
  "samples":[{k:v for k,v in s.items() if k!="summary"} for s in samples],
- "trade_sha256":next(iter(trade_hashes)),
- "input_manifest_sha256":next(iter(input_manifest_hashes)),
- "input_manifest_rows":samples[0]["input_manifest_rows"],
- "notes":["Separate signal-window and outcome-window OHLCV hashes and row counts are fingerprinted before indicator preparation and must match across all samples.",
-          "Both baseline and candidate fetch the same 73-hour post-boundary 1H outcome window; replay stops at the fixed signal boundary.",
-          "Baseline is benchmark-shimmed to the candidate's exclusive end boundary, retaining the boundary-open execution candle only for 1H.",
-          "Same GitHub-hosted runner and Python environment for all samples.",
-          "Exact Binance kline HTTP responses are cached and replayed to both revisions.",
-          "Wall time includes Python startup; signal_engine stage is the primary optimization metric.",
-          "No signal thresholds, strategy rules, Telegram delivery, or orders are changed."]
+ "notes":["Separate signal-window and outcome-window OHLCV hashes and row counts must match across all samples.",
+          "Repeated runs of each revision must produce byte-identical trades and equivalent summary outputs.",
+          "A-vs-B trade differences are expected for strategy experiments and are reported with portfolio deltas; they do not by themselves fail the benchmark.",
+          "Pure performance-only changes require an additional same-trades assertion in their dedicated regression checks.",
+          "Both revisions use the same fixed test window, shared runner, Python environment, HTTP response cache, fees and slippage.",
+          "No live Telegram delivery or order execution occurs in this workflow."]
 }
 progress_path.write_text(json.dumps({"status":"BENCHMARK_COMPARISON_COMPLETE","completed_unix":time.time()},indent=2),encoding="utf-8")
 report["signal_engine_median_improvement_pct"]=round(
@@ -341,4 +381,4 @@ report["signal_engine_median_improvement_pct"]=round(
 ) if report["timings"]["baseline_A"]["signal_engine"]["median"] else None
 (OUT/"report.json").write_text(json.dumps(report,indent=2,default=str),encoding="utf-8")
 print(json.dumps({k:v for k,v in report.items() if k not in ("samples",)},indent=2,default=str),flush=True)
-print("A/B benchmark: PASS (identical outputs)",flush=True)
+print("A/B benchmark: PASS (each revision repeatable; between-revision differences reported)",flush=True)

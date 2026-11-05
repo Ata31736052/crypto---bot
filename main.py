@@ -2884,6 +2884,21 @@ def score_timeframe(df, side, timeframe_label="TF"):
 
         else:
 
+            # EARLY TREND TURN (experimental): detect the first renewed push
+            # above EMA21 before EMA9/EMA21 have fully crossed. Only closed-candle
+            # inputs are used. This adds score evidence; it does not bypass the
+            # existing 1H score, ADX/DI, volume, 30M, HTF, RR, or risk gates.
+            early_trend_turn = (
+                close > ema21
+                and safe_float(row.get("ema21_slope")) > 0
+                and macd_hist > safe_float(row.get("macd_hist_prev"))
+                and 45 <= rsi <= 62
+                and (
+                    bool(row.get("bullish_candle"))
+                    or rsi > safe_float(row.get("rsi_prev"))
+                )
+            )
+
             bullish_pullback = (
                 close > ema21
                 and
@@ -2896,7 +2911,20 @@ def score_timeframe(df, side, timeframe_label="TF"):
                 row["bullish_candle"]
             )
 
-            if bullish_pullback:
+            if early_trend_turn:
+
+                partial_ema_score = max(
+                    4,
+                    SCORE_EMA9_21 // 2
+                )
+
+                score += partial_ema_score
+
+                reasons.append(
+                    "EARLY TREND TURN: EMA21 slope up + improving MACD histogram before EMA9/EMA21 cross"
+                )
+
+            elif bullish_pullback:
 
                 partial_ema_score = max(
                     3,
