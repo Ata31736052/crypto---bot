@@ -8510,13 +8510,15 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
             reject.append(f"HTF confirmation insufficient ({confirmations})")
         else:
             quality += 3
+    elif mode == "BOTTOM_HUNTER":
+        # Bottom Hunter already evaluates dedicated 30M reversal evidence in
+        # score_bottom_hunter(). Keep this second, trend-oriented 30M check as
+        # a quality bonus only; it must not become a duplicate hard gate.
+        if confirm.get("confirmed") and confirmations >= PRO_BOTTOM_MIN_30M_CONFIRMATIONS:
+            quality += 3
     elif (not confirm.get("confirmed") or
-          (mode == "BOTTOM_HUNTER" and confirmations < PRO_BOTTOM_MIN_30M_CONFIRMATIONS) or
-          (mode != "BOTTOM_HUNTER" and side == "SELL" and confirmations < required_confirmations)):
-        if mode == "BOTTOM_HUNTER":
-            reject.append(f"30M reversal confirmation insufficient (actual={confirmations}; required>={PRO_BOTTOM_MIN_30M_CONFIRMATIONS})")
-        else:
-            reject.append(f"30M confirmation insufficient (actual={confirmations}; required>={required_confirmations})")
+          (side == "SELL" and confirmations < required_confirmations)):
+        reject.append(f"30M confirmation insufficient (actual={confirmations}; required>={required_confirmations})")
     else:
         quality += 3
 
@@ -9134,7 +9136,10 @@ def run_v63_14_3_outcome_boundary_self_test():
     assert any(reason.startswith("score 75 < 90") for reason in reject_reasons)
     assert any("reversal ADX too weak" in reason for reason in reject_reasons)
     assert any("reversal volume below professional minimum" in reason for reason in reject_reasons)
-    assert any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
+    # Bottom Hunter's trend-style 30M confirmation is a bonus, not a duplicate hard gate.
+    assert not any("30M reversal confirmation insufficient" in reason for reason in reject_reasons)
+    # Its independent higher-timeframe alignment requirement remains enforced.
+    assert any("higher-timeframe alignment insufficient" in reason for reason in reject_reasons)
     assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
     return True
 
