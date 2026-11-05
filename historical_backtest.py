@@ -566,6 +566,33 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
     for k in range(entry_i, xi+1):
         candle=h1.iloc[k]
         path.append({"time":str(candle.close_time),"price":float(exit_fill if k==xi else candle.close)})
+    # Outcome-only path diagnostics. Signal generation remains limited to candles
+    # MAE/MFE are diagnostic only. OHLC cannot reveal the intrabar path of the
+    # exit candle, so exclude that candle's full high/low (which may occur after
+    # the SL/TP exit) and use the actual simulated exit fill as the terminal point.
+    # Earlier fully observed candles remain eligible. This is intentionally
+    # conservative and avoids look-ahead from post-exit extrema.
+    prior_path=h1.iloc[entry_i:xi]
+    prior_highs=pd.to_numeric(prior_path["high"],errors="coerce").to_numpy(dtype=float)
+    prior_lows=pd.to_numeric(prior_path["low"],errors="coerce").to_numpy(dtype=float)
+    if side=="BUY":
+        favorable_points=list(prior_highs)+[float(exit_fill)]
+        adverse_points=list(prior_lows)+[float(exit_fill)]
+        mfe_price=max(0.0,max(favorable_points)-entry)
+        mae_price=max(0.0,entry-min(adverse_points))
+        mfe_bar=favorable_points.index(max(favorable_points))
+        mae_bar=adverse_points.index(min(adverse_points))
+        signal_close=float(h1.iloc[entry_i-1].close) if entry_i>0 else float("nan")
+        directional_gap=((raw_entry/signal_close)-1.0)*100.0 if signal_close>0 else float("nan")
+    else:
+        favorable_points=list(prior_lows)+[float(exit_fill)]
+        adverse_points=list(prior_highs)+[float(exit_fill)]
+        mfe_price=max(0.0,entry-min(favorable_points))
+        mae_price=max(0.0,max(adverse_points)-entry)
+        mfe_bar=favorable_points.index(min(favorable_points))
+        mae_bar=adverse_points.index(max(adverse_points))
+        signal_close=float(h1.iloc[entry_i-1].close) if entry_i>0 else float("nan")
+        directional_gap=((signal_close/raw_entry)-1.0)*100.0 if signal_close>0 else float("nan")
     return {"symbol":symbol,"side":side,"signal_time":str(signal_time),"entry_time":str(row.open_time),
             "raw_entry":raw_entry,"entry":entry,"stop_loss":sl,"tp1":tp1,"tp2":tp2,
             "exit_time":str(h1.iloc[xi].close_time),"raw_exit":raw_exit,"exit":exit_fill,
@@ -573,6 +600,11 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
             "fee_cost_pct":round(fee_cost_pct,4),"slippage_cost_pct":round(slippage_cost_pct,4),
             "slippage_bps_per_side":SLIPPAGE_BPS,"cost_pct":round(fee_cost_pct,4),
             "risk_cost_pct":round(risk_cost_pct,4),"net_pct":round(gross-fee_cost_pct,4),
+            "entry_gap_directional_pct":round(directional_gap,5) if math.isfinite(directional_gap) else None,
+            "mfe_pct":round(mfe_price/entry*100,5),"mae_pct":round(-mae_price/entry*100,5),
+            "mfe_r":round(mfe_price/risk,5) if risk>0 else None,
+            "mae_r":round(-mae_price/risk,5) if risk>0 else None,
+            "bars_to_mfe":mfe_bar,"bars_to_mae":mae_bar,
             "bars_held":xi-entry_i,"score":score,"strength":strength,"_path":path},xi
 
 def closed_prefix(df, decision_time, limit=None):
@@ -894,7 +926,7 @@ def run():
                     print(f"TRADE {sym} {side} {trade['signal_time']} engine={trade['engine']} net={trade['net_pct']}% {trade['exit_reason']}",flush=True)
         except Exception as exc:
             errors.append({"symbol":sym,"error":str(exc)}); print("ERROR",sym,exc,flush=True)
-    columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason"]
+    columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","entry_gap_directional_pct","mfe_pct","mae_pct","mfe_r","mae_r","bars_to_mfe","bars_to_mae","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason"]
     pd.DataFrame(trades,columns=columns).to_csv(OUT/"trades.csv",index=False)
     vals=[float(t["net_pct"]) for t in trades]
     portfolio_ledger_self_test(OUT)
