@@ -221,7 +221,7 @@ jobs:
           retention-days: 7
 
   offline-btc-three-state-ab:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/experiment/btc-three-state-bottom-hunter-20261107'
+    if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/experiment/btc-three-state-bottom-hunter-20261107') || (github.event_name == 'pull_request' && github.head_ref == 'experiment/btc-three-state-bottom-hunter-20261107')
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
