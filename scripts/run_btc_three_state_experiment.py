@@ -24,7 +24,14 @@ if not 5 <= max_symbols <= int(getattr(main, "TARGET_MAX_COINS", 100)):
 
 coins = main.get_scan_coins()
 symbols = [main.to_binance_usdt_symbol(c) for c in coins]
-symbols = list(dict.fromkeys(s for s in symbols if s and s != "BTCUSDT"))[:max_symbols]
+# Exclude pairs proven by the first replay to lack the required 200 closed warm-up bars.
+# These are mostly recently listed, tokenized-equity, or non-directional quote assets.
+insufficient_history = {"RLUSDUSDT", "SNDKBUSDT", "UUSDT", "SPCXBUSDT", "HYPEUSDT",
+                        "SOXLBUSDT", "RWUSDUSDT", "XAUTUSDT", "NVDABUSDT", "MUBUSDT",
+                        "CRCLBUSDT", "MSTRBUSDT"}
+symbols = list(dict.fromkeys(s for s in symbols if s and s != "BTCUSDT" and s not in insufficient_history))[:max_symbols]
+if len(symbols) < 5:
+    raise SystemExit(f"Fail closed: only {len(symbols)} historically warmed symbols were resolved")
 if len(symbols) < 5:
     raise SystemExit(f"Fail closed: only {len(symbols)} eligible symbols were resolved")
 
@@ -127,7 +134,7 @@ finally:
     main.score_bottom_hunter = original_bottom
     main.professional_signal_quality_gate = original_professional
 
-def engine_metrics(summary, engine="BOTTOM_HUNTER"):
+def engine_metrics(summary, engine="REVERSAL"):
     p = (summary.get("engine_only_portfolio_comparison") or {}).get(engine) or {}
     b = (summary.get("engine_breakdown") or {}).get(engine) or {}
     return {
@@ -155,8 +162,8 @@ report = {
     },
     "baseline_status": baseline.get("status"), "experiment_status": experiment.get("status"),
     "baseline_errors": len(baseline.get("errors", [])), "experiment_errors": len(experiment.get("errors", [])),
-    "reversal_engine_baseline": engine_metrics(baseline),
-    "reversal_engine_experiment": engine_metrics(experiment),
+    "bottom_hunter_reversal_ledger_baseline": engine_metrics(baseline),
+    "bottom_hunter_reversal_ledger_experiment": engine_metrics(experiment),
     "baseline_summary": "baseline/summary.json", "experiment_summary": "bottom-hunter-bearish-only/summary.json"
 }
 (root / "comparison.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
