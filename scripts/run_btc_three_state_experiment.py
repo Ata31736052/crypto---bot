@@ -78,8 +78,18 @@ baseline = run_replay(baseline_dir)
 # score_btc_regime unchanged and remain blocked in full BEARISH.
 original_bottom = main.score_bottom_hunter
 original_professional = main.professional_signal_quality_gate
-counts = {"bottom_hunter_calls_in_full_bearish_btc": 0,
+original_analyze = main.analyze_one_symbol
+counts = {"mixed_regimes_normalized_to_neutral": 0,
+          "bottom_hunter_calls_in_full_bearish_btc": 0,
           "professional_gate_bypasses_for_bottom_hunter": 0}
+
+def experimental_analyze(symbol, btc_regime):
+    copied = dict(btc_regime or {})
+    combined = str(copied.get("combined", "")).upper()
+    if combined in ("MIXED_BEARISH_1H", "MIXED_BULLISH_1H"):
+        copied["combined"] = "NEUTRAL"
+        counts["mixed_regimes_normalized_to_neutral"] += 1
+    return original_analyze(symbol, copied)
 
 def without_bearish_veto(regime):
     copied = dict(regime or {})
@@ -101,12 +111,14 @@ def experimental_professional(signal, data, btc_regime=None):
         return original_professional(signal, data, without_bearish_veto(btc_regime))
     return original_professional(signal, data, btc_regime)
 
+main.analyze_one_symbol = experimental_analyze
 main.score_bottom_hunter = experimental_bottom
 main.professional_signal_quality_gate = experimental_professional
 try:
     print("=== EXPERIMENT: Bottom Hunter only may BUY in full BTC BEARISH ===", flush=True)
     experiment = run_replay(experiment_dir)
 finally:
+    main.analyze_one_symbol = original_analyze
     main.score_bottom_hunter = original_bottom
     main.professional_signal_quality_gate = original_professional
 
@@ -126,7 +138,7 @@ def engine_metrics(summary, engine="REVERSAL"):
 
 report = {
     "status": "COMPLETED" if baseline.get("status") == "COMPLETED" and experiment.get("status") == "COMPLETED" else "COMPLETED_WITH_ERRORS",
-    "policy": "Only BOTTOM_HUNTER BUY bypasses the exact full BEARISH BTC veto; no BTC bonus is awarded. Trend and Breakout BTC gates remain unchanged. Mixed regimes retain current behavior.",
+    "policy": "Three states: BULLISH, NEUTRAL (both mixed labels normalize to NEUTRAL), and BEARISH. In full BEARISH, only BOTTOM_HUNTER BUY bypasses the BTC veto and receives no BTC bonus; Trend and Breakout remain blocked. All non-BTC quality gates remain unchanged.",
     "safety": {"live_main_modified": False, "telegram_enabled": False, "orders_enabled": False,
                "production_thresholds_changed": False, "original_functions_restored": True},
     "experiment_counters": counts,
