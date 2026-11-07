@@ -3,11 +3,16 @@
 
 No live scanner, order execution, Telegram, or production source edits.
 The same frozen Binance Spot universe, end time, costs and portfolio settings
-are used for both replays. Mixed BTC regimes retain their existing behavior.
+are used for both replays. Mixed BTC regimes normalize to NEUTRAL in the experiment.
 """
 import json
 import os
+import sys
 from pathlib import Path
+
+# The script lives under scripts/; add repository root so main.py and the
+# historical backtest modules resolve consistently on GitHub-hosted runners.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import pandas as pd
 import main
