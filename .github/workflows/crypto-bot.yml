@@ -3,15 +3,6 @@ name: Crypto Signal Bot v63.14.15 | Extended History Outcome Repair
 
 on:
   workflow_dispatch:
-    inputs:
-      mode:
-        description: "Select normal scan or isolated offline BTC A/B"
-        required: true
-        type: choice
-        options:
-          - live_scan
-          - offline_btc_ab
-        default: live_scan
   pull_request:
   schedule:
     - cron: '7 * * * *'
@@ -23,7 +14,7 @@ concurrency:
 
 jobs:
   scan:
-    if: github.event_name != 'workflow_dispatch' || inputs.mode != 'offline_btc_ab'
+    if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/experiment/btc-three-state-bottom-hunter-20261107'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -230,7 +221,7 @@ jobs:
           retention-days: 7
 
   offline-btc-three-state-ab:
-    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'offline_btc_ab'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/experiment/btc-three-state-bottom-hunter-20261107'
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
