@@ -28,7 +28,7 @@ symbols = [main.to_binance_usdt_symbol(c) for c in coins]
 # These are mostly recently listed, tokenized-equity, or non-directional quote assets.
 insufficient_history = {"RLUSDUSDT", "SNDKBUSDT", "UUSDT", "SPCXBUSDT", "HYPEUSDT",
                         "SOXLBUSDT", "RWUSDUSDT", "XAUTUSDT", "NVDABUSDT", "MUBUSDT",
-                        "CRCLBUSDT", "MSTRBUSDT"}
+                        "CRCLBUSDT", "MSTRBUSDT", "SNXXBUSDT", "GOOGLBUSDT", "INTCBUSDT"}
 symbols = list(dict.fromkeys(s for s in symbols if s and s != "BTCUSDT" and s not in insufficient_history))[:max_symbols]
 if len(symbols) < 5:
     raise SystemExit(f"Fail closed: only {len(symbols)} historically warmed symbols were resolved")
