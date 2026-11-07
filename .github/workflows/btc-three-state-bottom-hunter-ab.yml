@@ -1,0 +1,70 @@
+name: Offline BTC Three-State Bottom Hunter A-B
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: btc-three-state-bottom-hunter-experiment
+  cancel-in-progress: false
+
+jobs:
+  paired-offline-backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      PYTHONUNBUFFERED: "1"
+      RUN_ONCE: "0"
+      TELEGRAM_TEST_ON_START: "0"
+      DRY_RUN: "1"
+      BACKTEST_DAYS: "180"
+      BACKTEST_FEE_BPS: "10"
+      BACKTEST_SLIPPAGE_BPS: "5"
+      BACKTEST_INITIAL_CAPITAL_USDT: "1000"
+      BACKTEST_RISK_PCT: "1.0"
+      BACKTEST_MAX_POSITION_PCT: "100"
+      BTC_EXPERIMENT_MAX_SYMBOLS: "30"
+    steps:
+      - name: Checkout selected experiment branch
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            python -m pip install -r requirements.txt
+          else
+            python -m pip install requests pandas numpy
+          fi
+
+      - name: Verify isolation and compile
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile main.py historical_backtest.py scripts/run_btc_three_state_experiment.py
+          ! grep -nE 'TELEGRAM_TOKEN|TELEGRAM_CHAT_ID|send_message|python main.py' scripts/run_btc_three_state_experiment.py
+          echo "Offline experiment isolation checks: PASS"
+
+      - name: Run paired 180-day A/B replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/run_btc_three_state_experiment.py
+
+      - name: Upload paired A/B artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: btc-three-state-bottom-hunter-ab-${{ github.run_number }}
+          path: btc-three-state-results/
+          if-no-files-found: error
+          retention-days: 14
