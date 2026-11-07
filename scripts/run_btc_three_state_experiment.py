@@ -122,7 +122,7 @@ finally:
     main.score_bottom_hunter = original_bottom
     main.professional_signal_quality_gate = original_professional
 
-def engine_metrics(summary, engine="REVERSAL"):
+def engine_metrics(summary, engine="BOTTOM_HUNTER"):
     p = (summary.get("engine_only_portfolio_comparison") or {}).get(engine) or {}
     b = (summary.get("engine_breakdown") or {}).get(engine) or {}
     return {
@@ -133,7 +133,7 @@ def engine_metrics(summary, engine="REVERSAL"):
         "net_return_pct": p.get("net_return_pct"),
         "max_drawdown_pct": p.get("max_drawdown_pct"),
         "win_rate_pct": p.get("win_rate_pct"),
-        "profit_factor": p.get("profit_factor"),
+        "capital_utilization_max_pct": p.get("capital_utilization_max_pct"),
     }
 
 report = {
