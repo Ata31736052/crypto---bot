@@ -8314,6 +8314,59 @@ def run_htf_alignment_status_self_test():
     return True
 
 
+def run_1h_trend_confirmation_isolation_self_test():
+    """Prove 1H TREND does not call or require 30M confirmation.
+
+    BREAKOUT and BOTTOM_HUNTER retain their existing 30M data requirement.
+    This test does not alter production thresholds or indicator scoring.
+    """
+    original_confirmation = score_30m_confirmation
+    confirmation_calls = []
+
+    def unexpected_confirmation(*args, **kwargs):
+        confirmation_calls.append((args, kwargs))
+        raise AssertionError("1H TREND must not call lower-timeframe confirmation")
+
+    # The professional gate only needs a structurally complete 1H frame for
+    # this isolation test; values are deliberately neutral and no trade is sent.
+    row = {
+        "close": 101.0, "open": 100.0, "high": 102.0, "low": 99.0,
+        "ema9": 100.8, "ema21": 100.5, "ema50": 100.0, "ema200": 98.0,
+        "adx": 30.0, "plus_di": 25.0, "minus_di": 10.0,
+        "rsi": 55.0, "rsi_prev": 54.0,
+        "volume_ratio": 2.0, "atr_percent": 1.0, "atr": 1.0,
+        "distance_ema21": 0.5, "rolling_vwap": 100.0, "obv_slope": 1.0,
+        "bb_width_pct": 2.0, "bb_position": 0.5,
+        "macd": 1.0, "macd_signal": 0.5, "macd_hist": 0.5,
+        "macd_hist_prev": 0.4, "bearish_candle": 0.0,
+    }
+    frame = pd.DataFrame([dict(row) for _ in range(60)])
+    trend_signal = {
+        "signal": "BUY", "signal_mode": "TREND", "signal_timeframe": "1h",
+        "score": 100, "rr_tp1": TP1_RR, "rr_tp2": TP2_RR,
+    }
+
+    score_30m_confirmation = unexpected_confirmation
+    try:
+        passed, reasons, _ = professional_signal_quality_gate(
+            trend_signal, {"1h": frame, "30m": None}, {"combined": "NEUTRAL"}
+        )
+        assert not any("confirmation timeframe data unavailable" in str(x).lower() for x in reasons), reasons
+        assert not any("30m confirmation" in str(x).lower() for x in reasons), reasons
+        assert confirmation_calls == [], "1H TREND unexpectedly called 30M confirmation"
+
+        for mode in ("BREAKOUT", "BOTTOM_HUNTER"):
+            candidate = dict(trend_signal, signal_mode=mode)
+            ok, rejected, _ = professional_signal_quality_gate(
+                candidate, {"1h": frame, "30m": None}, {"combined": "NEUTRAL"}
+            )
+            assert not ok
+            assert "required confirmation timeframe data unavailable" in rejected, (mode, rejected)
+        return True
+    finally:
+        score_30m_confirmation = original_confirmation
+
+
 def professional_signal_quality_gate(signal, data, btc_regime=None):
     """Final trade-quality gate.
 
