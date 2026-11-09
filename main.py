@@ -3757,6 +3757,10 @@ def run_btc_three_regime_self_test():
     assert score_btc_regime("SELL", {"combined": "BEARISH"})["allowed"] is True
     assert score_btc_regime("BUY", {"combined": "NEUTRAL"})["allowed"] is True
     assert score_btc_regime("SELL", {"combined": "NEUTRAL"})["allowed"] is True
+    # Mixed 1H/Daily states currently follow the neutral policy for both sides.
+    for mixed in ("MIXED_BULLISH_1H", "MIXED_BEARISH_1H"):
+        assert score_btc_regime("BUY", {"combined": mixed})["allowed"] is True
+        assert score_btc_regime("SELL", {"combined": mixed})["allowed"] is True
     return True
 
 
