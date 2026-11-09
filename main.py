@@ -3702,6 +3702,67 @@ def score_30m_confirmation(
 # BTC SCORE
 # =========================================================
 
+def run_btc_three_regime_self_test():
+    """Deterministic coverage for bullish, bearish and neutral BTC regimes."""
+    common = {
+        "close": 100.0, "ema9": 100.0, "ema21": 100.0, "ema50": 100.0,
+        "ema200": 100.0, "rsi": 50.0, "macd": 0.0, "macd_signal": 0.0,
+        "macd_hist": 0.0, "atr": 1.0, "atr_percent": 1.0,
+        "volume_ratio": 1.0, "body_ratio": 0.5, "adx": 10.0,
+        "plus_di": 20.0, "minus_di": 20.0, "rolling_vwap": 100.0,
+        "obv_slope": 0.0, "bb_width_pct": 2.0, "bb_position": 0.5,
+        "volume_zscore": 0.0, "di_spread": 0.0, "rsi_slope": 0.0,
+    }
+    bullish_row = dict(common, close=110.0, ema9=106.0, ema21=104.0,
+                       ema50=102.0, ema200=100.0, rsi=60.0,
+                       macd=2.0, macd_signal=1.0, adx=25.0,
+                       plus_di=30.0, minus_di=10.0)
+    bearish_row = dict(common, close=90.0, ema9=94.0, ema21=96.0,
+                       ema50=98.0, ema200=100.0, rsi=40.0,
+                       macd=-2.0, macd_signal=-1.0, adx=25.0,
+                       plus_di=10.0, minus_di=30.0)
+    assert _btc_regime_from_row(bullish_row)["regime"] == "BULLISH"
+    assert _btc_regime_from_row(bearish_row)["regime"] == "BEARISH"
+    assert _btc_regime_from_row(common)["regime"] == "NEUTRAL"
+
+    bullish = {"score": 5, "bullish": True, "bearish": False}
+    bearish = {"score": -5, "bullish": False, "bearish": True}
+    neutral = {"score": 0, "bullish": False, "bearish": False}
+    originals = {
+        "get_btc_1h_regime": globals()["get_btc_1h_regime"],
+        "get_btc_daily_regime": globals()["get_btc_daily_regime"],
+    }
+    try:
+        for name, value in (("get_btc_1h_regime", bullish), ("get_btc_daily_regime", bullish)):
+            globals()[name] = lambda value=value: value
+        assert get_btc_market_regime()["combined"] == "BULLISH"
+        globals()["get_btc_1h_regime"] = lambda: bearish
+        globals()["get_btc_daily_regime"] = lambda: bearish
+        assert get_btc_market_regime()["combined"] == "BEARISH"
+        globals()["get_btc_1h_regime"] = lambda: bullish
+        globals()["get_btc_daily_regime"] = lambda: bearish
+        assert get_btc_market_regime()["combined"] == "MIXED_BULLISH_1H"
+        globals()["get_btc_1h_regime"] = lambda: bearish
+        globals()["get_btc_daily_regime"] = lambda: bullish
+        assert get_btc_market_regime()["combined"] == "MIXED_BEARISH_1H"
+        globals()["get_btc_1h_regime"] = lambda: neutral
+        globals()["get_btc_daily_regime"] = lambda: neutral
+        assert get_btc_market_regime()["combined"] == "NEUTRAL"
+    finally:
+        globals().update(originals)
+
+    assert score_btc_regime("BUY", {"combined": "BULLISH"})["allowed"] is True
+    assert score_btc_regime("SELL", {"combined": "BULLISH"})["allowed"] is False
+    assert score_btc_regime("BUY", {"combined": "BEARISH"})["allowed"] is False
+    assert score_btc_regime("SELL", {"combined": "BEARISH"})["allowed"] is True
+    assert score_btc_regime("BUY", {"combined": "NEUTRAL"})["allowed"] is True
+    assert score_btc_regime("SELL", {"combined": "NEUTRAL"})["allowed"] is True
+    # Mixed 1H/Daily states currently follow the neutral policy for both sides.
+    for mixed in ("MIXED_BULLISH_1H", "MIXED_BEARISH_1H"):
+        assert score_btc_regime("BUY", {"combined": mixed})["allowed"] is True
+        assert score_btc_regime("SELL", {"combined": mixed})["allowed"] is True
+    return True
+
 def score_btc_regime(
     side,
     btc_regime
@@ -8260,6 +8321,94 @@ def build_breakout_signal(symbol, data, breakout, btc_regime=None):
         "reasons": breakout.get("reasons",[]) + ([btc.get("reason")] if btc.get("reason") else []),
         "candle_time": str(data["1h"].iloc[-1].get("open_time")),
     }
+
+def run_1h_trend_confirmation_isolation_self_test():
+    """Prove the complete 1H TREND path ignores 30M while other engines retain it."""
+    row = {
+        "close": 101.0, "open": 100.0, "high": 102.0, "low": 99.0, "volume": 1000.0,
+        "ema9": 100.8, "ema21": 100.5, "ema50": 100.0, "ema200": 98.0,
+        "adx": 30.0, "plus_di": 25.0, "minus_di": 10.0,
+        "rsi": 55.0, "rsi_prev": 54.0,
+        "volume_ratio": 2.0, "atr_percent": 1.0, "atr": 1.0,
+        "distance_ema21": 0.5, "rolling_vwap": 100.0, "obv_slope": 1.0,
+        "bb_width_pct": 2.0, "bb_position": 0.5,
+        "macd": 1.0, "macd_signal": 0.5, "macd_hist": 0.5,
+        "macd_hist_prev": 0.4, "bearish_candle": 0.0,
+        "open_time": "self-test",
+    }
+    frame = pd.DataFrame([dict(row) for _ in range(60)])
+    confirmation_calls = []
+
+    def unexpected_confirmation(*args, **kwargs):
+        confirmation_calls.append((args, kwargs))
+        raise AssertionError("1H TREND must not call lower-timeframe confirmation")
+
+    patches = {
+        "score_30m_confirmation": unexpected_confirmation,
+        "score_main_1h": lambda _df, side: {
+            "hard_pass": str(side).upper() == "BUY",
+            "score": MIN_SCORE if str(side).upper() == "BUY" else 0,
+            "reasons": ["deterministic 1H test"],
+        },
+        "score_btc_regime": lambda _side, _regime: {"allowed": True, "score": 0, "reason": "BTC neutral"},
+        "score_divergence_both_sides": lambda _df: ({"score": 0}, {"score": 0}),
+        "score_price_structure": lambda _df, _side: {"score": 0, "bullish": False, "bearish": False},
+        "get_mtf_context": lambda _data: {},
+        "mtf_side_adjustment": lambda _mtf, _side: (0, []),
+        "to_binance_usdt_symbol": lambda symbol: symbol,
+        "get_main_1h_data": lambda _symbol: frame,
+        "get_confirm_30m_data": lambda _symbol: None,
+        "get_4h_data": lambda _symbol: None,
+        "get_daily_data": lambda _symbol: None,
+        "validate_market_dataframe": lambda candidate: candidate is not None,
+        "add_indicators": lambda candidate: candidate,
+    }
+    originals = {name: globals()[name] for name in patches}
+    try:
+        globals().update(patches)
+
+        # Market-data preparation must keep a valid 1H frame when the optional
+        # 30M endpoint is unavailable; reversal/breakout engines then self-disable.
+        prepared = prepare_symbol_data("SELFTESTUSDT")
+        assert prepared is not None and prepared.get("1h") is frame, prepared
+        assert prepared.get("30m") is None, prepared
+
+        # Full signal builder: missing 30M must not prevent an otherwise valid
+        # 1H TREND candidate, and no 30M score may be added to its 1H score.
+        trend = evaluate_final_signal(
+            "SELFTESTUSDT",
+            {"1h": frame, "30m": None},
+            {"combined": "NEUTRAL"},
+        )
+        assert trend.get("signal") == "BUY", trend
+        assert trend.get("buy_score") == MIN_SCORE, trend
+        assert confirmation_calls == [], "1H TREND unexpectedly called 30M confirmation"
+
+        # Professional gate: TREND must not require 30M. The same missing data
+        # must continue to reject BREAKOUT and BOTTOM_HUNTER, preserving them.
+        trend_signal = {
+            "signal": "BUY", "signal_mode": "TREND", "signal_timeframe": "1h",
+            "score": 100, "rr_tp1": TP1_RR, "rr_tp2": TP2_RR,
+        }
+        passed, reasons, _ = professional_signal_quality_gate(
+            trend_signal, {"1h": frame, "30m": None}, {"combined": "NEUTRAL"}
+        )
+        assert not any("confirmation timeframe data unavailable" in str(x).lower() for x in reasons), reasons
+        assert not any("30m confirmation" in str(x).lower() for x in reasons), reasons
+        assert trend_signal["professional_quality_breakdown"]["confirmation_timeframe"] == "NOT_REQUIRED"
+        assert format_confirmation_diagnostic({"confirmation_timeframe": "NOT_REQUIRED"}) == "Lower-timeframe confirmation: not required for 1H TREND"
+        assert confirmation_calls == [], "1H TREND quality gate unexpectedly called 30M confirmation"
+
+        for mode in ("BREAKOUT", "BOTTOM_HUNTER"):
+            candidate = dict(trend_signal, signal_mode=mode)
+            ok, rejected, _ = professional_signal_quality_gate(
+                candidate, {"1h": frame, "30m": None}, {"combined": "NEUTRAL"}
+            )
+            assert not ok
+            assert "required confirmation timeframe data unavailable" in rejected, (mode, rejected)
+        return True
+    finally:
+        globals().update(originals)
 
 def professional_signal_quality_gate(signal, data, btc_regime=None):
     """Final trade-quality gate.
