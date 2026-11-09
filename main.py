@@ -4051,27 +4051,7 @@ def evaluate_final_signal(
     sell_confirm = {"score": 0, "confirmed": None, "reasons": [], "confirmations": 0, "required": False}
 
     if DEBUG_MODE:
-        log(
-            f"🔬 30M {symbol} BUY: "
-            f"score={buy_confirm.get('score', 0)} "
-            f"confirmed={buy_confirm.get('confirmed', False)} "
-            f"reasons={buy_confirm.get('reasons', [])}"
-        )
-
-        log(
-            f"🔬 30M {symbol} SELL: "
-            f"score={sell_confirm.get('score', 0)} "
-            f"confirmed={sell_confirm.get('confirmed', False)} "
-            f"reasons={sell_confirm.get('reasons', [])}"
-        )
-
-        log(
-            f"🧪 AFTER 30M | {symbol} | "
-            f"BUY confirmed={buy_confirm.get('confirmed', False)} "
-            f"score={buy_confirm.get('score', 0)} | "
-            f"SELL confirmed={sell_confirm.get('confirmed', False)} "
-            f"score={sell_confirm.get('score', 0)}"
-        )
+        log(f"🔬 {symbol} 1H TREND: 15M/30M confirmation is not required")
 
     # =====================================================
     # BTC REGIME
