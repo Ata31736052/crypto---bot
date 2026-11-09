@@ -8315,21 +8315,7 @@ def run_htf_alignment_status_self_test():
 
 
 def run_1h_trend_confirmation_isolation_self_test():
-    """Prove 1H TREND does not call or require 30M confirmation.
-
-    BREAKOUT and BOTTOM_HUNTER retain their existing 30M data requirement.
-    This test does not alter production thresholds or indicator scoring.
-    """
-    global score_30m_confirmation
-    original_confirmation = score_30m_confirmation
-    confirmation_calls = []
-
-    def unexpected_confirmation(*args, **kwargs):
-        confirmation_calls.append((args, kwargs))
-        raise AssertionError("1H TREND must not call lower-timeframe confirmation")
-
-    # The professional gate only needs a structurally complete 1H frame for
-    # this isolation test; values are deliberately neutral and no trade is sent.
+    """Prove the complete 1H TREND path ignores 30M while other engines retain it."""
     row = {
         "close": 101.0, "open": 100.0, "high": 102.0, "low": 99.0,
         "ema9": 100.8, "ema21": 100.5, "ema50": 100.0, "ema200": 98.0,
@@ -8340,21 +8326,55 @@ def run_1h_trend_confirmation_isolation_self_test():
         "bb_width_pct": 2.0, "bb_position": 0.5,
         "macd": 1.0, "macd_signal": 0.5, "macd_hist": 0.5,
         "macd_hist_prev": 0.4, "bearish_candle": 0.0,
+        "open_time": "self-test",
     }
     frame = pd.DataFrame([dict(row) for _ in range(60)])
-    trend_signal = {
-        "signal": "BUY", "signal_mode": "TREND", "signal_timeframe": "1h",
-        "score": 100, "rr_tp1": TP1_RR, "rr_tp2": TP2_RR,
-    }
+    confirmation_calls = []
 
-    score_30m_confirmation = unexpected_confirmation
+    def unexpected_confirmation(*args, **kwargs):
+        confirmation_calls.append((args, kwargs))
+        raise AssertionError("1H TREND must not call lower-timeframe confirmation")
+
+    patches = {
+        "score_30m_confirmation": unexpected_confirmation,
+        "score_main_1h": lambda _df, side: {
+            "hard_pass": str(side).upper() == "BUY",
+            "score": MIN_SCORE if str(side).upper() == "BUY" else 0,
+            "reasons": ["deterministic 1H test"],
+        },
+        "score_btc_regime": lambda _side, _regime: {"allowed": True, "score": 0, "reason": "BTC neutral"},
+        "score_divergence_both_sides": lambda _df: ({"score": 0}, {"score": 0}),
+        "score_price_structure": lambda _df, _side: {"score": 0, "bullish": False, "bearish": False},
+        "get_mtf_context": lambda _data: {},
+        "mtf_side_adjustment": lambda _mtf, _side: (0, []),
+    }
+    originals = {name: globals()[name] for name in patches}
     try:
+        globals().update(patches)
+
+        # Full signal builder: missing 30M must not prevent an otherwise valid
+        # 1H TREND candidate, and no 30M score may be added to its 1H score.
+        trend = evaluate_final_signal(
+            "SELFTESTUSDT",
+            {"1h": frame, "30m": None},
+            {"combined": "NEUTRAL"},
+        )
+        assert trend.get("signal") == "BUY", trend
+        assert trend.get("buy_score") == MIN_SCORE, trend
+        assert confirmation_calls == [], "1H TREND unexpectedly called 30M confirmation"
+
+        # Professional gate: TREND must not require 30M. The same missing data
+        # must continue to reject BREAKOUT and BOTTOM_HUNTER, preserving them.
+        trend_signal = {
+            "signal": "BUY", "signal_mode": "TREND", "signal_timeframe": "1h",
+            "score": 100, "rr_tp1": TP1_RR, "rr_tp2": TP2_RR,
+        }
         passed, reasons, _ = professional_signal_quality_gate(
             trend_signal, {"1h": frame, "30m": None}, {"combined": "NEUTRAL"}
         )
         assert not any("confirmation timeframe data unavailable" in str(x).lower() for x in reasons), reasons
         assert not any("30m confirmation" in str(x).lower() for x in reasons), reasons
-        assert confirmation_calls == [], "1H TREND unexpectedly called 30M confirmation"
+        assert confirmation_calls == [], "1H TREND quality gate unexpectedly called 30M confirmation"
 
         for mode in ("BREAKOUT", "BOTTOM_HUNTER"):
             candidate = dict(trend_signal, signal_mode=mode)
@@ -8365,7 +8385,8 @@ def run_1h_trend_confirmation_isolation_self_test():
             assert "required confirmation timeframe data unavailable" in rejected, (mode, rejected)
         return True
     finally:
-        score_30m_confirmation = original_confirmation
+        globals().update(originals)
+
 
 
 def professional_signal_quality_gate(signal, data, btc_regime=None):
