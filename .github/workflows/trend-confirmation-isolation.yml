@@ -32,8 +32,10 @@ jobs:
           python - <<'PY'
           import main
           assert main.run_1h_trend_confirmation_isolation_self_test() is True
+          assert main.run_btc_three_regime_self_test() is True
           assert main.run_htf_alignment_status_self_test() is True
           print("PASS: 1H TREND is independent of 30M confirmation")
+          print("PASS: BTC bullish, bearish, neutral and mixed-state classification")
           print("PASS: BREAKOUT and BOTTOM_HUNTER retain 30M data requirement")
           print("PASS: HTF diagnostic classification remains intact")
           PY
