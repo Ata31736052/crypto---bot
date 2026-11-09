@@ -1492,16 +1492,12 @@ def get_symbol_market_data(symbol):
         )
 
         if confirm_df is None or confirm_df.empty:
+            log(f"⚠️ Optional 30M confirmation data unavailable: {binance_symbol}")
+            confirm_df = None
 
-            log(
-                f"⚠️ No 30M data: "
-                f"{binance_symbol}"
-            )
-
-            return None
-
-        # 4H/Daily are optional: the core 1H+30M scan must continue even
-        # when Binance has a temporary/missing higher-TF response.
+        # 1H is the required signal timeframe. 30M, 4H and Daily are optional:
+        # TREND remains evaluable without 30M, while BREAKOUT/BOTTOM_HUNTER
+        # safely produce no candidate when their required 30M data is absent.
         df_4h = get_4h_data(binance_symbol)
         if df_4h is None or df_4h.empty:
             log(f"⚠️ Optional 4H data unavailable: {binance_symbol}")
@@ -1783,7 +1779,7 @@ def prepare_symbol_data(symbol):
 
         for tf, frame in frames.items():
             if not validate_market_dataframe(frame):
-                if tf in ("1h", "30m"):
+                if tf == "1h":
                     log(f"⚠️ Invalid required {tf} data: {symbol}")
                     return None
                 log(f"⚠️ Optional {tf} data unavailable: {symbol}")
@@ -1792,7 +1788,7 @@ def prepare_symbol_data(symbol):
 
             frame = add_indicators(frame)
             if frame is None or frame.empty:
-                if tf in ("1h", "30m"):
+                if tf == "1h":
                     log(f"⚠️ Failed required indicators {tf}: {symbol}")
                     return None
                 log(f"⚠️ Optional indicators failed {tf}: {symbol}")
