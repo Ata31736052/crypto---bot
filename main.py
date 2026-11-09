@@ -8313,7 +8313,7 @@ def run_htf_alignment_status_self_test():
 def run_1h_trend_confirmation_isolation_self_test():
     """Prove the complete 1H TREND path ignores 30M while other engines retain it."""
     row = {
-        "close": 101.0, "open": 100.0, "high": 102.0, "low": 99.0,
+        "close": 101.0, "open": 100.0, "high": 102.0, "low": 99.0, "volume": 1000.0,
         "ema9": 100.8, "ema21": 100.5, "ema50": 100.0, "ema200": 98.0,
         "adx": 30.0, "plus_di": 25.0, "minus_di": 10.0,
         "rsi": 55.0, "rsi_prev": 54.0,
@@ -8343,10 +8343,23 @@ def run_1h_trend_confirmation_isolation_self_test():
         "score_price_structure": lambda _df, _side: {"score": 0, "bullish": False, "bearish": False},
         "get_mtf_context": lambda _data: {},
         "mtf_side_adjustment": lambda _mtf, _side: (0, []),
+        "to_binance_usdt_symbol": lambda symbol: symbol,
+        "get_main_1h_data": lambda _symbol: frame,
+        "get_confirm_30m_data": lambda _symbol: None,
+        "get_4h_data": lambda _symbol: None,
+        "get_daily_data": lambda _symbol: None,
+        "validate_market_dataframe": lambda candidate: candidate is not None,
+        "add_indicators": lambda candidate: candidate,
     }
     originals = {name: globals()[name] for name in patches}
     try:
         globals().update(patches)
+
+        # Market-data preparation must keep a valid 1H frame when the optional
+        # 30M endpoint is unavailable; reversal/breakout engines then self-disable.
+        prepared = prepare_symbol_data("SELFTESTUSDT")
+        assert prepared is not None and prepared.get("1h") is frame, prepared
+        assert prepared.get("30m") is None, prepared
 
         # Full signal builder: missing 30M must not prevent an otherwise valid
         # 1H TREND candidate, and no 30M score may be added to its 1H score.
