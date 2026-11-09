@@ -8443,6 +8443,8 @@ def run_1h_trend_confirmation_isolation_self_test():
         )
         assert not any("confirmation timeframe data unavailable" in str(x).lower() for x in reasons), reasons
         assert not any("30m confirmation" in str(x).lower() for x in reasons), reasons
+        assert trend_signal["professional_quality_breakdown"]["confirmation_timeframe"] == "NOT_REQUIRED"
+        assert format_confirmation_diagnostic({"confirmation_timeframe": "NOT_REQUIRED"}) == "Lower-timeframe confirmation: not required for 1H TREND"
         assert confirmation_calls == [], "1H TREND quality gate unexpectedly called 30M confirmation"
 
         for mode in ("BREAKOUT", "BOTTOM_HUNTER"):
