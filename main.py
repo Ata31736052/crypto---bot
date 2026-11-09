@@ -3700,6 +3700,64 @@ def score_30m_confirmation(
 # BTC SCORE
 # =========================================================
 
+def run_btc_three_regime_self_test():
+    """Deterministic coverage for bullish, bearish and neutral BTC regimes."""
+    common = {
+        "close": 100.0, "ema9": 100.0, "ema21": 100.0, "ema50": 100.0,
+        "ema200": 100.0, "rsi": 50.0, "macd": 0.0, "macd_signal": 0.0,
+        "macd_hist": 0.0, "atr": 1.0, "atr_percent": 1.0,
+        "volume_ratio": 1.0, "body_ratio": 0.5, "adx": 10.0,
+        "plus_di": 20.0, "minus_di": 20.0, "rolling_vwap": 100.0,
+        "obv_slope": 0.0, "bb_width_pct": 2.0, "bb_position": 0.5,
+        "volume_zscore": 0.0, "di_spread": 0.0, "rsi_slope": 0.0,
+    }
+    bullish_row = dict(common, close=110.0, ema9=106.0, ema21=104.0,
+                       ema50=102.0, ema200=100.0, rsi=60.0,
+                       macd=2.0, macd_signal=1.0, adx=25.0,
+                       plus_di=30.0, minus_di=10.0)
+    bearish_row = dict(common, close=90.0, ema9=94.0, ema21=96.0,
+                       ema50=98.0, ema200=100.0, rsi=40.0,
+                       macd=-2.0, macd_signal=-1.0, adx=25.0,
+                       plus_di=10.0, minus_di=30.0)
+    assert _btc_regime_from_row(bullish_row)["regime"] == "BULLISH"
+    assert _btc_regime_from_row(bearish_row)["regime"] == "BEARISH"
+    assert _btc_regime_from_row(common)["regime"] == "NEUTRAL"
+
+    bullish = {"score": 5, "bullish": True, "bearish": False}
+    bearish = {"score": -5, "bullish": False, "bearish": True}
+    neutral = {"score": 0, "bullish": False, "bearish": False}
+    originals = {
+        "get_btc_1h_regime": globals()["get_btc_1h_regime"],
+        "get_btc_daily_regime": globals()["get_btc_daily_regime"],
+    }
+    try:
+        for name, value in (("get_btc_1h_regime", bullish), ("get_btc_daily_regime", bullish)):
+            globals()[name] = lambda value=value: value
+        assert get_btc_market_regime()["combined"] == "BULLISH"
+        globals()["get_btc_1h_regime"] = lambda: bearish
+        globals()["get_btc_daily_regime"] = lambda: bearish
+        assert get_btc_market_regime()["combined"] == "BEARISH"
+        globals()["get_btc_1h_regime"] = lambda: bullish
+        globals()["get_btc_daily_regime"] = lambda: bearish
+        assert get_btc_market_regime()["combined"] == "MIXED_BULLISH_1H"
+        globals()["get_btc_1h_regime"] = lambda: bearish
+        globals()["get_btc_daily_regime"] = lambda: bullish
+        assert get_btc_market_regime()["combined"] == "MIXED_BEARISH_1H"
+        globals()["get_btc_1h_regime"] = lambda: neutral
+        globals()["get_btc_daily_regime"] = lambda: neutral
+        assert get_btc_market_regime()["combined"] == "NEUTRAL"
+    finally:
+        globals().update(originals)
+
+    assert score_btc_regime("BUY", {"combined": "BULLISH"})["allowed"] is True
+    assert score_btc_regime("SELL", {"combined": "BULLISH"})["allowed"] is False
+    assert score_btc_regime("BUY", {"combined": "BEARISH"})["allowed"] is False
+    assert score_btc_regime("SELL", {"combined": "BEARISH"})["allowed"] is True
+    assert score_btc_regime("BUY", {"combined": "NEUTRAL"})["allowed"] is True
+    assert score_btc_regime("SELL", {"combined": "NEUTRAL"})["allowed"] is True
+    return True
+
+
 def score_btc_regime(
     side,
     btc_regime
