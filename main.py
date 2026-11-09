@@ -3962,14 +3962,9 @@ def evaluate_final_signal(
     df_4h = data.get("4h")
     df_daily = data.get("1d")
 
-    if (
-        df_1h is None
-        or df_30m is None
-        or len(df_1h) < 50
-        or len(df_30m) < 30
-    ):
+    if df_1h is None or len(df_1h) < 50:
         result["warnings"].append(
-            "Insufficient timeframe data"
+            "Insufficient 1H timeframe data"
         )
         return result
 
@@ -3991,15 +3986,10 @@ def evaluate_final_signal(
     # 30M CONFIRMATION
     # =====================================================
 
-    buy_confirm = score_30m_confirmation(
-        df_30m,
-        "BUY"
-    )
-
-    sell_confirm = score_30m_confirmation(
-        df_30m,
-        "SELL"
-    )
+    # The 1H TREND engine is intentionally independent of 15M/30M
+    # confirmation. Keep a neutral diagnostic shape for downstream reporting.
+    buy_confirm = {"score": 0, "confirmed": None, "reasons": [], "confirmations": 0, "required": False}
+    sell_confirm = {"score": 0, "confirmed": None, "reasons": [], "confirmations": 0, "required": False}
 
     if DEBUG_MODE:
         log(
@@ -4077,15 +4067,8 @@ def evaluate_final_signal(
     if sell_main["hard_pass"]:
         sell_score += sell_main["score"]
 
-    # -----------------------------------------------------
-    # 30M confirmation
-    # -----------------------------------------------------
-
-    if buy_main["hard_pass"]:
-        buy_score += buy_confirm["score"]
-
-    if sell_main["hard_pass"]:
-        sell_score += sell_confirm["score"]
+    # 15M/30M confirmation is not part of the 1H TREND score.
+    # All native 1H scoring and thresholds remain unchanged.
 
     # -----------------------------------------------------
     # BTC
@@ -4179,8 +4162,8 @@ def evaluate_final_signal(
     # Root quality fix: if BUY and SELL are both technically eligible but
     # nearly tied, the market is ambiguous. Do not manufacture a direction.
     both_directional = (
-        buy_main["hard_pass"] and buy_btc["allowed"] and buy_confirm["confirmed"] and buy_score >= MIN_SCORE
-        and sell_main["hard_pass"] and sell_btc["allowed"] and sell_confirm["confirmed"] and sell_score >= SELL_MIN_SCORE
+        buy_main["hard_pass"] and buy_btc["allowed"] and buy_score >= MIN_SCORE
+        and sell_main["hard_pass"] and sell_btc["allowed"] and sell_score >= SELL_MIN_SCORE
     )
     if both_directional and abs(buy_score - sell_score) < PRO_MIN_SIDE_SCORE_GAP:
         if DEBUG_MODE:
@@ -4198,7 +4181,6 @@ def evaluate_final_signal(
     if (
         buy_main["hard_pass"]
         and buy_btc["allowed"]
-        and buy_confirm["confirmed"]
         and buy_score >= MIN_SCORE
     ):
         selected_side = "BUY"
@@ -4207,7 +4189,6 @@ def evaluate_final_signal(
     if (
         sell_main["hard_pass"]
         and sell_btc["allowed"]
-        and sell_confirm["confirmed"]
         and sell_score >= SELL_MIN_SCORE
     ):
         if (
@@ -4250,14 +4231,16 @@ def evaluate_final_signal(
                 "buy": {
                     "hard_pass": bool(buy_main.get("hard_pass")),
                     "score": int(buy_score),
-                    "confirm": bool(buy_confirm.get("confirmed")),
+                    "confirm": None,
+                    "confirm_required": False,
                     "btc_allowed": bool(buy_btc.get("allowed")),
                     "reasons": list(buy_main.get("reasons", []))[:8] + list(buy_confirm.get("reasons", []))[:4],
                 },
                 "sell": {
                     "hard_pass": bool(sell_main.get("hard_pass")),
                     "score": int(sell_score),
-                    "confirm": bool(sell_confirm.get("confirmed")),
+                    "confirm": None,
+                    "confirm_required": False,
                     "btc_allowed": bool(sell_btc.get("allowed")),
                     "reasons": list(sell_main.get("reasons", []))[:8] + list(sell_confirm.get("reasons", []))[:4],
                 },
@@ -4304,13 +4287,6 @@ def evaluate_final_signal(
             )
         )
 
-        reasons.extend(
-            buy_confirm.get(
-                "reasons",
-                []
-            )
-        )
-
         if buy_btc.get("reason"):
             reasons.append(
                 buy_btc["reason"]
@@ -4330,13 +4306,6 @@ def evaluate_final_signal(
 
         reasons = list(
             sell_main.get(
-                "reasons",
-                []
-            )
-        )
-
-        reasons.extend(
-            sell_confirm.get(
                 "reasons",
                 []
             )
@@ -4378,8 +4347,7 @@ def evaluate_final_signal(
             "side": selected_side,
             "buy_score": int(buy_score),
             "sell_score": int(sell_score),
-            "buy_confirm": bool(buy_confirm.get("confirmed")),
-            "sell_confirm": bool(sell_confirm.get("confirmed")),
+            "confirmation_required": False,
             "buy_btc_allowed": bool(buy_btc.get("allowed")),
             "sell_btc_allowed": bool(sell_btc.get("allowed")),
             "reason": "TREND_CANDIDATE"
@@ -8386,12 +8354,12 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         context_frames = (df4,)
     else:
         confirm_df = df30
-        confirmation_tf_label = "30M"
+        confirmation_tf_label = "NOT_REQUIRED" if mode == "TREND" else "30M"
         context_frames = (df4, dfd)
 
     if df1 is None or len(df1) < 60:
         return False, ["required signal timeframe data unavailable"], 0
-    if confirm_df is None or len(confirm_df) < 35:
+    if mode != "TREND" and (confirm_df is None or len(confirm_df) < 35):
         return False, ["required confirmation timeframe data unavailable"], 0
 
     r1 = df1.iloc[-1]
@@ -8547,14 +8515,22 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     # v50: initialize these locals before the confirmation call so a malformed
     # confirmation result or future branch change can never raise an
     # UnboundLocalError such as the LINK failure seen in Run #75.
-    try:
-        confirm = score_30m_confirmation(confirm_df, side, timeframe_label=confirmation_tf_label) or {}
-    except Exception as exc:
-        reject.append(f"confirmation error: {exc}")
+    if mode == "TREND":
+        # No lower-timeframe confirmation or bonus is used by 1H TREND.
         confirm = {}
-    confirmations = safe_int(confirm.get("confirmations", 0))
-    required_confirmations = PRO_SELL_MIN_30M_CONFIRMATIONS if side == "SELL" and mode != "BOTTOM_HUNTER" else PRO_MIN_30M_CONFIRMATIONS
-    if mode in ("4H_SIGNAL", "DAILY_SIGNAL"):
+        confirmations = 0
+        required_confirmations = 0
+    else:
+        try:
+            confirm = score_30m_confirmation(confirm_df, side, timeframe_label=confirmation_tf_label) or {}
+        except Exception as exc:
+            reject.append(f"confirmation error: {exc}")
+            confirm = {}
+        confirmations = safe_int(confirm.get("confirmations", 0))
+        required_confirmations = PRO_SELL_MIN_30M_CONFIRMATIONS if side == "SELL" and mode != "BOTTOM_HUNTER" else PRO_MIN_30M_CONFIRMATIONS
+    if mode == "TREND":
+        pass
+    elif mode in ("4H_SIGNAL", "DAILY_SIGNAL"):
         # HTF setup gets a directional lower-timeframe confirmation, but does
         # not inherit the main 1H/30M gate as if it were a 1H signal.
         if not confirm.get("confirmed"):
@@ -8697,8 +8673,11 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     conf_ok = bool(confirm.get("confirmed")) and confirmations >= conf_required
     if mode in ("4H_SIGNAL", "DAILY_SIGNAL"):
         conf_ok = bool(confirm.get("confirmed"))
-    confirmation_ledger_key = f"{confirmation_tf_label}_confirmation"
-    ledger[confirmation_ledger_key] = _diag_item(3 if conf_ok else 0, 3, "PASS" if conf_ok else "FAIL", confirmations, f">={conf_required}")
+    if mode == "TREND":
+        ledger["lower_timeframe_confirmation"] = _diag_item(0, 0, "NOT_REQUIRED", 0, "not required for 1H TREND")
+    else:
+        confirmation_ledger_key = f"{confirmation_tf_label}_confirmation"
+        ledger[confirmation_ledger_key] = _diag_item(3 if conf_ok else 0, 3, "PASS" if conf_ok else "FAIL", confirmations, f">={conf_required}")
     ledger["HTF_alignment"] = _diag_item(3 if htf_align >= 2 else (2 if htf_align == 1 else 0), 3, "PASS" if htf_align >= required_htf else "FAIL", htf_align, f">={required_htf}")
     btc_ok = not ((side == "BUY" and combined == "BEARISH") or (side == "SELL" and combined == "BULLISH"))
     ledger["BTC_context"] = _diag_item(1 if btc_ok and combined not in ("UNKNOWN", "") else 0, 1, "PASS" if btc_ok else "FAIL", combined)
@@ -8861,8 +8840,8 @@ def analyze_one_symbol(symbol, btc_regime):
         if not data:
             return {"ok": False, "symbol": symbol, "signal": None, "error": "No market data"}
         df_1h, df_30m = data.get("1h"), data.get("30m")
-        if df_1h is None or df_30m is None:
-            return {"ok": False, "symbol": symbol, "signal": None, "error": "Required 1H/30M data unavailable"}
+        if df_1h is None:
+            return {"ok": False, "symbol": symbol, "signal": None, "error": "Required 1H data unavailable"}
 
         mtf_context = get_mtf_context(data)
         bottom_diagnostic = {}
