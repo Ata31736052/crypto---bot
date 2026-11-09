@@ -3510,6 +3510,8 @@ def format_confirmation_diagnostic(breakdown):
     if not isinstance(breakdown, dict):
         breakdown = {}
     timeframe = str(breakdown.get("confirmation_timeframe") or "30M").upper()
+    if timeframe in ("NOT_REQUIRED", "NONE"):
+        return "Lower-timeframe confirmation: not required for 1H TREND"
     actual = breakdown.get("confirmations_lower_tf", breakdown.get("confirmations_30m", 0))
     required = breakdown.get("required_lower_tf", breakdown.get("required_30m", 0))
     return f"{timeframe}={format_confirmation_status(actual, required)}"
@@ -8464,8 +8466,8 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     accumulated as quality points. This prevents a single raw score from
     rescuing a weak setup, without requiring every secondary indicator to be
     perfect. The gate is deliberately asymmetric: volume, directional ADX/DI,
-    lower-timeframe confirmation, higher-timeframe alignment, BTC conflict,
-    and trade R:R remain hard requirements.
+    engine-specific lower-timeframe confirmation (where required),
+    higher-timeframe alignment, BTC conflict, and trade R:R remain hard requirements.
     """
     if not signal or not data:
         return False, ["missing signal/data"], 0
@@ -8651,9 +8653,8 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     elif bb_width > 0:
         quality += 1
 
-    # Trend/breakout require the standard 30M directional confirmation.
-    # Bottom Hunter already has a dedicated 30M reversal test in its own
-    # engine, so here it is a quality boost rather than a second hard gate.
+    # BREAKOUT and BOTTOM_HUNTER retain their 30M confirmation requirements.
+    # 1H TREND is intentionally independent of lower-timeframe confirmation.
     # v50: initialize these locals before the confirmation call so a malformed
     # confirmation result or future branch change can never raise an
     # UnboundLocalError such as the LINK failure seen in Run #75.
@@ -8892,10 +8893,15 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     signal["professional_filter"] = "PASSED"
     signal["professional_quality_points"] = int(quality)
     signal["professional_quality_score"] = quality_score
+    confirmation_reason = (
+        "Professional filter: lower-timeframe confirmation not required for 1H TREND"
+        if mode == "TREND"
+        else f"Professional filter: {confirmation_tf_label} confirmation"
+    )
     signal.setdefault("reasons", []).extend([
         "Professional filter: directional structure",
         "Professional filter: ADX/DI",
-        "Professional filter: 30M confirmation",
+        confirmation_reason,
         "Professional filter: volume/momentum",
         "Professional filter: multi-timeframe context",
         "Professional filter: trade structure/R:R",
