@@ -8320,6 +8320,7 @@ def run_1h_trend_confirmation_isolation_self_test():
     BREAKOUT and BOTTOM_HUNTER retain their existing 30M data requirement.
     This test does not alter production thresholds or indicator scoring.
     """
+    global score_30m_confirmation
     original_confirmation = score_30m_confirmation
     confirmation_calls = []
 
