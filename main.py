@@ -8295,6 +8295,57 @@ def build_breakout_signal(symbol, data, breakout, btc_regime=None):
         "candle_time": str(data["1h"].iloc[-1].get("open_time")),
     }
 
+def _classify_htf_alignment_status(frame, side):
+    """Classify one higher-timeframe frame for diagnostics only."""
+    if frame is None or getattr(frame, "empty", True):
+        return "MISSING"
+    row = frame.iloc[-1]
+    raw_values = [row.get("close"), row.get("ema9"), row.get("ema21"), row.get("ema200")]
+    values_valid = all(
+        value is not None
+        and np.isfinite(safe_float(value, float("nan")))
+        and safe_float(value, float("nan")) > 0
+        for value in raw_values
+    )
+    if not values_valid:
+        return "INVALID"
+    if len(frame) < 50:
+        return "SHORT_DATA"
+    close = safe_float(row.get("close"))
+    ema9 = safe_float(row.get("ema9"))
+    ema21 = safe_float(row.get("ema21"))
+    ema200 = safe_float(row.get("ema200"))
+    aligned = (close > ema200 and ema9 > ema21) if side == "BUY" else (close < ema200 and ema9 < ema21)
+    if aligned:
+        return "ALIGNED"
+    opposed = (close < ema200 and ema9 < ema21) if side == "BUY" else (close > ema200 and ema9 > ema21)
+    return "OPPOSED" if opposed else "NEUTRAL"
+
+
+def run_htf_alignment_status_self_test():
+    """Deterministic coverage for all six HTF diagnostic states."""
+    base = {"close": 110.0, "ema9": 105.0, "ema21": 103.0, "ema200": 100.0}
+    aligned = pd.DataFrame([base.copy() for _ in range(50)])
+    opposed_row = {"close": 90.0, "ema9": 95.0, "ema21": 98.0, "ema200": 100.0}
+    opposed = pd.DataFrame([opposed_row.copy() for _ in range(50)])
+    neutral_row = {"close": 110.0, "ema9": 95.0, "ema21": 98.0, "ema200": 100.0}
+    neutral = pd.DataFrame([neutral_row.copy() for _ in range(50)])
+    invalid_row = dict(base, close=float("nan"))
+    invalid = pd.DataFrame([invalid_row.copy() for _ in range(50)])
+    short_data = pd.DataFrame([base.copy() for _ in range(49)])
+    actual = {
+        "ALIGNED": _classify_htf_alignment_status(aligned, "BUY"),
+        "OPPOSED": _classify_htf_alignment_status(opposed, "BUY"),
+        "NEUTRAL": _classify_htf_alignment_status(neutral, "BUY"),
+        "MISSING": _classify_htf_alignment_status(None, "BUY"),
+        "INVALID": _classify_htf_alignment_status(invalid, "BUY"),
+        "SHORT_DATA": _classify_htf_alignment_status(short_data, "BUY"),
+    }
+    expected = {name: name for name in ("ALIGNED", "OPPOSED", "NEUTRAL", "MISSING", "INVALID", "SHORT_DATA")}
+    assert actual == expected, f"HTF status classification mismatch: {actual}"
+    return True
+
+
 def professional_signal_quality_gate(signal, data, btc_regime=None):
     """Final trade-quality gate.
 
@@ -8538,25 +8589,12 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
             htf_diagnostics.append(f"{label}=MISSING")
             continue
         rr = frame.iloc[-1]
-        raw_values = [rr.get("close"), rr.get("ema9"), rr.get("ema21"), rr.get("ema200")]
-        values_valid = all(
-            value is not None and np.isfinite(safe_float(value, float("nan"))) and safe_float(value, float("nan")) > 0
-            for value in raw_values
-        )
         c = safe_float(rr.get("close")); e9 = safe_float(rr.get("ema9")); e21 = safe_float(rr.get("ema21")); e200 = safe_float(rr.get("ema200"))
         aligned = (c > e200 and e9 > e21) if side == "BUY" else (c < e200 and e9 < e21)
         if aligned:
             htf_align += 1
-        if not values_valid:
-            status = "INVALID"
-        elif len(frame) < 50:
-            status = "SHORT_DATA"
-        elif aligned:
-            status = "ALIGNED"
-        elif ((c < e200 and e9 < e21) if side == "BUY" else (c > e200 and e9 > e21)):
-            status = "OPPOSED"
-        else:
-            status = "NEUTRAL"
+        # Keep the legacy alignment counter/gate unchanged; this label is diagnostic only.
+        status = _classify_htf_alignment_status(frame, side)
         htf_diagnostics.append(label + "=" + status)
     required_htf = PRO_BOTTOM_REQUIRE_HTF_ALIGNMENT if mode == "BOTTOM_HUNTER" else (PRO_SELL_MIN_HTF_ALIGNMENT if side == "SELL" else PRO_MIN_HTF_ALIGNMENT)
     if htf_align < required_htf:
@@ -8695,7 +8733,7 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         # Legacy aliases retained for compatibility; new logs use the fields above.
         "confirmations_30m": int(confirmations),
         "required_30m": int(required_confirmations), "htf_alignment": int(htf_align),
-        "required_htf_alignment": int(required_htf), "ema21_distance": round(dist21, 2),
+        "required_htf_alignment": int(required_htf), "htf_statuses": list(htf_diagnostics), "ema21_distance": round(dist21, 2),
         "ema200_distance": round(abs(close / ema200 - 1) * 100 if ema200 > 0 else 999, 2),
         "atr_percent": round(atrp, 2), "rr_tp1": round(rr1, 2), "rr_tp2": round(rr2, 2),
         "reject_count": len(reject), "reject_reasons": list(reject[:12]),
