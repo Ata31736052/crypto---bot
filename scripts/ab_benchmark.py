@@ -290,21 +290,46 @@ def comparable(s):
             "symbols":x["symbols"],"candidate_trade_count":x["candidate_trade_count"],
             "portfolio":x["portfolio"],"engine_breakdown":x["engine_breakdown"],
             "diagnostics":stable_diagnostics}
-summary_hashes={json.dumps(comparable(s),sort_keys=True,default=str) for s in samples}
 summary_hashes_by_label={label:{json.dumps(comparable(s),sort_keys=True,default=str) for s in samples if s["label"]==label} for label in ("A","B")}
-if any(len(v)!=1 for v in trade_hashes.values()) or any(len(v)!=1 for v in summary_hashes_by_label.values()):
+# This PR is diagnostic-only: the candidate must preserve the baseline's exact
+# trade ledger and stable portfolio/engine outputs, not merely be repeatable.
+# Per-revision determinism is necessary but is NOT sufficient for acceptance.
+deterministic_within_revisions = (
+    all(len(values)==1 for values in trade_hashes.values()) and
+    all(len(values)==1 for values in summary_hashes_by_label.values())
+)
+cross_revision_trade_equal = (
+    len(trade_hashes["A"])==1 and len(trade_hashes["B"])==1 and
+    next(iter(trade_hashes["A"]))==next(iter(trade_hashes["B"]))
+)
+cross_revision_summary_equal = (
+    len(summary_hashes_by_label["A"])==1 and len(summary_hashes_by_label["B"])==1 and
+    next(iter(summary_hashes_by_label["A"]))==next(iter(summary_hashes_by_label["B"]))
+)
+if not (deterministic_within_revisions and cross_revision_trade_equal and cross_revision_summary_equal):
     (OUT/"mismatch.json").write_text(json.dumps({
-        "trade_hashes":[s["trade_sha256"] for s in samples],
+        "status":"OUTPUT_MISMATCH_ABORTED",
+        "deterministic_within_revisions":deterministic_within_revisions,
+        "cross_revision_trade_equal":cross_revision_trade_equal,
+        "cross_revision_summary_equal":cross_revision_summary_equal,
+        "trade_hashes":[{"label":s["label"],"phase":s["phase"],"ordinal":s["ordinal"],
+                         "sha256":s["trade_sha256"]} for s in samples],
         "summaries":[{"label":s["label"],"phase":s["phase"],"ordinal":s["ordinal"],
                       "summary":comparable(s)} for s in samples]},indent=2,default=str))
-    raise SystemExit("OUTPUT MISMATCH: do not merge; see mismatch.json")
+    raise SystemExit("OUTPUT MISMATCH: baseline A and candidate B must match exactly for this diagnostic-only PR; see mismatch.json")
 def stats(rows,key):
     values=[float(r[key]) for r in rows]
     return {"samples":values,"median":round(median(values),4),
             "min":round(min(values),4),"max":round(max(values),4),
             "range":round(max(values)-min(values),4)}
 report={
- "status":"PASS_DETERMINISTIC_PER_REVISION",
+ "status":"PASS_IDENTICAL_OUTPUT_ACROSS_REVISIONS",
+ "output_equality":{
+     "deterministic_within_revisions":deterministic_within_revisions,
+     "cross_revision_trade_equal":cross_revision_trade_equal,
+     "cross_revision_summary_equal":cross_revision_summary_equal,
+     "requirement":"Exact A/B trade CSV hash and comparable stable summary must match; diagnostic-only PR."
+ },
  "base_sha":BASE_SHA,"candidate_sha":CANDIDATE_SHA,
  "configuration":{"days":ENV["BACKTEST_DAYS"],"symbols":ENV["BACKTEST_SYMBOLS"],
                   "fee_bps_per_side":ENV["BACKTEST_FEE_BPS"],
@@ -319,9 +344,10 @@ report={
                            "instrumented_total":stats(candidate,"total_instrumented_seconds")}},
  "samples":[{k:v for k,v in s.items() if k!="summary"} for s in samples],
  "trade_sha256_by_revision":{label:next(iter(values)) for label,values in trade_hashes.items()},
+ "comparable_summary_sha256_by_revision":{label:next(iter(values)) for label,values in summary_hashes_by_label.items()},
  "input_manifest_sha256":next(iter(input_manifest_hashes)),
  "input_manifest_rows":samples[0]["input_manifest_rows"],
- "notes":["Exact trade rows and summary outputs must repeat identically within A (baseline) and within B (candidate); A and B may differ when strategy code changes.",
+ "notes":["This PR is diagnostic-only: exact trade rows and comparable stable summary outputs must repeat identically within each revision AND match across baseline A and candidate B.",
           "Separate signal-window and outcome-window OHLCV hashes and row counts are fingerprinted before indicator preparation and must match across all samples.",
           "Both baseline and candidate fetch the same 73-hour post-boundary 1H outcome window; replay stops at the fixed signal boundary.",
           "Baseline is benchmark-shimmed to the candidate's exclusive end boundary, retaining the boundary-open execution candle only for 1H.",
