@@ -1,21 +1,32 @@
 name: Controlled A-B Performance Benchmark
 on:
-  push:
-    branches: [backtest/divergence-reuse-ab-20261013-run]
-    paths:
-      - 'main.py'
-      - 'historical_backtest.py'
-      - 'portfolio_ledger.py'
-      - 'scripts/ab_benchmark.py'
-      - '.github/workflows/ab-benchmark.yml'
-  pull_request:
-    branches: [main, backtest/main-engine-baseline-180d]
-    paths:
-      - 'main.py'
-      - 'historical_backtest.py'
-      - 'portfolio_ledger.py'
-      - 'scripts/ab_benchmark.py'
-      - '.github/workflows/ab-benchmark.yml'
+  # Heavy benchmarks are deliberately manual-only. Enter immutable commit SHAs
+  # explicitly so ordinary PR updates cannot launch a multi-hour replay.
+  workflow_dispatch:
+    inputs:
+      base_sha:
+        description: "Baseline commit SHA (immutable)"
+        required: true
+        type: string
+      candidate_sha:
+        description: "Candidate commit SHA (immutable)"
+        required: true
+        type: string
+      days:
+        description: "Historical period in days"
+        required: true
+        default: "180"
+        type: string
+      symbols:
+        description: "Comma-separated Binance Spot USDT symbols"
+        required: true
+        default: "ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT"
+        type: string
+      end_time:
+        description: "Fixed UTC end timestamp (ISO-8601)"
+        required: true
+        default: "2026-10-12T00:00:00Z"
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -26,14 +37,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
-      AB_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-      AB_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      AB_BASE_SHA: ${{ inputs.base_sha }}
+      AB_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
       AB_REPEATS: "3"
-      BACKTEST_DAYS: "180"
-      BACKTEST_SYMBOLS: "ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT"
+      BACKTEST_DAYS: ${{ inputs.days }}
+      BACKTEST_SYMBOLS: ${{ inputs.symbols }}
       BACKTEST_FEE_BPS: "10"
       BACKTEST_SLIPPAGE_BPS: "5"
-      BACKTEST_END_TIME: "2026-10-12T00:00:00Z"
+      BACKTEST_END_TIME: ${{ inputs.end_time }}
       PYTHONUNBUFFERED: "1"
       TELEGRAM_TOKEN: ""
       TELEGRAM_CHAT_ID: ""
@@ -43,7 +54,8 @@ jobs:
       - name: Checkout benchmark harness
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.candidate_sha }}
+          fetch-depth: 0
           fetch-depth: 0
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -60,6 +72,13 @@ jobs:
           test -n "$AB_BASE_SHA"
           test -n "$AB_CANDIDATE_SHA"
           test "$AB_BASE_SHA" != "$AB_CANDIDATE_SHA"
+          [[ "$AB_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$AB_CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$BACKTEST_DAYS" =~ ^[0-9]+$ ]]
+          test "$BACKTEST_DAYS" -ge 30
+          test "$BACKTEST_DAYS" -le 365
+          git cat-file -e "$AB_BASE_SHA^{commit}"
+          git cat-file -e "$AB_CANDIDATE_SHA^{commit}"
           python - <<'PY'
           import os, pandas, requests
           print("Python shared environment:", os.sys.version)
