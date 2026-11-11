@@ -8322,6 +8322,45 @@ def _classify_htf_alignment_status(frame, side):
     return "OPPOSED" if opposed else "NEUTRAL"
 
 
+def _summarize_htf_alignment(context_frames, side, labels):
+    """Return legacy and validated HTF counts plus per-frame diagnostic states.
+
+    legacy_alignment intentionally preserves the pre-diagnostics boolean count
+    used by the gate. valid_alignment counts only frames classified ALIGNED.
+    """
+    legacy_alignment = 0
+    valid_alignment = 0
+    statuses = []
+    status_counts = {
+        "ALIGNED": 0, "OPPOSED": 0, "NEUTRAL": 0,
+        "MISSING": 0, "INVALID": 0, "SHORT_DATA": 0,
+    }
+    for frame_index, frame in enumerate(context_frames):
+        label = labels[frame_index] if frame_index < len(labels) else f"HTF{frame_index + 1}"
+        if frame is None or getattr(frame, "empty", True):
+            status = "MISSING"
+        else:
+            row = frame.iloc[-1]
+            close = safe_float(row.get("close"))
+            ema9 = safe_float(row.get("ema9"))
+            ema21 = safe_float(row.get("ema21"))
+            ema200 = safe_float(row.get("ema200"))
+            aligned = (close > ema200 and ema9 > ema21) if side == "BUY" else (close < ema200 and ema9 < ema21)
+            if aligned:
+                legacy_alignment += 1
+            status = _classify_htf_alignment_status(frame, side)
+        status_counts[status] += 1
+        if status == "ALIGNED":
+            valid_alignment += 1
+        statuses.append(label + "=" + status)
+    return {
+        "legacy_alignment": legacy_alignment,
+        "valid_alignment": valid_alignment,
+        "statuses": statuses,
+        "status_counts": status_counts,
+    }
+
+
 def run_htf_alignment_status_self_test():
     """Deterministic coverage for all six HTF diagnostic states."""
     base = {"close": 110.0, "ema9": 105.0, "ema21": 103.0, "ema200": 100.0}
@@ -8343,6 +8382,40 @@ def run_htf_alignment_status_self_test():
     }
     expected = {name: name for name in ("ALIGNED", "OPPOSED", "NEUTRAL", "MISSING", "INVALID", "SHORT_DATA")}
     assert actual == expected, f"HTF status classification mismatch: {actual}"
+
+    # Integration regression: preserve the historical gate counter exactly,
+    # while exposing a second counter that includes only valid ALIGNED frames.
+    invalid_zero_ema = pd.DataFrame([dict(base, ema200=0.0) for _ in range(50)])
+    summary = _summarize_htf_alignment(
+        (aligned, invalid_zero_ema, short_data, opposed, neutral, None),
+        "BUY",
+        ("Valid", "Invalid", "Short", "Opposed", "Neutral", "Missing"),
+    )
+    assert summary["legacy_alignment"] == 3, (
+        "Legacy HTF alignment count changed: " + str(summary)
+    )
+    assert summary["valid_alignment"] == 1, (
+        "Only valid ALIGNED frames may contribute to valid HTF count: " + str(summary)
+    )
+    expected_counts = {
+        "ALIGNED": 1, "OPPOSED": 1, "NEUTRAL": 1,
+        "MISSING": 1, "INVALID": 1, "SHORT_DATA": 1,
+    }
+    assert summary["status_counts"] == expected_counts, (
+        "HTF status counters mismatch: " + str(summary["status_counts"])
+    )
+    assert summary["statuses"] == [
+        "Valid=ALIGNED", "Invalid=INVALID", "Short=SHORT_DATA",
+        "Opposed=OPPOSED", "Neutral=NEUTRAL", "Missing=MISSING",
+    ], "HTF status order/labels mismatch"
+
+    # SELL direction regression: a valid bearish frame must classify ALIGNED.
+    sell_row = {"close": 90.0, "ema9": 95.0, "ema21": 98.0, "ema200": 100.0}
+    sell_aligned = pd.DataFrame([sell_row.copy() for _ in range(50)])
+    sell_summary = _summarize_htf_alignment((sell_aligned,), "SELL", ("4H",))
+    assert sell_summary["legacy_alignment"] == 1
+    assert sell_summary["valid_alignment"] == 1
+    assert sell_summary["statuses"] == ["4H=ALIGNED"]
     return True
 
 
@@ -8575,27 +8648,20 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     # opposite 4H/Daily regime does not receive a quality bonus.
     # Diagnostic-only: classify each context frame without changing the
     # original alignment count or any pass/fail threshold.
-    htf_align = 0
-    htf_diagnostics = []
     if mode == "4H_SIGNAL" or signal_tf == "4h":
         htf_labels = ("Daily",)
     elif mode == "DAILY_SIGNAL" or signal_tf == "1d":
         htf_labels = ("4H",)
     else:
         htf_labels = ("4H", "Daily")
-    for frame_index, frame in enumerate(context_frames):
-        label = htf_labels[frame_index] if frame_index < len(htf_labels) else f"HTF{frame_index + 1}"
-        if frame is None or getattr(frame, "empty", True):
-            htf_diagnostics.append(f"{label}=MISSING")
-            continue
-        rr = frame.iloc[-1]
-        c = safe_float(rr.get("close")); e9 = safe_float(rr.get("ema9")); e21 = safe_float(rr.get("ema21")); e200 = safe_float(rr.get("ema200"))
-        aligned = (c > e200 and e9 > e21) if side == "BUY" else (c < e200 and e9 < e21)
-        if aligned:
-            htf_align += 1
-        # Keep the legacy alignment counter/gate unchanged; this label is diagnostic only.
-        status = _classify_htf_alignment_status(frame, side)
-        htf_diagnostics.append(label + "=" + status)
+    htf_summary = _summarize_htf_alignment(context_frames, side, htf_labels)
+    # Preserve the legacy counter for all existing pass/fail and quality logic.
+    htf_align = htf_summary["legacy_alignment"]
+    # New diagnostic counter excludes INVALID, SHORT_DATA and every other
+    # non-ALIGNED state; it does not alter the gate's decision.
+    valid_htf_align = htf_summary["valid_alignment"]
+    htf_diagnostics = htf_summary["statuses"]
+    htf_status_counts = htf_summary["status_counts"]
     required_htf = PRO_BOTTOM_REQUIRE_HTF_ALIGNMENT if mode == "BOTTOM_HUNTER" else (PRO_SELL_MIN_HTF_ALIGNMENT if side == "SELL" else PRO_MIN_HTF_ALIGNMENT)
     if htf_align < required_htf:
         reject.append(f"higher-timeframe alignment insufficient ({htf_align}/{required_htf}); " + ", ".join(htf_diagnostics))
@@ -8733,7 +8799,7 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         # Legacy aliases retained for compatibility; new logs use the fields above.
         "confirmations_30m": int(confirmations),
         "required_30m": int(required_confirmations), "htf_alignment": int(htf_align),
-        "required_htf_alignment": int(required_htf), "htf_statuses": list(htf_diagnostics), "ema21_distance": round(dist21, 2),
+        "required_htf_alignment": int(required_htf), "valid_htf_alignment": int(valid_htf_align), "htf_statuses": list(htf_diagnostics), "htf_status_counts": dict(htf_status_counts), "ema21_distance": round(dist21, 2),
         "ema200_distance": round(abs(close / ema200 - 1) * 100 if ema200 > 0 else 999, 2),
         "atr_percent": round(atrp, 2), "rr_tp1": round(rr1, 2), "rr_tp2": round(rr2, 2),
         "reject_count": len(reject), "reject_reasons": list(reject[:12]),
