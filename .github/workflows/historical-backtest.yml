@@ -1,12 +1,6 @@
 name: Historical Binance Backtest | 180D | Offline Signals
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'main.py'
-      - 'historical_backtest.py'
-      - 'portfolio_ledger.py'
-      - '.github/workflows/historical-backtest.yml'
+  # 180-day replay is manual-only; PR validation is handled by lightweight diagnostics.
   workflow_dispatch:
     inputs:
       days:
