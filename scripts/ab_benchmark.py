@@ -81,113 +81,94 @@ for label, sha in (("A",BASE_SHA),("B",CANDIDATE_SHA)):
     path=WORK/label
     if path.exists(): shutil.rmtree(path)
     run(["git","worktree","add","--detach",str(path),sha],cwd=ROOT)
-# The historical baseline predates BACKTEST_END_TIME support and otherwise
-# silently uses the runner's current hour. Apply a benchmark-only date-anchor
-# shim to A so both revisions receive the exact same fixed test window. This
-# changes no strategy or performance code; the report/logs preserve both SHAs.
-baseline_file = WORK / "A" / "historical_backtest.py"
-baseline_source = baseline_file.read_text(encoding="utf-8")
-legacy_end = '    end=pd.Timestamp.now(tz="UTC").floor("h"); start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)'
-fixed_end = '''    end_raw=os.getenv("BACKTEST_END_TIME", "").strip()
-    if end_raw:
-        end=pd.Timestamp(end_raw)
-        if end.tzinfo is None:
-            raise ValueError("BACKTEST_END_TIME must include Z or an explicit UTC offset")
-        end=end.tz_convert("UTC").floor("h")
-    else:
-        end=pd.Timestamp.now(tz="UTC").floor("h")
-    start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)'''
-if legacy_end in baseline_source:
-    baseline_file.write_text(baseline_source.replace(legacy_end, fixed_end, 1), encoding="utf-8")
-elif 'BACKTEST_END_TIME' not in baseline_source:
-    raise SystemExit("Cannot safely anchor baseline: expected legacy end-time expression was not found")
-# Benchmark-only source shims: align the baseline end-boundary policy and fingerprint raw OHLCV frames before prepare().
-MANIFEST_HELPER = r'''
-import hashlib, json, os
+# Runtime instrumentation: wrap the real fetch callable without rewriting source text.
+# This supports both current and legacy signatures and leaves return values untouched.
+RUNNER_SOURCE = r'''#!/usr/bin/env python3
+from __future__ import annotations
+import hashlib
+import inspect
+import json
+import os
+import pathlib
+import sys
+import pandas as pd
 
-def _ab_record_input(symbol, tf, frame):
-    path = os.getenv("AB_INPUT_MANIFEST")
-    if not path:
-        raise RuntimeError("AB_INPUT_MANIFEST is required for controlled A/B")
-    boundary = pd.Timestamp(os.environ["AB_SIGNAL_BOUNDARY"])
-    if boundary.tzinfo is None:
-        raise RuntimeError("AB_SIGNAL_BOUNDARY must include a timezone")
-    boundary = boundary.tz_convert("UTC")
-    cols = ["open_time", "close_time", "open", "high", "low", "close", "volume"]
-    if tf == "1h":
+sys.path.insert(0, str(pathlib.Path.cwd()))
+import historical_backtest as bt
+
+manifest_path = pathlib.Path(os.environ["AB_INPUT_MANIFEST"])
+boundary = pd.Timestamp(os.environ["AB_SIGNAL_BOUNDARY"])
+if boundary.tzinfo is None:
+    raise RuntimeError("AB_SIGNAL_BOUNDARY must include a timezone")
+boundary = boundary.tz_convert("UTC")
+columns = ["open_time", "close_time", "open", "high", "low", "close", "volume"]
+
+def fingerprint(frame):
+    if frame is None or frame.empty:
+        canonical = "EMPTY\n"
+        return {"rows": 0, "sha256": hashlib.sha256(canonical.encode()).hexdigest(),
+                "first_open": None, "last_open": None}
+    missing = [column for column in columns if column not in frame.columns]
+    if missing:
+        raise RuntimeError("fetch returned non-empty frame without manifest columns: " + repr(missing))
+    canonical = frame[columns].to_csv(
+        index=False, date_format="%Y-%m-%dT%H:%M:%S.%f%z", float_format="%.12g"
+    )
+    return {"rows": int(len(frame)), "sha256": hashlib.sha256(canonical.encode()).hexdigest(),
+            "first_open": str(frame.iloc[0]["open_time"]),
+            "last_open": str(frame.iloc[-1]["open_time"])}
+
+def record_input(symbol, timeframe, frame):
+    if frame is None or frame.empty:
+        signal_frame = frame
+        outcome_frame = frame
+    elif timeframe == "1h":
         signal_frame = frame[(frame["close_time"] < boundary) | (frame["open_time"] == boundary)]
         outcome_frame = frame[frame["open_time"] > boundary]
     else:
         signal_frame = frame[frame["close_time"] < boundary]
         outcome_frame = frame.iloc[0:0]
-    def fingerprint(part):
-        canonical = part[cols].to_csv(index=False, date_format="%Y-%m-%dT%H:%M:%S.%f%z", float_format="%.12g") if not part.empty else "EMPTY\n"
-        return {"rows": int(len(part)), "sha256": hashlib.sha256(canonical.encode()).hexdigest(),
-                "first_open": str(part.iloc[0]["open_time"]) if len(part) else None,
-                "last_open": str(part.iloc[-1]["open_time"]) if len(part) else None}
-    # Mutation regression: changing an outcome-only candle must alter the outcome hash.
-    if not getattr(_ab_record_input, "_mutation_test_done", False):
-        sample = pd.DataFrame({
-            "open_time": pd.to_datetime(["2026-10-12T00:00:00Z", "2026-10-12T01:00:00Z"], utc=True),
-            "close_time": pd.to_datetime(["2026-10-12T00:59:59.999Z", "2026-10-12T01:59:59.999Z"], utc=True),
-            "open": [100.0, 101.0], "high": [101.0, 102.0], "low": [99.0, 100.0],
-            "close": [100.5, 101.5], "volume": [10.0, 11.0]})
-        outcome = sample[sample["open_time"] > boundary]
-        altered = sample.copy()
-        altered.loc[1, "close"] = 101.6
-        altered_outcome = altered[altered["open_time"] > boundary]
-        if fingerprint(outcome)["sha256"] == fingerprint(altered_outcome)["sha256"]:
-            raise RuntimeError("Outcome-only candle mutation did not change manifest hash")
-        _ab_record_input._mutation_test_done = True
-        print("AB_OUTCOME_MANIFEST_MUTATION_SELF_TEST: PASS", flush=True)
-    record = {"symbol": symbol, "timeframe": tf,
+    record = {"symbol": str(symbol), "timeframe": str(timeframe),
               "signal_window": fingerprint(signal_frame),
               "outcome_window": fingerprint(outcome_frame)}
-    with open(path, "a", encoding="utf-8") as handle:
+    with manifest_path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(record, sort_keys=True) + "\n")
+
+def manifest_self_test():
+    sample = pd.DataFrame({
+        "open_time": pd.to_datetime(["2026-10-12T00:00:00Z", "2026-10-12T01:00:00Z"], utc=True),
+        "close_time": pd.to_datetime(["2026-10-12T00:59:59.999Z", "2026-10-12T01:59:59.999Z"], utc=True),
+        "open": [100.0, 101.0], "high": [101.0, 102.0], "low": [99.0, 100.0],
+        "close": [100.5, 101.5], "volume": [10.0, 11.0],
+    })
+    empty = pd.DataFrame()
+    assert fingerprint(empty)["rows"] == 0
+    outcome = sample[sample["open_time"] > boundary]
+    changed = sample.copy()
+    changed.loc[1, "close"] = 101.6
+    changed_outcome = changed[changed["open_time"] > boundary]
+    assert fingerprint(outcome)["sha256"] != fingerprint(changed_outcome)["sha256"], (
+        "outcome-only candle mutation did not change manifest hash"
+    )
+    print("AB_FETCH_WRAPPER_SELF_TEST: PASS", flush=True)
+
+manifest_self_test()
+original_fetch = bt.fetch
+fetch_signature = inspect.signature(original_fetch)
+
+def traced_fetch(*args, **kwargs):
+    bound = fetch_signature.bind(*args, **kwargs)
+    bound.apply_defaults()
+    result = original_fetch(*args, **kwargs)
+    record_input(bound.arguments["symbol"], bound.arguments["tf"], result)
+    return result
+
+bt.fetch = traced_fetch
+bt.run()
 '''
 for label in ("A", "B"):
-    source_path = WORK / label / "historical_backtest.py"
-    source = source_path.read_text(encoding="utf-8")
-    if "def _ab_record_input(" not in source:
-        source = source.replace("def fetch(", MANIFEST_HELPER + "\ndef fetch(", 1)
-    if label == "A":
-        sig = "def fetch(symbol, tf, start_ms, end_ms):"
-        if sig not in source: raise SystemExit("Cannot safely patch baseline fetch signature")
-        source = source.replace(sig, "def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, signal_boundary_ms=None):", 1)
-        old_filters = (
-            '    d=filter_closed_before_end(d,end_ms).dropna(subset=["open","high","low","close","volume"])',
-            '    d=d[d.close_time < pd.Timestamp.now(tz="UTC")].dropna(subset=["open","high","low","close","volume"])',
-        )
-        new_filter = '''    boundary=pd.to_datetime(signal_boundary_ms if signal_boundary_ms is not None else end_ms,unit="ms",utc=True)
-    data_cutoff=pd.to_datetime(end_ms,unit="ms",utc=True)
-    d=d[(d.close_time < data_cutoff) | ((tf == "1h") & include_boundary_open & (d.open_time == boundary))]
-    d=d.dropna(subset=["open","high","low","close","volume"])'''
-        matched_filters = [line for line in old_filters if line in source]
-        if len(matched_filters) != 1:
-            raise SystemExit(
-                "Cannot safely normalize baseline end-boundary policy: "
-                f"expected exactly one known filter, found {len(matched_filters)}"
-            )
-        source = source.replace(matched_filters[0], new_filter, 1)
-        if new_filter not in source:
-            raise SystemExit("Baseline boundary normalization postcondition failed")
-        source = source.replace('fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000))', 'fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000),include_boundary_open=(tf=="1h"))')
-        source = source.replace('raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000)) for tf in ("1h","30m","4h","1d")}',
-'''raw={tf:fetch(sym,tf,int(fetch_start.timestamp()*1000),
-                          int((end+pd.Timedelta(hours=73)).timestamp()*1000) if tf=="1h" else int(end.timestamp()*1000),
-                          include_boundary_open=(tf=="1h"),
-                          signal_boundary_ms=int(end.timestamp()*1000) if tf=="1h" else None)
-                  for tf in ("1h","30m","4h","1d")}''')
-        source = source.replace('                c=h1.iloc[i]; close_time=c.close_time',
-                                '                c=h1.iloc[i]; close_time=c.close_time\n                if c.open_time >= end: break', 1)
-    return_line = '    return d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]'
-    replacement = '''    d=d.sort_values("open_time").drop_duplicates("open_time").reset_index(drop=True)[["open_time","close_time","open","high","low","close","volume"]]
-    _ab_record_input(symbol, tf, d)
-    return d'''
-    if return_line not in source: raise SystemExit(f"Cannot instrument {label} fetch return")
-    source = source.replace(return_line, replacement, 1)
-    source_path.write_text(source, encoding="utf-8")
+    runner_path = WORK / label / "_ab_benchmark_runner.py"
+    runner_path.write_text(RUNNER_SOURCE, encoding="utf-8")
 # Verify both revisions can run the exact same harness entrypoint.
 for label in ("A","B"):
     path=WORK/label
@@ -211,7 +192,7 @@ def one(label, phase, ordinal):
     run_env = ENV.copy()
     run_env["AB_INPUT_MANIFEST"] = str(manifest_path)
     with log_path.open("w",encoding="utf-8") as log_file:
-        proc=subprocess.Popen([sys.executable,"-u","historical_backtest.py"],cwd=path,env=run_env,
+        proc=subprocess.Popen([sys.executable,"-u","_ab_benchmark_runner.py"],cwd=path,env=run_env,
                               stdout=log_file,stderr=subprocess.STDOUT,text=True)
         while proc.poll() is None:
             elapsed=time.perf_counter()-started
@@ -292,10 +273,23 @@ if len(input_manifest_hashes) != 1:
     raise SystemExit("INPUT MISMATCH: raw OHLCV manifests differ; do not compare timings")
 def comparable(s):
     x=s["summary"]
+    diagnostics=x.get("diagnostics",{})
+    # PR #40 intentionally changes free-form HTF rejection wording/statuses.
+    # Compare stable diagnostic counts and event locations, not those new labels.
+    stable_diagnostics={
+        "evaluated":diagnostics.get("evaluated"),
+        "no_signal":diagnostics.get("no_signal"),
+        "signals_before_execution":diagnostics.get("signals_before_execution"),
+        "signals_rejected_anti_chase":diagnostics.get("signals_rejected_anti_chase"),
+        "first_no_signal_locations":[
+            {key:item.get(key) for key in ("symbol","time","error")}
+            for item in diagnostics.get("first_no_signal_reasons",[])
+        ],
+    }
     return {"period_start":x["period_start"],"period_end":x["period_end"],
             "symbols":x["symbols"],"candidate_trade_count":x["candidate_trade_count"],
             "portfolio":x["portfolio"],"engine_breakdown":x["engine_breakdown"],
-            "diagnostics":x["diagnostics"]}
+            "diagnostics":stable_diagnostics}
 summary_hashes={json.dumps(comparable(s),sort_keys=True,default=str) for s in samples}
 if len(trade_hashes)!=1 or len(summary_hashes)!=1:
     (OUT/"mismatch.json").write_text(json.dumps({
@@ -332,7 +326,8 @@ report={
           "Same GitHub-hosted runner and Python environment for all samples.",
           "Exact Binance kline HTTP responses are cached and replayed to both revisions.",
           "Wall time includes Python startup; signal_engine stage is the primary optimization metric.",
-          "No signal thresholds, strategy rules, Telegram delivery, or orders are changed."]
+          "No signal thresholds, strategy rules, Telegram delivery, or orders are changed.",
+          "Free-form HTF rejection wording/status labels are intentionally excluded from exact diagnostic equality; stable diagnostic counts and event locations plus exact trades/portfolio remain checked."]
 }
 progress_path.write_text(json.dumps({"status":"BENCHMARK_COMPARISON_COMPLETE","completed_unix":time.time()},indent=2),encoding="utf-8")
 report["signal_engine_median_improvement_pct"]=round(
