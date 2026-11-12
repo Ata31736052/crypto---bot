@@ -9614,6 +9614,17 @@ def scan_market():
 
     scan_start = time.time()
 
+    # Position management is independent of the new-entry universe. Even if
+    # Binance returns no eligible symbols, previously announced Spot buys
+    # must still be checked for exits.
+    state = load_bot_state()
+    history = load_signal_history()
+    exit_stats = manage_open_spot_positions(state)
+    log(
+        f"Spot exit monitor: checked={exit_stats.get('checked', 0)} "
+        f"events={exit_stats.get('events', 0)} errors={exit_stats.get('errors', 0)}"
+    )
+
     log(
         "======================================"
     )
@@ -9700,16 +9711,7 @@ def scan_market():
     # 3. STATE / HISTORY
     # =====================================================
 
-    state = load_bot_state()
-
-    history = load_signal_history()
-
-    # Manage previously announced Spot BUY positions before considering new entries.
-    exit_stats = manage_open_spot_positions(state)
-    log(
-        f"Spot exit monitor: checked={exit_stats.get('checked', 0)} "
-        f"events={exit_stats.get('events', 0)} errors={exit_stats.get('errors', 0)}"
-    )
+    # State/history were loaded and open Spot positions managed at scan start.
 
     # =====================================================
     # 3.5 UPDATE SIGNAL OUTCOMES
