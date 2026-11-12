@@ -1,0 +1,46 @@
+name: A-B Harness Static Checks
+
+on:
+  push:
+    branches:
+      - integration/pr40-pr43-mainline-20261111
+    paths:
+      - 'scripts/ab_benchmark.py'
+      - '.github/workflows/ab-harness-static.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  static-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile harness and embedded runtime runner
+        run: |
+          python -m py_compile scripts/ab_benchmark.py
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          source = Path("scripts/ab_benchmark.py").read_text(encoding="utf-8")
+          tree = ast.parse(source, filename="scripts/ab_benchmark.py")
+          runner = None
+          for node in tree.body:
+              if isinstance(node, ast.Assign):
+                  if any(isinstance(target, ast.Name) and target.id == "RUNNER_SOURCE" for target in node.targets):
+                      runner = ast.literal_eval(node.value)
+                      break
+          if not isinstance(runner, str):
+              raise SystemExit("RUNNER_SOURCE string not found")
+          compile(runner, "<ab-benchmark-runtime-runner>", "exec")
+          assert "inspect.signature(original_fetch)" in runner
+          assert "bt.fetch = traced_fetch" in runner
+          print("AB_HARNESS_AND_RUNTIME_RUNNER_SYNTAX: PASS")
+          PY
