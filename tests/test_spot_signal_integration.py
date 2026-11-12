@@ -113,3 +113,42 @@ class SpotExitMonitorIntegrationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+class SpotClosedCandleBoundaryTests(unittest.TestCase):
+    def test_forming_and_boundary_candles_are_excluded(self):
+        now = pd.Timestamp("2026-11-12T10:30:00Z")
+        frame = pd.DataFrame([
+            {
+                "open_time": pd.Timestamp("2026-11-12T08:00:00Z"),
+                "close_time": pd.Timestamp("2026-11-12T08:59:59.999Z"),
+                "high": 101.0, "low": 99.0, "close": 100.0,
+            },
+            {
+                "open_time": pd.Timestamp("2026-11-12T09:00:00Z"),
+                "close_time": pd.Timestamp("2026-11-12T09:59:59.999Z"),
+                "high": 150.0, "low": 50.0, "close": 100.0,
+            },
+            {
+                "open_time": pd.Timestamp("2026-11-12T10:00:00Z"),
+                "close_time": pd.Timestamp("2026-11-12T10:59:59.999Z"),
+                "high": 999.0, "low": 1.0, "close": 100.0,
+            },
+        ])
+        closed = main._latest_closed_spot_candles(frame, now)
+        self.assertEqual(len(closed), 2)
+        self.assertEqual(
+            closed.iloc[-1]["open_time"],
+            pd.Timestamp("2026-11-12T09:00:00Z"),
+        )
+        self.assertTrue((pd.to_datetime(closed["close_time"], utc=True) < now).all())
+
+    def test_candle_closing_exactly_at_now_is_not_yet_accepted(self):
+        now = pd.Timestamp("2026-11-12T10:00:00Z")
+        frame = pd.DataFrame([{
+            "open_time": pd.Timestamp("2026-11-12T09:00:00Z"),
+            "close_time": now,
+            "high": 150.0, "low": 50.0, "close": 100.0,
+        }])
+        self.assertTrue(main._latest_closed_spot_candles(frame, now).empty)
