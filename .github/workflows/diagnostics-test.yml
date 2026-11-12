@@ -65,8 +65,14 @@ jobs:
           if failed:
               raise SystemExit('Source verification failed: ' + ', '.join(failed))
           PY
-          python -m py_compile main.py historical_backtest.py portfolio_ledger.py
+          python -m py_compile main.py historical_backtest.py portfolio_ledger.py spot_position_manager.py
           echo "Python compile (main + historical backtest + portfolio ledger): PASS"
+      - name: Run Spot position lifecycle tests (offline, no Telegram)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests -p 'test_spot_position_manager.py' -v
+
       - name: Run deterministic historical backtest boundary tests (no network, no Telegram)
         shell: bash
         run: |
