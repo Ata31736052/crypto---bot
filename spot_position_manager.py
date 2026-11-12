@@ -48,6 +48,8 @@ def build_open_spot_position(signal: Dict[str, Any], opened_at: Optional[str] = 
         raise ValueError("Spot BUY levels must satisfy stop_loss < entry < tp1 < tp2")
     stamp = opened_at or datetime.now(timezone.utc).isoformat()
     candle_time = str(signal.get("candle_time") or "")
+    if not candle_time:
+        raise ValueError("BUY signal is missing its closed 1H candle timestamp")
     return {
         "symbol": symbol,
         "side": "BUY",
@@ -67,6 +69,7 @@ def build_open_spot_position(signal: Dict[str, Any], opened_at: Optional[str] = 
         "signal_key": str(signal.get("signal_key") or ""),
         "entry_score": int(_number(signal.get("score")) or 0),
         "entry_engine": str(signal.get("engine") or signal.get("signal_mode") or "TREND"),
+        "signal_timeframe": str(signal.get("signal_timeframe") or "1h").lower(),
     }
 
 
