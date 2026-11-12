@@ -134,6 +134,12 @@ def evaluate_closed_candle(
         return result(event, "PROTECTIVE_STOP_TOUCHED", stop, remaining,
                       remaining_after=0.0, stop_after=stop, closed=True)
 
+    # A confirmed 1H structure failure at the candle close takes precedence
+    # over an intrabar upside touch when only 1H OHLC is available.
+    if trend_invalidated:
+        return result("TREND_INVALIDATION_EXIT", "CLOSED_1H_TREND_INVALIDATION", close, remaining,
+                      remaining_after=0.0, stop_after=stop, closed=True)
+
     if not tp1_done and high >= tp1:
         partial = min(remaining, _number(position.get("initial_quantity")) * 0.5)
         rest = max(0.0, remaining - partial)
@@ -142,10 +148,6 @@ def evaluate_closed_candle(
 
     if tp1_done and high >= tp2:
         return result("TP2_EXIT", "SECOND_TARGET_TOUCHED", tp2, remaining,
-                      remaining_after=0.0, stop_after=stop, closed=True)
-
-    if trend_invalidated:
-        return result("TREND_INVALIDATION_EXIT", "CLOSED_1H_TREND_INVALIDATION", close, remaining,
                       remaining_after=0.0, stop_after=stop, closed=True)
 
     if max_hold_hours > 0 and age_hours >= max_hold_hours:
@@ -229,6 +231,13 @@ def spot_exit_self_test() -> bool:
         trend_invalidated=True,
     )
     assert invalidation["event"] == "TREND_INVALIDATION_EXIT"
+    # A bearish closed 1H candle is not allowed to claim an intrabar TP1 touch.
+    conservative_invalidation = evaluate_closed_candle(
+        build_open_spot_position(buy, "2026-01-01T01:00:00+00:00"),
+        {"open_time": "2026-01-01T01:00:00+00:00", "high": 110.0, "low": 99.0, "close": 102.0},
+        trend_invalidated=True,
+    )
+    assert conservative_invalidation["event"] == "TREND_INVALIDATION_EXIT"
 
     p = apply_exit_transition(p, tp2)
     duplicate = evaluate_closed_candle(p, {
