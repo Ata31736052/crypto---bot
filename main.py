@@ -6669,6 +6669,24 @@ def process_signal(signal, state, history):
     return {"sent": True, "duplicate": False, "entry": True}
 
 
+def _latest_closed_spot_candles(frame, now_utc=None):
+    """Return only 1H rows whose Binance close_time is strictly before UTC now.
+
+    get_klines already filters forming candles, but this second boundary check
+    protects the position monitor against mocked, cached, delayed, or otherwise
+    unfiltered frames and prevents a still-forming OHLC row from triggering exits.
+    """
+    if frame is None or frame.empty or "close_time" not in frame.columns:
+        return frame.iloc[0:0].copy() if isinstance(frame, pd.DataFrame) else pd.DataFrame()
+    clock = pd.Timestamp.now(tz="UTC") if now_utc is None else pd.Timestamp(now_utc)
+    if clock.tzinfo is None:
+        clock = clock.tz_localize("UTC")
+    else:
+        clock = clock.tz_convert("UTC")
+    close_times = pd.to_datetime(frame["close_time"], utc=True, errors="coerce")
+    return frame.loc[close_times < clock].copy()
+
+
 def manage_open_spot_positions(state):
     """Check each tracked BUY against the latest closed 1H candle and send exit alerts."""
     positions = state.setdefault("spot_positions", {})
@@ -6687,9 +6705,17 @@ def manage_open_spot_positions(state):
             frame = add_indicators(raw) if raw is not None else None
             if frame is None or frame.empty:
                 errors += 1
-                log(f"Spot exit monitor skipped: {symbol} | closed 1H data unavailable")
+                log(f"Spot exit monitor skipped: {symbol} | 1H data unavailable")
                 continue
-            row = frame.iloc[-1]
+
+            # Defense in depth: never let a forming candle determine a Spot exit.
+            closed_frame = _latest_closed_spot_candles(frame)
+            if closed_frame.empty:
+                errors += 1
+                log(f"Spot exit monitor skipped: {symbol} | no fully closed 1H candle")
+                continue
+
+            row = closed_frame.iloc[-1]
             candle_time = pd.Timestamp(row["open_time"]).isoformat()
             if candle_time and candle_time <= str(position.get("last_checked_candle") or ""):
                 continue
