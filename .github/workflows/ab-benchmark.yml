@@ -12,7 +12,7 @@ on:
       candidate_sha:
         description: "Candidate commit SHA (immutable)"
         required: true
-        default: "55c6073bf018126587b62d20d5520e277da0249c"
+        default: "b79b9d7476684a98868ddf5fc097478f84efc44f"
         type: string
       days:
         description: "Historical period in days"
