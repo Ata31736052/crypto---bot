@@ -227,9 +227,10 @@ def spot_exit_self_test() -> bool:
     )
     assert invalidation["event"] == "TREND_INVALIDATION_EXIT"
 
+    p = apply_exit_transition(p, tp2)
     duplicate = evaluate_closed_candle(p, {
         "open_time": "2026-01-01T02:00:00+00:00", "high": 113.0,
         "low": 101.0, "close": 112.5,
     })
-    assert duplicate["event"] == "NONE" and duplicate["reason"] == "CANDLE_ALREADY_PROCESSED"
+    assert duplicate["event"] == "NONE" and duplicate["reason"] == "POSITION_NOT_OPEN"
     return True
