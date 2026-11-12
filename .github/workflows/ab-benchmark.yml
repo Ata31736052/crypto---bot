@@ -7,12 +7,12 @@ on:
       base_sha:
         description: "Baseline commit SHA (immutable)"
         required: true
-        default: "af635645609f0551aabe3bb1d08926f088a891ec"
+        default: "78c3f017c5c51aa745ffa50f58a588e729c37de9"
         type: string
       candidate_sha:
         description: "Candidate commit SHA (immutable)"
         required: true
-        default: "6444936a0a87d1f99ab6fc2be9e8ee0024a9a874"
+        default: "55c6073bf018126587b62d20d5520e277da0249c"
         type: string
       days:
         description: "Historical period in days"
