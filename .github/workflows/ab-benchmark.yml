@@ -17,7 +17,7 @@ on:
       days:
         description: "Historical period in days"
         required: true
-        default: "30"
+        default: "180"
         type: string
       symbols:
         description: "Comma-separated Binance Spot USDT symbols"
