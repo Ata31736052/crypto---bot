@@ -16,6 +16,12 @@ import requests
 import pandas as pd
 import numpy as np
 
+from spot_position_manager import (
+    apply_exit_transition,
+    build_open_spot_position,
+    evaluate_closed_candle,
+)
+
 from datetime import datetime, timezone, timedelta
 
 
@@ -6082,6 +6088,8 @@ def get_empty_state():
     return {
         "state_schema_version": STATE_SCHEMA_VERSION,
         "last_signals": {},
+        "spot_positions": {},
+        "spot_position_events": [],
         "last_scan": None,
         "total_scans": 0,
         "total_signals": 0
@@ -6133,6 +6141,12 @@ def load_bot_state():
     if "last_scan" not in state:
 
         state["last_scan"] = None
+
+    if not isinstance(state.get("spot_positions"), dict):
+        state["spot_positions"] = {}
+
+    if not isinstance(state.get("spot_position_events"), list):
+        state["spot_position_events"] = []
 
     return state
 
@@ -6525,139 +6539,216 @@ def add_signal_to_history(
 # PROCESS NEW SIGNAL
 # =========================================================
 
-def process_signal(
-    signal,
-    state,
-    history
-):
-    """
-    اگر سیگنال جدید باشد:
+def _spot_exit_message(position, event, price, quantity, reason, remaining_quantity=0.0):
+    """Build a human-executable Spot exit alert; never submits an exchange order."""
+    symbol = telegram_escape(position.get("symbol", "UNKNOWN"))
+    event_labels = {
+        "TP1_PARTIAL": "هدف اول لمس شد؛ فروش ۵۰٪ موقعیت پیشنهادی",
+        "TP2_EXIT": "هدف دوم لمس شد؛ خروج از باقی‌مانده موقعیت",
+        "STOP_LOSS": "حد ضرر لمس شد؛ خروج از کل موقعیت باقی‌مانده",
+        "BREAK_EVEN_EXIT": "حد ضرر سربه‌سر لمس شد؛ خروج از باقی‌مانده",
+        "TREND_INVALIDATION_EXIT": "ساختار روند یک‌ساعته نقض شد؛ خروج از باقی‌مانده",
+        "TIME_EXIT": "حداکثر زمان نگهداری تمام شد؛ خروج از باقی‌مانده",
+        "SELL_SIGNAL_EXIT": "سیگنال نزولی تأییدشده؛ خروج از موقعیت خرید اسپات",
+    }
+    action = event_labels.get(str(event).upper(), "خروج از موقعیت اسپات")
+    return (
+        "🔔 <b>SPOT SELL / EXIT ALERT</b>\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        f"🪙 <b>{symbol}</b>\n"
+        f"📌 <b>{telegram_escape(action)}</b>\n"
+        f"💰 قیمت خروج مرجع: <b>{format_price(price)}</b>\n"
+        f"📦 مقدار پیشنهادی خروج: <b>{safe_float(quantity):.8f}</b>\n"
+        f"📦 مقدار باقی‌مانده: <b>{safe_float(remaining_quantity):.8f}</b>\n"
+        f"🛡 حد ضرر جدید: <b>{format_price(position.get('entry') if event == 'TP1_PARTIAL' else position.get('stop_loss'))}</b>\n"
+        f"📝 دلیل: {telegram_escape(reason)}\n\n"
+        "⚠️ <i>این فقط هشدار است؛ هیچ سفارش فروشی خودکار ثبت نشده است.</i>"
+    )
 
-    1. Telegram ارسال می‌شود
-    2. State ذخیره می‌شود
-    3. History ذخیره می‌شود
 
-    اگر قبلاً ارسال شده باشد:
-    دوباره Telegram ارسال نمی‌شود.
-    """
+def _append_spot_position_event(state, event):
+    events = state.setdefault("spot_position_events", [])
+    if not isinstance(events, list):
+        events = []
+        state["spot_position_events"] = events
+    events.append(event)
+    state["spot_position_events"] = events[-500:]
 
+
+def process_signal(signal, state, history):
+    """Process long-only Spot BUY entries and SELL-as-exit alerts."""
     if not signal:
+        return {"sent": False, "duplicate": False, "reason": "EMPTY_SIGNAL"}
 
-        return {
-            "sent": False,
-            "duplicate": False,
-            "reason": "EMPTY_SIGNAL"
-        }
+    side = str(signal.get("signal", "")).upper()
+    if side not in ("BUY", "SELL"):
+        return {"sent": False, "duplicate": False, "reason": "NOT_ACTIONABLE"}
 
-    if signal.get("signal") not in ("BUY", "SELL"):
-        # Invalid/NO_SIGNAL objects are internal analysis results, never
-        # Telegram candidates.  They must not reach risk processing.
-        return {
-            "sent": False,
-            "duplicate": False,
-            "reason": "NOT_ACTIONABLE"
-        }
+    symbol = str(signal.get("symbol", "")).upper().strip()
+    positions = state.setdefault("spot_positions", {})
+    if not isinstance(positions, dict):
+        positions = {}
+        state["spot_positions"] = positions
 
-    # -----------------------------------------------------
-    # Duplicate Check
-    # -----------------------------------------------------
-
-    if is_duplicate_signal(
-        signal,
-        state
-    ):
-
+    if is_duplicate_signal(signal, state):
         signal_mode = str(signal.get("signal_mode", "TREND")).upper()
         signal_tf = str(signal.get("signal_timeframe", TIMEFRAME_MAIN)).lower()
         tf_label = "4H" if signal_mode == "4H_SIGNAL" or signal_tf == "4h" else ("DAILY" if signal_mode == "DAILY_SIGNAL" or signal_tf == "1d" else "1H")
         previous = state.get("last_signals", {}).get(get_signal_key(signal), {})
         log(
-            f"Duplicate skipped: "
-            f"{signal.get('symbol')} "
-            f"{signal.get('signal')} "
-            f"TF={tf_label} "
-            f"Mode={signal_mode} "
-            f"Candle={signal.get('candle_time')} "
-            f"PrevScore={safe_int(previous.get('score', 0))} "
+            f"Duplicate skipped: {symbol} {side} TF={tf_label} Mode={signal_mode} "
+            f"Candle={signal.get('candle_time')} PrevScore={safe_int(previous.get('score', 0))} "
             f"CurrScore={safe_int(signal.get('score', 0))}"
         )
+        return {"sent": False, "duplicate": True, "reason": "DUPLICATE"}
 
-        return {
-            "sent": False,
-            "duplicate": True,
-            "reason": "DUPLICATE"
-        }
+    # Spot is long-only. A bearish SELL candidate can close an existing BUY,
+    # but it can never open a leveraged/short position.
+    if side == "SELL":
+        position = positions.get(symbol)
+        if not isinstance(position, dict) or str(position.get("status", "")).upper() != "OPEN":
+            return {"sent": False, "duplicate": False, "reason": "SPOT_SHORT_DISABLED_NO_OPEN_POSITION"}
 
-    # -----------------------------------------------------
-    # Telegram
-    # -----------------------------------------------------
+        price = safe_float(signal.get("price"), 0.0)
+        if price <= 0:
+            live = get_live_price(symbol)
+            price = safe_float(live.get("price"), 0.0) if live else 0.0
+        if price <= 0:
+            return {"sent": False, "duplicate": False, "reason": "EXIT_PRICE_UNAVAILABLE"}
 
-    sent = send_signal_to_telegram(
-        signal
-    )
-
-    if not sent:
-
-        signal_mode = str(signal.get("signal_mode", "TREND")).upper()
-        signal_tf = str(signal.get("signal_timeframe", TIMEFRAME_MAIN)).lower()
-        tf_label = "4H" if signal_mode == "4H_SIGNAL" or signal_tf == "4h" else ("DAILY" if signal_mode == "DAILY_SIGNAL" or signal_tf == "1d" else "1H")
-        log(
-            f"Signal not sent: {signal.get('symbol')} "
-            f"TF={tf_label} Mode={signal_mode} "
-            f"Reason=TELEGRAM_OR_QUALITY_VALIDATION"
+        quantity = safe_float(position.get("remaining_quantity"), 0.0)
+        message = _spot_exit_message(
+            position, "SELL_SIGNAL_EXIT", price, quantity,
+            "Qualified bearish signal on the closed signal timeframe",
+            0.0,
         )
+        if not send_telegram_message(message):
+            return {"sent": False, "duplicate": False, "reason": "EXIT_ALERT_NOT_SENT"}
 
-        return {
-            "sent": False,
-            "duplicate": False,
-            "reason": "TELEGRAM_OR_QUALITY_VALIDATION"
-        }
+        closed_position = dict(position)
+        closed_position.update({
+            "status": "CLOSED",
+            "remaining_quantity": 0.0,
+            "last_exit_event": "SELL_SIGNAL_EXIT",
+            "closed_at": now_iran().isoformat(),
+        })
+        positions.pop(symbol, None)
+        _append_spot_position_event(state, {
+            "symbol": symbol, "event": "SELL_SIGNAL_EXIT", "price": price,
+            "quantity": quantity, "time": now_iran().isoformat(),
+            "signal_candle_time": signal.get("candle_time"),
+        })
+        mark_signal_sent(signal, state)
+        state["total_signals"] = safe_int(state.get("total_signals", 0)) + 1
+        save_bot_state(state)
+        log(f"Spot position exit alert sent: {symbol} SELL_SIGNAL_EXIT qty={quantity:.8f}")
+        return {"sent": True, "duplicate": False, "exit": True}
 
-    # -----------------------------------------------------
-    # Mark as sent
-    # -----------------------------------------------------
+    # Never pyramid or create a second active position for the same Spot pair.
+    existing = positions.get(symbol)
+    if isinstance(existing, dict) and str(existing.get("status", "")).upper() == "OPEN":
+        return {"sent": False, "duplicate": False, "reason": "POSITION_ALREADY_OPEN"}
 
-    mark_signal_sent(
-        signal,
-        state
-    )
+    try:
+        new_position = build_open_spot_position(signal, now_iran().isoformat())
+    except (TypeError, ValueError) as exc:
+        log(f"Spot BUY position rejected: {symbol} | {exc}")
+        return {"sent": False, "duplicate": False, "reason": "INVALID_SPOT_BUY_POSITION"}
 
-    # -----------------------------------------------------
-    # History
-    # -----------------------------------------------------
+    if not send_signal_to_telegram(signal):
+        log(f"Signal not sent: {symbol} BUY Reason=TELEGRAM_OR_QUALITY_VALIDATION")
+        return {"sent": False, "duplicate": False, "reason": "TELEGRAM_OR_QUALITY_VALIDATION"}
 
-    add_signal_to_history(
-        signal,
-        history
-    )
+    mark_signal_sent(signal, state)
+    positions[symbol] = new_position
+    add_signal_to_history(signal, history)
+    state["total_signals"] = safe_int(state.get("total_signals", 0)) + 1
+    save_bot_state(state)
+    save_signal_history(history)
+    log(f"Spot BUY position opened in tracker: {symbol} qty={new_position['remaining_quantity']:.8f}")
+    return {"sent": True, "duplicate": False, "entry": True}
 
-    # -----------------------------------------------------
-    # Counters
-    # -----------------------------------------------------
 
-    state["total_signals"] = safe_int(
-        state.get(
-            "total_signals",
-            0
-        )
-    ) + 1
+def manage_open_spot_positions(state):
+    """Check each tracked BUY against the latest closed 1H candle and send exit alerts."""
+    positions = state.setdefault("spot_positions", {})
+    if not isinstance(positions, dict) or not positions:
+        return {"checked": 0, "events": 0, "errors": 0}
 
-    # -----------------------------------------------------
-    # Save
-    # -----------------------------------------------------
+    checked = events = errors = 0
+    changed = False
+    for symbol, position in list(positions.items()):
+        if not isinstance(position, dict) or str(position.get("status", "")).upper() != "OPEN":
+            positions.pop(symbol, None)
+            changed = True
+            continue
+        try:
+            raw = get_klines(symbol, "1h", limit=KLINE_LIMIT_MAIN)
+            frame = add_indicators(raw) if raw is not None else None
+            if frame is None or frame.empty:
+                errors += 1
+                log(f"Spot exit monitor skipped: {symbol} | closed 1H data unavailable")
+                continue
+            row = frame.iloc[-1]
+            candle_time = pd.Timestamp(row["open_time"]).isoformat()
+            if candle_time and candle_time <= str(position.get("last_checked_candle") or ""):
+                continue
+            checked += 1
+            close = safe_float(row.get("close"), 0.0)
+            ema21 = safe_float(row.get("ema21"), 0.0)
+            macd_hist = safe_float(row.get("macd_hist"), 0.0)
+            trend_invalidated = close > 0 and ema21 > 0 and close < ema21 and macd_hist < 0
+            candle = {
+                "open_time": candle_time,
+                "close_time": pd.Timestamp(row["close_time"]).isoformat(),
+                "high": safe_float(row.get("high"), 0.0),
+                "low": safe_float(row.get("low"), 0.0),
+                "close": close,
+            }
+            transition = evaluate_closed_candle(
+                position, candle, trend_invalidated=trend_invalidated, max_hold_hours=72.0
+            )
+            event = str(transition.get("event", "NONE")).upper()
+            if event == "NONE":
+                if transition.get("reason") == "NO_EXIT_CONDITION":
+                    positions[symbol] = apply_exit_transition(position, transition)
+                    changed = True
+                continue
 
-    save_bot_state(
-        state
-    )
+            quantity = safe_float(transition.get("exit_quantity"), 0.0)
+            remaining = safe_float(transition.get("remaining_quantity"), 0.0)
+            message = _spot_exit_message(
+                position, event, transition.get("exit_price", close), quantity,
+                transition.get("reason", event), remaining,
+            )
+            if not send_telegram_message(message):
+                errors += 1
+                log(f"Spot exit alert delivery failed: {symbol} | {event}; candle will be retried")
+                continue
 
-    save_signal_history(
-        history
-    )
+            updated = apply_exit_transition(position, transition)
+            if str(updated.get("status", "")).upper() == "CLOSED":
+                positions.pop(symbol, None)
+            else:
+                positions[symbol] = updated
+            _append_spot_position_event(state, {
+                "symbol": symbol, "event": event,
+                "price": safe_float(transition.get("exit_price"), close),
+                "quantity": quantity, "remaining_quantity": remaining,
+                "time": now_iran().isoformat(), "candle_time": candle_time,
+            })
+            events += 1
+            changed = True
+            log(f"Spot exit alert sent: {symbol} | {event} | qty={quantity:.8f}")
+        except Exception as exc:
+            errors += 1
+            log(f"Spot exit monitor error: {symbol} | {exc}")
+            if DEBUG_MODE:
+                traceback.print_exc()
 
-    return {
-        "sent": True,
-        "duplicate": False
-    }
+    if changed:
+        save_bot_state(state)
+    return {"checked": checked, "events": events, "errors": errors}
 
 
 # =========================================================
@@ -9613,6 +9704,13 @@ def scan_market():
 
     history = load_signal_history()
 
+    # Manage previously announced Spot BUY positions before considering new entries.
+    exit_stats = manage_open_spot_positions(state)
+    log(
+        f"Spot exit monitor: checked={exit_stats.get('checked', 0)} "
+        f"events={exit_stats.get('events', 0)} errors={exit_stats.get('errors', 0)}"
+    )
+
     # =====================================================
     # 3.5 UPDATE SIGNAL OUTCOMES
     # =====================================================
@@ -9791,6 +9889,7 @@ def scan_market():
     state = update_scan_state(
         state
     )
+    save_bot_state(state)
 
     # =====================================================
     # 8. SUMMARY
