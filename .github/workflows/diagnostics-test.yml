@@ -96,6 +96,7 @@ jobs:
               ('v63.10 root fix', main.run_v63_10_root_fix_self_test),
               ('v63.12 root fix', main.run_v63_12_root_fix3_self_test),
               ('v63.14 diagnostic trace', main.run_v63_14_diagnostic_trace_self_test),
+              ('HTF alignment status classification', main.run_htf_alignment_status_self_test),
               ('v63.14.1 root fix', main.run_v63_14_1_root_fix_self_test),
               ('v63.14.2 Bottom RSI regression', main.run_v63_14_2_bottom_rsi_self_test),
               ('v63.14.3 outcome boundary + historical freshness', main.run_v63_14_3_outcome_boundary_self_test),
