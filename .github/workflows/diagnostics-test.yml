@@ -71,7 +71,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m unittest discover -s tests -p 'test_spot_position_manager.py' -v
+          python -m unittest discover -s tests -p 'test_spot_*.py' -v
 
       - name: Run deterministic historical backtest boundary tests (no network, no Telegram)
         shell: bash
