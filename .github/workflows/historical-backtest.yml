@@ -9,9 +9,9 @@ on:
         default: "180"
         type: string
       symbols:
-        description: "Comma-separated Binance Spot USDT symbols"
-        required: true
-        default: "ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT"
+        description: "Optional override. Leave blank to snapshot the production Binance Spot universe (up to TARGET_MAX_COINS, BTC excluded)."
+        required: false
+        default: ""
         type: string
       fee_bps:
         description: "Fee in basis points per side (10 = 0.10%)"
@@ -24,7 +24,7 @@ on:
         default: "5"
         type: string
       end_time:
-        description: "Fixed UTC end timestamp (ISO-8601, e.g. 2026-10-13T12:00:00Z); blank uses current UTC hour"
+        description: "Optional fixed UTC end timestamp; blank uses the latest UTC hour boundary (closed-candle cutoff)."
         required: false
         default: ""
         type: string
@@ -37,13 +37,16 @@ concurrency:
 jobs:
   backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 360
     env:
       BACKTEST_DAYS: ${{ github.event.inputs.days || '180' }}
-      BACKTEST_SYMBOLS: ${{ github.event.inputs.symbols || 'ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT' }}
+      BACKTEST_SYMBOLS: ${{ github.event.inputs.symbols || '' }}
       BACKTEST_FEE_BPS: ${{ github.event.inputs.fee_bps || '10' }}
       BACKTEST_SLIPPAGE_BPS: ${{ github.event.inputs.slippage_bps || '5' }}
-      BACKTEST_END_TIME: ${{ github.event.inputs.end_time || '2026-10-13T13:00:00Z' }}
+      BACKTEST_INITIAL_CAPITAL_USDT: "1000"
+      BACKTEST_RISK_PCT: "1.0"
+      BACKTEST_MAX_POSITION_PCT: "100"
+      BACKTEST_END_TIME: ${{ github.event.inputs.end_time || '' }}
       PYTHONUNBUFFERED: "1"
       TELEGRAM_TOKEN: ""
       TELEGRAM_CHAT_ID: ""
@@ -69,6 +72,8 @@ jobs:
           assert "portfolio_ledger" in s
           assert "WARMUP_DAYS = 250" in s and "WARMUP_BARS = 200" in s
           assert "validate_warmup" in s
+          assert "main.get_scan_coins()" in s and "universe_source" in s
+          assert "BACKTEST_END_TIME" in s
           from historical_backtest import validate_warmup_self_test, simulate_self_test, entry_location_guard_self_test, closed_prefix_self_test, closed_end_cutoff_self_test, boundary_execution_candle_self_test, finite_ohlcv_self_test
           validate_warmup_self_test()
           simulate_self_test()
