@@ -1498,16 +1498,11 @@ def get_symbol_market_data(symbol):
         )
 
         if confirm_df is None or confirm_df.empty:
+            log(f"⚠️ Optional 30M confirmation data unavailable: {binance_symbol}")
+            confirm_df = None
 
-            log(
-                f"⚠️ No 30M data: "
-                f"{binance_symbol}"
-            )
-
-            return None
-
-        # 4H/Daily are optional: the core 1H+30M scan must continue even
-        # when Binance has a temporary/missing higher-TF response.
+        # 1H is required for TREND. 30M remains available to engines that
+        # explicitly use it (Bottom Hunter / Breakout), but is not a scan prerequisite.
         df_4h = get_4h_data(binance_symbol)
         if df_4h is None or df_4h.empty:
             log(f"⚠️ Optional 4H data unavailable: {binance_symbol}")
@@ -1789,7 +1784,7 @@ def prepare_symbol_data(symbol):
 
         for tf, frame in frames.items():
             if not validate_market_dataframe(frame):
-                if tf in ("1h", "30m"):
+                if tf == "1h":
                     log(f"⚠️ Invalid required {tf} data: {symbol}")
                     return None
                 log(f"⚠️ Optional {tf} data unavailable: {symbol}")
@@ -1798,7 +1793,7 @@ def prepare_symbol_data(symbol):
 
             frame = add_indicators(frame)
             if frame is None or frame.empty:
-                if tf in ("1h", "30m"):
+                if tf == "1h":
                     log(f"⚠️ Failed required indicators {tf}: {symbol}")
                     return None
                 log(f"⚠️ Optional indicators failed {tf}: {symbol}")
@@ -3968,15 +3963,8 @@ def evaluate_final_signal(
     df_4h = data.get("4h")
     df_daily = data.get("1d")
 
-    if (
-        df_1h is None
-        or df_30m is None
-        or len(df_1h) < 50
-        or len(df_30m) < 30
-    ):
-        result["warnings"].append(
-            "Insufficient timeframe data"
-        )
+    if df_1h is None or len(df_1h) < 50:
+        result["warnings"].append("Insufficient 1H timeframe data")
         return result
 
     # =====================================================
@@ -3997,15 +3985,9 @@ def evaluate_final_signal(
     # 30M CONFIRMATION
     # =====================================================
 
-    buy_confirm = score_30m_confirmation(
-        df_30m,
-        "BUY"
-    )
-
-    sell_confirm = score_30m_confirmation(
-        df_30m,
-        "SELL"
-    )
+    # 1H TREND does not use 15M/30M confirmation or score bonuses.
+    buy_confirm = {"score": 0, "confirmed": None, "reasons": [], "confirmations": 0}
+    sell_confirm = {"score": 0, "confirmed": None, "reasons": [], "confirmations": 0}
 
     if DEBUG_MODE:
         log(
@@ -4087,11 +4069,7 @@ def evaluate_final_signal(
     # 30M confirmation
     # -----------------------------------------------------
 
-    if buy_main["hard_pass"]:
-        buy_score += buy_confirm["score"]
-
-    if sell_main["hard_pass"]:
-        sell_score += sell_confirm["score"]
+    # Lower-timeframe confirmation is intentionally excluded from 1H TREND.
 
     # -----------------------------------------------------
     # BTC
@@ -4185,8 +4163,8 @@ def evaluate_final_signal(
     # Root quality fix: if BUY and SELL are both technically eligible but
     # nearly tied, the market is ambiguous. Do not manufacture a direction.
     both_directional = (
-        buy_main["hard_pass"] and buy_btc["allowed"] and buy_confirm["confirmed"] and buy_score >= MIN_SCORE
-        and sell_main["hard_pass"] and sell_btc["allowed"] and sell_confirm["confirmed"] and sell_score >= SELL_MIN_SCORE
+        buy_main["hard_pass"] and buy_btc["allowed"] and buy_score >= MIN_SCORE
+        and sell_main["hard_pass"] and sell_btc["allowed"] and sell_score >= SELL_MIN_SCORE
     )
     if both_directional and abs(buy_score - sell_score) < PRO_MIN_SIDE_SCORE_GAP:
         if DEBUG_MODE:
@@ -4204,7 +4182,6 @@ def evaluate_final_signal(
     if (
         buy_main["hard_pass"]
         and buy_btc["allowed"]
-        and buy_confirm["confirmed"]
         and buy_score >= MIN_SCORE
     ):
         selected_side = "BUY"
@@ -4213,7 +4190,6 @@ def evaluate_final_signal(
     if (
         sell_main["hard_pass"]
         and sell_btc["allowed"]
-        and sell_confirm["confirmed"]
         and sell_score >= SELL_MIN_SCORE
     ):
         if (
@@ -8568,7 +8544,7 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
 
     if df1 is None or len(df1) < 60:
         return False, ["required signal timeframe data unavailable"], 0
-    if confirm_df is None or len(confirm_df) < 35:
+    if mode != "TREND" and (confirm_df is None or len(confirm_df) < 35):
         return False, ["required confirmation timeframe data unavailable"], 0
 
     r1 = df1.iloc[-1]
@@ -8724,29 +8700,31 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     # v50: initialize these locals before the confirmation call so a malformed
     # confirmation result or future branch change can never raise an
     # UnboundLocalError such as the LINK failure seen in Run #75.
-    try:
-        confirm = score_30m_confirmation(confirm_df, side, timeframe_label=confirmation_tf_label) or {}
-    except Exception as exc:
-        reject.append(f"confirmation error: {exc}")
-        confirm = {}
-    confirmations = safe_int(confirm.get("confirmations", 0))
     required_confirmations = PRO_SELL_MIN_30M_CONFIRMATIONS if side == "SELL" and mode != "BOTTOM_HUNTER" else PRO_MIN_30M_CONFIRMATIONS
-    if mode in ("4H_SIGNAL", "DAILY_SIGNAL"):
-        # HTF setup gets a directional lower-timeframe confirmation, but does
-        # not inherit the main 1H/30M gate as if it were a 1H signal.
-        if not confirm.get("confirmed"):
-            reject.append(f"HTF confirmation insufficient ({confirmations})")
+    if mode == "TREND":
+        confirm = {}
+        confirmations = 0
+    else:
+        try:
+            confirm = score_30m_confirmation(confirm_df, side, timeframe_label=confirmation_tf_label) or {}
+        except Exception as exc:
+            reject.append(f"confirmation error: {exc}")
+            confirm = {}
+        confirmations = safe_int(confirm.get("confirmations", 0))
+        if mode in ("4H_SIGNAL", "DAILY_SIGNAL"):
+            if not confirm.get("confirmed"):
+                reject.append(f"HTF confirmation insufficient ({confirmations})")
+            else:
+                quality += 3
+        elif (not confirm.get("confirmed") or
+              (mode == "BOTTOM_HUNTER" and confirmations < PRO_BOTTOM_MIN_30M_CONFIRMATIONS) or
+              (mode != "BOTTOM_HUNTER" and side == "SELL" and confirmations < required_confirmations)):
+            if mode == "BOTTOM_HUNTER":
+                reject.append(f"30M reversal confirmation insufficient (actual={confirmations}; required>={PRO_BOTTOM_MIN_30M_CONFIRMATIONS})")
+            else:
+                reject.append(f"30M confirmation insufficient (actual={confirmations}; required>={required_confirmations})")
         else:
             quality += 3
-    elif (not confirm.get("confirmed") or
-          (mode == "BOTTOM_HUNTER" and confirmations < PRO_BOTTOM_MIN_30M_CONFIRMATIONS) or
-          (mode != "BOTTOM_HUNTER" and side == "SELL" and confirmations < required_confirmations)):
-        if mode == "BOTTOM_HUNTER":
-            reject.append(f"30M reversal confirmation insufficient (actual={confirmations}; required>={PRO_BOTTOM_MIN_30M_CONFIRMATIONS})")
-        else:
-            reject.append(f"30M confirmation insufficient (actual={confirmations}; required>={required_confirmations})")
-    else:
-        quality += 3
 
     # SOFT/HARD macro context: missing HTF data is tolerated, but an explicit
     # opposite 4H/Daily regime does not receive a quality bonus.
@@ -8862,8 +8840,11 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     conf_ok = bool(confirm.get("confirmed")) and confirmations >= conf_required
     if mode in ("4H_SIGNAL", "DAILY_SIGNAL"):
         conf_ok = bool(confirm.get("confirmed"))
-    confirmation_ledger_key = f"{confirmation_tf_label}_confirmation"
-    ledger[confirmation_ledger_key] = _diag_item(3 if conf_ok else 0, 3, "PASS" if conf_ok else "FAIL", confirmations, f">={conf_required}")
+    if mode == "TREND":
+        ledger["lower_timeframe_confirmation"] = _diag_item(0, 0, "NOT_REQUIRED", 0, "not required for 1H TREND")
+    else:
+        confirmation_ledger_key = f"{confirmation_tf_label}_confirmation"
+        ledger[confirmation_ledger_key] = _diag_item(3 if conf_ok else 0, 3, "PASS" if conf_ok else "FAIL", confirmations, f">={conf_required}")
     ledger["HTF_alignment"] = _diag_item(3 if htf_align >= 2 else (2 if htf_align == 1 else 0), 3, "PASS" if htf_align >= required_htf else "FAIL", htf_align, f">={required_htf}")
     btc_ok = not ((side == "BUY" and combined == "BEARISH") or (side == "SELL" and combined == "BULLISH"))
     ledger["BTC_context"] = _diag_item(1 if btc_ok and combined not in ("UNKNOWN", "") else 0, 1, "PASS" if btc_ok else "FAIL", combined)
@@ -9026,8 +9007,8 @@ def analyze_one_symbol(symbol, btc_regime):
         if not data:
             return {"ok": False, "symbol": symbol, "signal": None, "error": "No market data"}
         df_1h, df_30m = data.get("1h"), data.get("30m")
-        if df_1h is None or df_30m is None:
-            return {"ok": False, "symbol": symbol, "signal": None, "error": "Required 1H/30M data unavailable"}
+        if df_1h is None:
+            return {"ok": False, "symbol": symbol, "signal": None, "error": "Required 1H data unavailable"}
 
         mtf_context = get_mtf_context(data)
         bottom_diagnostic = {}
@@ -9068,7 +9049,8 @@ def analyze_one_symbol(symbol, btc_regime):
                         trace["first_rejection"] = "TREND:PROFESSIONAL_REJECT"
                     trend_signal = None
 
-        bottom_signal = score_bottom_hunter(df_1h, df_30m, btc_regime, diagnostic=bottom_diagnostic, mtf_context=mtf_context)
+        bottom_signal = (score_bottom_hunter(df_1h, df_30m, btc_regime, diagnostic=bottom_diagnostic, mtf_context=mtf_context)
+                         if df_30m is not None and len(df_30m) >= 30 else None)
         trace["reversal"] = {
             "candidate": bool(bottom_signal),
             "diagnostic": dict(bottom_diagnostic),
