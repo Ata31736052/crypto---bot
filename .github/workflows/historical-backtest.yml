@@ -9,9 +9,9 @@ on:
         default: "180"
         type: string
       symbols:
-        description: "Comma-separated Binance Spot USDT symbols"
-        required: true
-        default: "ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT"
+        description: "Optional override. Leave blank to use the selected branch's default universe behavior."
+        required: false
+        default: ""
         type: string
       fee_bps:
         description: "Fee in basis points per side (10 = 0.10%)"
