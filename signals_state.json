@@ -71,9 +71,9 @@
       "sent_at": "2026-10-04T08:53:35.762607+03:30"
     }
   },
-  "total_scans": 132,
+  "total_scans": 133,
   "total_signals": 479,
-  "last_scan": "2026-11-14T19:01:33.207350+03:30",
+  "last_scan": "2026-11-14T20:01:25.602095+03:30",
   "state_schema_version": 2,
   "spot_positions": {},
   "spot_position_events": []
