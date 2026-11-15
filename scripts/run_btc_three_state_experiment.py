@@ -2,8 +2,9 @@
 """Paired offline A/B: baseline vs Bottom Hunter-only BUY allowance in full BTC BEARISH.
 
 No live scanner, order execution, Telegram, or production source edits.
-The same frozen Binance Spot universe, end time, costs and portfolio settings
-are used for both replays. Mixed BTC regimes normalize to NEUTRAL in the experiment.
+The exact same frozen Binance Spot universe, end time, costs and portfolio settings
+are used for both replays. Mixed BTC regimes and all existing non-Bottom-Hunter gates
+remain unchanged so the full-BEARISH Bottom Hunter exception is isolated.
 """
 import json
 import os
@@ -17,29 +18,21 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import pandas as pd
 import main
 
-# Freeze one liquid universe before either replay. This avoids A/B universe drift.
-max_symbols = int(os.getenv("BTC_EXPERIMENT_MAX_SYMBOLS", "30"))
-if not 5 <= max_symbols <= int(getattr(main, "TARGET_MAX_COINS", 100)):
-    raise SystemExit("BTC_EXPERIMENT_MAX_SYMBOLS must be between 5 and TARGET_MAX_COINS")
-
-coins = main.get_scan_coins()
-symbols = [main.to_binance_usdt_symbol(c) for c in coins]
-# Exclude pairs proven by the first replay to lack the required 200 closed warm-up bars.
-# These are mostly recently listed, tokenized-equity, or non-directional quote assets.
-insufficient_history = {"RLUSDUSDT", "SNDKBUSDT", "UUSDT", "SPCXBUSDT", "HYPEUSDT",
-                        "SOXLBUSDT", "RWUSDUSDT", "XAUTUSDT", "NVDABUSDT", "MUBUSDT",
-                        "CRCLBUSDT", "MSTRBUSDT", "SNXXBUSDT", "GOOGLBUSDT", "INTCBUSDT",
-                        "SKHYBUSDT", "QQQBUSDT"}
-symbols = list(dict.fromkeys(s for s in symbols if s and s != "BTCUSDT" and s not in insufficient_history))[:max_symbols]
-if len(symbols) < 5:
-    raise SystemExit(f"Fail closed: only {len(symbols)} historically warmed symbols were resolved")
-if len(symbols) < 5:
-    raise SystemExit(f"Fail closed: only {len(symbols)} eligible symbols were resolved")
+# Reuse the exact frozen 28-symbol universe from the previous paired run #651.
+# This makes the isolated policy replay comparable to the prior combined-policy experiment.
+symbols = [
+    "ETHUSDT", "ZECUSDT", "XRPUSDT", "SOLUSDT", "ONEUSDT", "BNBUSDT",
+    "NEARUSDT", "PEPEUSDT", "UNIUSDT", "TRXUSDT", "SUIUSDT", "PUMPUSDT",
+    "ENAUSDT", "DOGEUSDT", "QNTUSDT", "WLDUSDT", "INJUSDT", "LINKUSDT",
+    "TRUMPUSDT", "AAVEUSDT", "LTCUSDT", "CYBERUSDT", "ACTUSDT", "ADAUSDT",
+    "PAXGUSDT", "CELOUSDT", "GTCUSDT", "AVAXUSDT"
+]
+if len(symbols) != 28 or "BTCUSDT" in symbols:
+    raise SystemExit("Frozen universe integrity check failed")
 
 # Both runs share exactly the same closed-candle end boundary.
-end = os.getenv("BACKTEST_END_TIME", "").strip()
-if not end:
-    end = pd.Timestamp.now(tz="UTC").floor("h").isoformat().replace("+00:00", "Z")
+# Match the exact end boundary of the previous paired run #651.
+end = os.getenv("BACKTEST_END_TIME", "2026-11-07T17:00:00Z").strip()
 pd.Timestamp(end)  # validate format before starting a long replay
 os.environ["BACKTEST_END_TIME"] = end
 os.environ["BACKTEST_DAYS"] = os.getenv("BACKTEST_DAYS", "180")
@@ -59,7 +52,7 @@ experiment_dir = root / "bottom-hunter-bearish-only"
 baseline_dir.mkdir(parents=True, exist_ok=True)
 experiment_dir.mkdir(parents=True, exist_ok=True)
 (root / "frozen-universe.json").write_text(json.dumps({
-    "symbols": symbols, "count": len(symbols), "selection": "top current Binance Spot USDT directional assets by 24h quote volume, BTC excluded",
+    "symbols": symbols, "count": len(symbols), "selection": "frozen exact 28-symbol universe reused from prior run #651",
     "backtest_end_time": end, "days": int(os.environ["BACKTEST_DAYS"]),
     "fee_bps_per_side": float(os.environ["BACKTEST_FEE_BPS"]),
     "slippage_bps_per_side": float(os.environ["BACKTEST_SLIPPAGE_BPS"]),
@@ -91,18 +84,9 @@ baseline = run_replay(baseline_dir)
 # score_btc_regime unchanged and remain blocked in full BEARISH.
 original_bottom = main.score_bottom_hunter
 original_professional = main.professional_signal_quality_gate
-original_analyze = main.analyze_one_symbol
-counts = {"mixed_regimes_normalized_to_neutral": 0,
+counts = {"mixed_regimes_modified": 0,
           "bottom_hunter_calls_in_full_bearish_btc": 0,
           "professional_gate_bypasses_for_bottom_hunter": 0}
-
-def experimental_analyze(symbol, btc_regime):
-    copied = dict(btc_regime or {})
-    combined = str(copied.get("combined", "")).upper()
-    if combined in ("MIXED_BEARISH_1H", "MIXED_BULLISH_1H"):
-        copied["combined"] = "NEUTRAL"
-        counts["mixed_regimes_normalized_to_neutral"] += 1
-    return original_analyze(symbol, copied)
 
 def without_bearish_veto(regime):
     copied = dict(regime or {})
@@ -124,14 +108,12 @@ def experimental_professional(signal, data, btc_regime=None):
         return original_professional(signal, data, without_bearish_veto(btc_regime))
     return original_professional(signal, data, btc_regime)
 
-main.analyze_one_symbol = experimental_analyze
 main.score_bottom_hunter = experimental_bottom
 main.professional_signal_quality_gate = experimental_professional
 try:
     print("=== EXPERIMENT: Bottom Hunter only may BUY in full BTC BEARISH ===", flush=True)
     experiment = run_replay(experiment_dir)
 finally:
-    main.analyze_one_symbol = original_analyze
     main.score_bottom_hunter = original_bottom
     main.professional_signal_quality_gate = original_professional
 
@@ -151,7 +133,7 @@ def engine_metrics(summary, engine="REVERSAL"):
 
 report = {
     "status": "COMPLETED" if baseline.get("status") == "COMPLETED" and experiment.get("status") == "COMPLETED" else "COMPLETED_WITH_ERRORS",
-    "policy": "Three states: BULLISH, NEUTRAL (both mixed labels normalize to NEUTRAL), and BEARISH. In full BEARISH, only BOTTOM_HUNTER BUY bypasses the BTC veto and receives no BTC bonus; Trend and Breakout remain blocked. All non-BTC quality gates remain unchanged.",
+    "policy": "Isolated experiment: preserve all original BTC regime labels and gates, including both MIXED labels. Only in exact full BEARISH may the existing BOTTOM_HUNTER BUY bypass the BTC-specific veto, with no BTC score bonus. Trend and Breakout keep original gates; all non-BTC quality gates remain unchanged.",
     "safety": {"live_main_modified": False, "telegram_enabled": False, "orders_enabled": False,
                "production_thresholds_changed": False, "original_functions_restored": True},
     "experiment_counters": counts,
