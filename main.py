@@ -6388,6 +6388,58 @@ def mark_signal_sent(
     return True
 
 
+def _htf_history_observation(signal):
+    """Return a compact, additive HTF gate record for emitted-signal history.
+
+    This is observational only: it never changes qualification or delivery.
+    Historical records contain emitted signals only, not rejected candidates.
+    """
+    if not isinstance(signal, dict):
+        return None
+    breakdown = signal.get("professional_quality_breakdown")
+    if not isinstance(breakdown, dict):
+        return None
+    try:
+        valid = int(breakdown.get("valid_htf_alignment", breakdown.get("htf_alignment", 0)))
+        legacy = int(breakdown.get("legacy_htf_alignment", breakdown.get("htf_alignment", 0)))
+        required = int(breakdown.get("required_htf_alignment", 0))
+    except (TypeError, ValueError, OverflowError):
+        return None
+    statuses = breakdown.get("htf_statuses", [])
+    status_counts = breakdown.get("htf_status_counts", {})
+    return {
+        "valid_alignment": valid,
+        "legacy_alignment": legacy,
+        "required_alignment": required,
+        "valid_gate_pass": valid >= required,
+        "legacy_gate_pass": legacy >= required,
+        "statuses": list(statuses) if isinstance(statuses, (list, tuple)) else [],
+        "status_counts": dict(status_counts) if isinstance(status_counts, dict) else {},
+        "professional_filter": str(signal.get("professional_filter", "UNKNOWN")),
+    }
+
+
+def run_htf_history_observation_self_test():
+    sample = {
+        "professional_filter": "PASSED",
+        "professional_quality_breakdown": {
+            "valid_htf_alignment": 1,
+            "legacy_htf_alignment": 2,
+            "required_htf_alignment": 1,
+            "htf_statuses": ["4H=ALIGNED", "Daily=INVALID"],
+            "htf_status_counts": {"ALIGNED": 1, "INVALID": 1},
+        },
+    }
+    observed = _htf_history_observation(sample)
+    assert observed["valid_alignment"] == 1
+    assert observed["legacy_alignment"] == 2
+    assert observed["valid_gate_pass"] is True
+    assert observed["legacy_gate_pass"] is True
+    assert observed["statuses"] == ["4H=ALIGNED", "Daily=INVALID"]
+    assert _htf_history_observation({"professional_quality_breakdown": None}) is None
+    return True
+
+
 # =========================================================
 # ADD SIGNAL TO HISTORY
 # =========================================================
@@ -6501,7 +6553,10 @@ def add_signal_to_history(
         "reasons": signal.get(
             "reasons",
             []
-        )
+        ),
+
+        # Additive HTF audit fields; no effect on signal qualification/delivery.
+        "htf_gate_observation": _htf_history_observation(signal)
     }
 
     history.append(
@@ -8735,8 +8790,11 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     else:
         htf_labels = ("4H", "Daily")
     htf_summary = _summarize_htf_alignment(context_frames, side, htf_labels)
-    htf_align = htf_summary["legacy_alignment"]
-    valid_htf_align = htf_summary["valid_alignment"]
+    # Only validated ALIGNED frames may satisfy the decision gate.
+    # Keep the legacy raw count separately for diagnostic comparison.
+    htf_align = htf_summary["valid_alignment"]
+    valid_htf_align = htf_align
+    legacy_htf_align = htf_summary["legacy_alignment"]
     htf_diagnostics = htf_summary["statuses"]
     htf_status_counts = htf_summary["status_counts"]
     required_htf = PRO_BOTTOM_REQUIRE_HTF_ALIGNMENT if mode == "BOTTOM_HUNTER" else (PRO_SELL_MIN_HTF_ALIGNMENT if side == "SELL" else PRO_MIN_HTF_ALIGNMENT)
@@ -8879,7 +8937,7 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         # Legacy aliases retained for compatibility; new logs use the fields above.
         "confirmations_30m": int(confirmations),
         "required_30m": int(required_confirmations), "htf_alignment": int(htf_align),
-        "required_htf_alignment": int(required_htf), "valid_htf_alignment": int(valid_htf_align), "htf_statuses": list(htf_diagnostics), "htf_status_counts": dict(htf_status_counts), "ema21_distance": round(dist21, 2),
+        "required_htf_alignment": int(required_htf), "valid_htf_alignment": int(valid_htf_align), "legacy_htf_alignment": int(legacy_htf_align), "htf_statuses": list(htf_diagnostics), "htf_status_counts": dict(htf_status_counts), "ema21_distance": round(dist21, 2),
         "ema200_distance": round(abs(close / ema200 - 1) * 100 if ema200 > 0 else 999, 2),
         "atr_percent": round(atrp, 2), "rr_tp1": round(rr1, 2), "rr_tp2": round(rr2, 2),
         "reject_count": len(reject), "reject_reasons": list(reject[:12]),
