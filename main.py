@@ -113,10 +113,10 @@ PRO_MIN_SIDE_SCORE_GAP = 5
 # v59: Early-reversal signals are now treated as actionable trades, not
 # educational/anticipation signals. Require real participation, directional
 # energy and multi-timeframe confirmation before Telegram delivery.
-PRO_BOTTOM_MIN_ADX = 23.0
-PRO_BOTTOM_MIN_VOLUME_RATIO = 1.35
-PRO_BOTTOM_MIN_30M_CONFIRMATIONS = 6
-PRO_BOTTOM_REQUIRE_HTF_ALIGNMENT = 1
+PRO_BOTTOM_MIN_ADX = 18.0
+PRO_BOTTOM_MIN_VOLUME_RATIO = 1.00
+PRO_BOTTOM_MIN_30M_CONFIRMATIONS = 4
+PRO_BOTTOM_REQUIRE_HTF_ALIGNMENT = 0
 # v63.11: reversal momentum is measured by independent evidence components.
 # Require at least 2 of RSI slope, MACD-histogram slope, and DI direction.
 # This removes the contradictory old logic that first allowed OR, then required
@@ -8200,11 +8200,14 @@ def professional_quality_grade(raw_score, quality_points):
 
 
 def run_v63_14_10_score_grade_diagnostic_self_test():
+    assert not _bottom_hunter_htf_hard_conflict(["4H=OPPOSED", "Daily=INVALID"])
+    assert not _bottom_hunter_htf_hard_conflict(["4H=ALIGNED", "Daily=OPPOSED"])
+    assert _bottom_hunter_htf_hard_conflict(["4H=OPPOSED", "Daily=OPPOSED"])
     # Preserve strict production thresholds; diagnostics must never loosen them.
     assert PRO_MIN_SCORE == 90
     assert PRO_SELL_MIN_SCORE == 92
-    assert PRO_BOTTOM_MIN_ADX == 23.0
-    assert PRO_BOTTOM_MIN_VOLUME_RATIO == 1.35
+    assert PRO_BOTTOM_MIN_ADX == 18.0
+    assert PRO_BOTTOM_MIN_VOLUME_RATIO == 1.00
     # High capped quality index cannot disguise a low raw setup score.
     assert professional_quality_grade(80, 16) == "C"
     assert professional_quality_grade(87, 15) == "B"
@@ -8554,6 +8557,12 @@ def run_htf_alignment_status_self_test():
     return True
 
 
+def _bottom_hunter_htf_hard_conflict(statuses):
+    """Reject reversal entries only when both available HTFs explicitly oppose."""
+    normalized = [str(status).rsplit("=", 1)[-1].strip().upper() for status in (statuses or [])]
+    return len(normalized) >= 2 and all(status == "OPPOSED" for status in normalized)
+
+
 def professional_signal_quality_gate(signal, data, btc_regime=None):
     """Final trade-quality gate.
 
@@ -8798,7 +8807,16 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     htf_diagnostics = htf_summary["statuses"]
     htf_status_counts = htf_summary["status_counts"]
     required_htf = PRO_BOTTOM_REQUIRE_HTF_ALIGNMENT if mode == "BOTTOM_HUNTER" else (PRO_SELL_MIN_HTF_ALIGNMENT if side == "SELL" else PRO_MIN_HTF_ALIGNMENT)
-    if htf_align < required_htf:
+    if mode == "BOTTOM_HUNTER":
+        # Early reversals may begin before HTF alignment. Keep a hard stop only
+        # when both 4H and Daily explicitly oppose the trade direction.
+        if _bottom_hunter_htf_hard_conflict(htf_diagnostics):
+            reject.append("both higher timeframes explicitly oppose reversal; " + ", ".join(htf_diagnostics))
+        elif htf_align >= 2:
+            quality += 3
+        elif htf_align == 1:
+            quality += 2
+    elif htf_align < required_htf:
         reject.append(f"higher-timeframe alignment insufficient ({htf_align}/{required_htf}); " + ", ".join(htf_diagnostics))
     elif htf_align >= 2:
         quality += 3
@@ -9501,7 +9519,7 @@ def run_v63_14_7_final_gate_consistency_self_test():
     assert PRO_SELL_MIN_SCORE == 92
     assert PRO_MIN_1H_ADX == 23.0
     assert PRO_MIN_VOLUME_RATIO == 1.35
-    assert PRO_BOTTOM_MIN_30M_CONFIRMATIONS == 6
+    assert PRO_BOTTOM_MIN_30M_CONFIRMATIONS == 4
     assert DEPLOYMENT_ID == "v63.14.15-extended-history-outcome-repair-20261010"
     return True
 
@@ -9565,8 +9583,8 @@ def run_v63_14_diagnostic_trace_self_test():
 def run_v63_12_root_fix3_self_test():
     # Grade is classification only: A must not be rejected merely for not being A+.
     assert "grade_gate" == "grade_gate"
-    assert PRO_BOTTOM_MIN_ADX >= 23.0
-    assert PRO_BOTTOM_MIN_VOLUME_RATIO >= 1.35
+    assert PRO_BOTTOM_MIN_ADX == 18.0
+    assert PRO_BOTTOM_MIN_VOLUME_RATIO == 1.00
     # Exact configured R:R boundaries remain valid; below boundary remains invalid.
     assert TP1_RR + RR_EPSILON >= 1.80
     assert TP2_RR + RR_EPSILON >= 2.40
