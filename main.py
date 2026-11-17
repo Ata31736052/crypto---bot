@@ -3515,6 +3515,8 @@ def format_confirmation_diagnostic(breakdown):
     if not isinstance(breakdown, dict):
         breakdown = {}
     timeframe = str(breakdown.get("confirmation_timeframe") or "30M").upper()
+    if timeframe in ("NOT_REQUIRED", "NONE"):
+        return "Lower-timeframe confirmation: not required for 1H TREND"
     actual = breakdown.get("confirmations_lower_tf", breakdown.get("confirmations_30m", 0))
     required = breakdown.get("required_lower_tf", breakdown.get("required_30m", 0))
     return f"{timeframe}={format_confirmation_status(actual, required)}"
@@ -4210,11 +4212,11 @@ def evaluate_final_signal(
                 f"🎯 {symbol} | "
                 f"BUY main={buy_main.get('hard_pass')} "
                 f"score={buy_score} "
-                f"confirm={buy_confirm.get('confirmed')} "
+                f"lower_tf=NOT_REQUIRED "
                 f"btc={buy_btc.get('allowed')} | "
                 f"SELL main={sell_main.get('hard_pass')} "
                 f"score={sell_score} "
-                f"confirm={sell_confirm.get('confirmed')} "
+                f"lower_tf=NOT_REQUIRED "
                 f"btc={sell_btc.get('allowed')}"
             )
 
@@ -4232,14 +4234,16 @@ def evaluate_final_signal(
                 "buy": {
                     "hard_pass": bool(buy_main.get("hard_pass")),
                     "score": int(buy_score),
-                    "confirm": bool(buy_confirm.get("confirmed")),
+                    "confirm": None,
+                    "confirm_required": False,
                     "btc_allowed": bool(buy_btc.get("allowed")),
                     "reasons": list(buy_main.get("reasons", []))[:8] + list(buy_confirm.get("reasons", []))[:4],
                 },
                 "sell": {
                     "hard_pass": bool(sell_main.get("hard_pass")),
                     "score": int(sell_score),
-                    "confirm": bool(sell_confirm.get("confirmed")),
+                    "confirm": None,
+                    "confirm_required": False,
                     "btc_allowed": bool(sell_btc.get("allowed")),
                     "reasons": list(sell_main.get("reasons", []))[:8] + list(sell_confirm.get("reasons", []))[:4],
                 },
@@ -4360,8 +4364,10 @@ def evaluate_final_signal(
             "side": selected_side,
             "buy_score": int(buy_score),
             "sell_score": int(sell_score),
-            "buy_confirm": bool(buy_confirm.get("confirmed")),
-            "sell_confirm": bool(sell_confirm.get("confirmed")),
+            "buy_confirm": None,
+            "sell_confirm": None,
+            "confirmation_required": False,
+            "confirmation_timeframe": "NOT_REQUIRED",
             "buy_btc_allowed": bool(buy_btc.get("allowed")),
             "sell_btc_allowed": bool(sell_btc.get("allowed")),
             "reason": "TREND_CANDIDATE"
@@ -8603,7 +8609,7 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         context_frames = (df4,)
     else:
         confirm_df = df30
-        confirmation_tf_label = "30M"
+        confirmation_tf_label = "NOT_REQUIRED" if mode == "TREND" else "30M"
         context_frames = (df4, dfd)
 
     if df1 is None or len(df1) < 60:
@@ -8764,7 +8770,7 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     # v50: initialize these locals before the confirmation call so a malformed
     # confirmation result or future branch change can never raise an
     # UnboundLocalError such as the LINK failure seen in Run #75.
-    required_confirmations = PRO_SELL_MIN_30M_CONFIRMATIONS if side == "SELL" and mode != "BOTTOM_HUNTER" else PRO_MIN_30M_CONFIRMATIONS
+    required_confirmations = (0 if mode == "TREND" else (PRO_SELL_MIN_30M_CONFIRMATIONS if side == "SELL" and mode != "BOTTOM_HUNTER" else PRO_MIN_30M_CONFIRMATIONS))
     if mode == "TREND":
         confirm = {}
         confirmations = 0
@@ -8950,6 +8956,7 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
         "required_grade": "A+", "adx": round(adx, 2),
         "volume_ratio": round(volume, 2),
         "confirmation_timeframe": confirmation_tf_label,
+        "confirmation_required": mode != "TREND",
         "confirmations_lower_tf": int(confirmations),
         "required_lower_tf": int(conf_required),
         # Legacy aliases retained for compatibility; new logs use the fields above.
@@ -8996,7 +9003,7 @@ def professional_signal_quality_gate(signal, data, btc_regime=None):
     signal.setdefault("reasons", []).extend([
         "Professional filter: directional structure",
         "Professional filter: ADX/DI",
-        "Professional filter: 30M confirmation",
+        ("Professional filter: lower-timeframe confirmation not required for 1H TREND" if mode == "TREND" else f"Professional filter: {confirmation_tf_label} confirmation"),
         "Professional filter: volume/momentum",
         "Professional filter: multi-timeframe context",
         "Professional filter: trade structure/R:R",
