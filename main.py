@@ -8203,7 +8203,7 @@ def run_v63_14_10_score_grade_diagnostic_self_test():
     assert not _bottom_hunter_htf_hard_conflict(["4H=OPPOSED", "Daily=INVALID"])
     assert not _bottom_hunter_htf_hard_conflict(["4H=ALIGNED", "Daily=OPPOSED"])
     assert _bottom_hunter_htf_hard_conflict(["4H=OPPOSED", "Daily=OPPOSED"])
-    # Preserve strict production thresholds; diagnostics must never loosen them.
+    # Experimental Bottom Hunter thresholds are isolated to this A/B branch; core Trend/SELL gates stay fixed.
     assert PRO_MIN_SCORE == 90
     assert PRO_SELL_MIN_SCORE == 92
     assert PRO_BOTTOM_MIN_ADX == 18.0
