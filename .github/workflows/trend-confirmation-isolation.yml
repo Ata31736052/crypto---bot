@@ -1,0 +1,44 @@
+name: 1H TREND Confirmation Isolation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "main.py"
+      - "tests/test_trend_confirmation_isolation.py"
+      - ".github/workflows/trend-confirmation-isolation.yml"
+  push:
+    branches:
+      - fix/1h-trend-confirmation-diagnostics-20261117
+    paths:
+      - "main.py"
+      - "tests/test_trend_confirmation_isolation.py"
+      - ".github/workflows/trend-confirmation-isolation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  targeted-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUN_ONCE: "0"
+      DRY_RUN: "1"
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install requests pandas numpy
+      - name: Compile source and tests
+        run: |
+          python -m py_compile main.py tests/test_trend_confirmation_isolation.py
+      - name: Run isolated timeframe and BTC regime regressions
+        run: |
+          python -m unittest discover -s tests -p "test_trend_confirmation_isolation.py" -v
