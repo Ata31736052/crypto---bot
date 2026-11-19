@@ -32,7 +32,7 @@ def spot_event_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
         )
         if str(t.get("side", "BUY")).upper() != "BUY":
             t["_invalid"] = "SPOT_SELL_CANNOT_OPEN_POSITION"
-        elif not t["_events"] or abs(sum(float(e.get("quantity_fraction", 0)) for e in t["_events"]) - 1.0) > 1e-6:
+        elif not t["_events"] or not 0 < sum(float(e.get("quantity_fraction", 0)) for e in t["_events"]) <= 1.0 + 1e-6:
             t["_invalid"] = "INVALID_PARTIAL_EXIT_EVENTS"
         parsed.append(t)
 
