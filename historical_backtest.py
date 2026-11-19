@@ -855,50 +855,42 @@ def run():
                         diagnostics["first_no_signal_reasons"].append({"symbol":sym,"time":str(close_time),"first_rejection":trace.get("first_rejection"),"final_rejection":trace.get("final_rejection"),"error":scan.get("error") if isinstance(scan,dict) else "invalid scan result"})
                     continue
 
-                # Build independent candidate streams: choose the strongest candidate
-                # within each engine at this timestamp, not one global winner. This avoids
-                # contaminating TREND-vs-REVERSAL results with cross-engine selection bias.
-                by_engine={}
-                for candidate in candidates:
-                    engine_name=str(candidate.get("engine",candidate.get("signal_mode","UNKNOWN"))).upper()
-                    previous=by_engine.get(engine_name)
-                    rank=(float(candidate.get("professional_quality_score",0) or 0),
-                          float(candidate.get("score",0) or 0),
-                          1 if candidate.get("strength")=="STRONG" else 0)
-                    if previous is None or rank>previous[0]:
-                        by_engine[engine_name]=(rank,candidate)
-                for engine_name,(_,engine_candidate) in by_engine.items():
-                    if i <= engine_last_exit.get(engine_name,idx-1):
-                        continue
-                    engine_side=str(engine_candidate.get("signal","NO_SIGNAL")).upper()
-                    engine_trade,engine_exit_i=simulate(
-                        sym,engine_side,c.open_time,i+1,h1,float(c.get("atr",0) or 0),
-                        engine_candidate.get("score",0),engine_candidate.get("strength",""),engine_candidate
-                    )
-                    if engine_trade:
-                        engine_trade["engine"]=engine_name
-                        engine_trade["signal_mode"]=engine_candidate.get("signal_mode","UNKNOWN")
-                        engine_trade["btc_regime"]=btc_regime.get("combined","UNKNOWN")
-                        engine_trade.update(signal_diagnostics(data["1h"],engine_side))
-                        engine_candidate_trades.setdefault(engine_name,[]).append(engine_trade)
-                        engine_last_exit[engine_name]=engine_exit_i
-
-                # Primary baseline remains the production-style single strongest candidate.
-                if i <= baseline_last_exit:
-                    continue
+                # Long-only Spot replay. BUY opens; SELL closes an existing position only.
                 result=max(candidates,key=lambda x:(float(x.get("professional_quality_score",0) or 0),float(x.get("score",0) or 0),1 if x.get("strength")=="STRONG" else 0))
                 side=str(result.get("signal","NO_SIGNAL")).upper()
                 diagnostics["signals_before_execution"] += 1
-                # Anti-chase remains diagnostic-only and cannot veto the baseline.
                 location_diag=signal_diagnostics(data["1h"],side)
-                trade,exit_i=simulate(sym,side,c.open_time,i+1,h1,float(c.get("atr",0) or 0),result.get("score",0),result.get("strength",""),result)
-                if trade:
-                    trade.update(location_diag)
-                    trade["engine"]=str(result.get("engine",result.get("signal_mode","UNKNOWN"))).upper()
-                    trade["signal_mode"]=result.get("signal_mode","UNKNOWN")
-                    trade["btc_regime"]=btc_regime.get("combined","UNKNOWN")
-                    trades.append(trade); baseline_last_exit=exit_i
-                    print(f"TRADE {sym} {side} {trade['signal_time']} engine={trade['engine']} net={trade['net_pct']}% {trade['exit_reason']}",flush=True)
+                entry_i=i+1
+                if entry_i >= len(h1):
+                    continue
+                entry_bar=h1.iloc[entry_i]
+                engine_name=str(result.get("engine",result.get("signal_mode","UNKNOWN"))).upper()
+                if side == "BUY":
+                    trade,_=simulate_spot_buy(
+                        sym,c.close_time,entry_i,h1,result,
+                        fee_bps=FEE_BPS,slippage_bps=SLIPPAGE_BPS,
+                        evaluation_time=end+pd.Timedelta(hours=73)
+                    )
+                    if trade:
+                        trade.update(location_diag)
+                        trade["engine"]=engine_name
+                        trade["signal_mode"]=result.get("signal_mode","UNKNOWN")
+                        trade["btc_regime"]=btc_regime.get("combined","UNKNOWN")
+                        trades.append(trade)
+                elif side == "SELL":
+                    raw_fill=float(entry_bar.open)
+                    sell_fill=raw_fill*(1.0-max(0.0,SLIPPAGE_BPS)/10000.0)
+                    trades.append({
+                        "symbol":sym,"side":"SELL","signal_time":str(c.close_time),
+                        "entry_time":str(entry_bar.open_time),"raw_entry":raw_fill,
+                        "entry":sell_fill,"score":result.get("score",0),
+                        "strength":result.get("strength",""),"engine":engine_name,
+                        "signal_mode":result.get("signal_mode","UNKNOWN"),
+                        "btc_regime":btc_regime.get("combined","UNKNOWN"),
+                        "fee_bps_per_side":FEE_BPS,
+                        "portfolio_instruction":"CLOSE_EXISTING_SPOT_POSITION",
+                        **location_diag
+                    })
         except Exception as exc:
             errors.append({"symbol":sym,"error":str(exc)}); print("ERROR",sym,exc,flush=True)
     columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason"]
