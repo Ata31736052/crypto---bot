@@ -872,7 +872,13 @@ def run():
                     trade,_=simulate_spot_buy(
                         sym,c.close_time,entry_i,h1,result,
                         fee_bps=FEE_BPS,slippage_bps=SLIPPAGE_BPS,
-                        evaluation_time=end+pd.Timedelta(hours=73)
+                        evaluation_time=end+pd.Timedelta(hours=73),
+                        trend_invalidated_fn=lambda candle, _idx: (
+                            float(candle.get("close",0) or 0)>0
+                            and float(candle.get("ema21",0) or 0)>0
+                            and float(candle.get("close",0)) < float(candle.get("ema21",0))
+                            and float(candle.get("macd_hist",0) or 0)<0
+                        )
                     )
                     if trade:
                         trade.update(location_diag)
