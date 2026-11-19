@@ -1,8 +1,6 @@
 name: Historical Binance Backtest | 180D | Offline Signals
 on:
-  push:
-    branches:
-      - experiment/spot-faithful-backtest-20261119
+  # Manual-only after this isolated branch validation run.
   workflow_dispatch:
     inputs:
       days:
