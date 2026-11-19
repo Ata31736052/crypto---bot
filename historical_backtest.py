@@ -455,7 +455,7 @@ def signal_diagnostics(df, side):
     # guard. The raw 20-candle high/low estimate above is intentionally replaced.
     out["room_to_obstacle_atr"] = room_atr
     out["entry_guard_allowed"] = bool(allowed)
-    out["entry_guard_reason","exit_events","portfolio_instruction","fee_bps_per_side"] = reason
+    out["entry_guard_reason"] = reason
     return out
 
 
@@ -482,7 +482,7 @@ def entry_location_guard_self_test():
     rows = frame_with_levels("BUY", 104.0)
     rows.loc[1+7, "high"] = 100.5
     d = signal_diagnostics(rows, "BUY")
-    assert d["entry_guard_allowed"] is True and "2.00_ATR" in d["entry_guard_reason","exit_events","portfolio_instruction","fee_bps_per_side"], d
+    assert d["entry_guard_allowed"] is True and "2.00_ATR" in d["entry_guard_reason"], d
     assert abs(d["room_to_obstacle_atr"] - 2.0) < 1e-9, d
     # Confirmed swing only 0.5 ATR away is rejected and diagnostic distance agrees.
     d = signal_diagnostics(frame_with_levels("BUY", 101.0), "BUY")
@@ -914,7 +914,7 @@ def run():
                     })
         except Exception as exc:
             errors.append({"symbol":sym,"error":str(exc)}); print("ERROR",sym,exc,flush=True)
-    columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason"]
+    columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason","exit_events","portfolio_instruction","fee_bps_per_side"]
     pd.DataFrame(trades,columns=columns).to_csv(OUT/"trades.csv",index=False)
     vals=[float(t["net_pct"]) for t in trades if str(t.get("side","BUY")).upper()=="BUY" and t.get("net_pct") is not None]
     portfolio_ledger_self_test(OUT)
