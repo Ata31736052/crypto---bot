@@ -188,7 +188,7 @@ def spot_event_ledger_self_test(out_dir):
         result = spot_event_ledger([base], d, initial_cash=1000, risk_pct=100, max_position_pct=100)
         # 50% sells at 109, 50% at 112, minus 0.1% entry and event fees.
         size = 1000 / (1 + 0.001)
-        expected = size * (0.5 * 1.09 + 0.5 * 1.12) - size * 0.001 - size * (0.0545 + 0.056) / 100
+        expected = size * (0.5 * 1.09 + 0.5 * 1.12) - size * (0.0545 + 0.056) / 100
         assert abs(result["final_equity_usdt"] - expected) < 1e-5, (result, expected)
         assert result["open_positions_at_end"] == 0
         assert result["accepted_trades"] == 1
