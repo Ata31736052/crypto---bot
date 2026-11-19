@@ -1,6 +1,9 @@
 name: Historical Binance Backtest | 180D | Offline Signals
 on:
-  # 180-day replay is manual-only; PR validation is handled by lightweight diagnostics.
+  push:
+    branches:
+      - experiment/spot-faithful-backtest-20261119
+  # 180-day replay remains manually available after this one-time branch validation.
   workflow_dispatch:
     inputs:
       days:
@@ -37,7 +40,7 @@ concurrency:
 jobs:
   backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     env:
       BACKTEST_DAYS: ${{ github.event.inputs.days || '180' }}
       BACKTEST_SYMBOLS: ${{ github.event.inputs.symbols || '' }}
