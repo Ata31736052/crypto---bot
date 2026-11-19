@@ -482,7 +482,7 @@ def entry_location_guard_self_test():
     rows = frame_with_levels("BUY", 104.0)
     rows.loc[1+7, "high"] = 100.5
     d = signal_diagnostics(rows, "BUY")
-    assert d["entry_guard_allowed"] is True and "2.00_ATR" in d["entry_guard_reason"], d
+    assert d["entry_guard_allowed"] is True and "2.00_ATR" in d["entry_guard_reason","exit_events","portfolio_instruction","fee_bps_per_side"], d
     assert abs(d["room_to_obstacle_atr"] - 2.0) < 1e-9, d
     # Confirmed swing only 0.5 ATR away is rejected and diagnostic distance agrees.
     d = signal_diagnostics(frame_with_levels("BUY", 101.0), "BUY")
@@ -708,12 +708,24 @@ def simulate_self_test():
 
 def run():
     global SYMBOLS
+    universe_source = "explicit_BACKTEST_SYMBOLS_override" if SYMBOLS else "main.get_scan_coins_current_Binance_Spot_exchangeInfo_plus_24h_volume"
     if not SYMBOLS:
         # Resolve the production exchangeInfo + 24h liquidity-ranked universe only
         # when the replay actually runs; importing this module remains offline-safe.
         SYMBOLS = [main.to_binance_usdt_symbol(s) for s in main.get_scan_coins()][:100]
         if not SYMBOLS:
             raise RuntimeError("Production Binance Spot universe is empty; refusing a partial backtest")
+    universe_snapshot = {
+        "resolved_at_utc": pd.Timestamp.now(tz="UTC").isoformat(),
+        "source": universe_source,
+        "symbols": SYMBOLS,
+        "symbol_count": len(SYMBOLS),
+        "max_symbols": 100 if universe_source != "explicit_BACKTEST_SYMBOLS_override" else "override",
+        "btc_context_only": True,
+        "minimum_24h_quote_volume_usdt": getattr(main, "MIN_24H_USDT_VOLUME", None),
+        "selection_note": "Current Binance active Spot USDT directional universe ranked by current 24h quote volume; not a historical point-in-time universe, so survivorship/universe-selection bias remains.",
+    }
+    (OUT/"universe_snapshot.json").write_text(json.dumps(universe_snapshot,indent=2),encoding="utf-8")
     # Fixed UTC end lets baseline and experiment use identical closed-candle windows.
     end_raw = os.getenv("BACKTEST_END_TIME", "").strip()
     if end_raw:
