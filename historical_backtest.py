@@ -5,10 +5,13 @@ from pathlib import Path
 import pandas as pd
 import requests
 import main
-from portfolio_ledger import portfolio_ledger, portfolio_ledger_self_test
+from portfolio_ledger import portfolio_ledger_self_test
+from spot_backtest_replay import simulate_spot_buy
+from spot_event_ledger import spot_event_ledger, spot_event_ledger_self_test
 
 BASE = os.getenv("BINANCE_BASE_URL", "https://data-api.binance.vision")
-SYMBOLS = [s.strip().upper().replace("/", "").replace("-", "") for s in (os.getenv("BACKTEST_SYMBOLS") or "ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT").split(",") if s.strip()]
+_SYMBOL_OVERRIDE = os.getenv("BACKTEST_SYMBOLS", "").strip()
+SYMBOLS = [s.strip().upper().replace("/", "").replace("-", "") for s in _SYMBOL_OVERRIDE.split(",") if s.strip()] if _SYMBOL_OVERRIDE else []
 DAYS = max(30, min(365, int((os.getenv("BACKTEST_DAYS") or "180"))))
 FEE_BPS = float((os.getenv("BACKTEST_FEE_BPS") or "10"))
 SLIPPAGE_BPS = float((os.getenv("BACKTEST_SLIPPAGE_BPS") or "5"))
@@ -704,6 +707,25 @@ def simulate_self_test():
 
 
 def run():
+    global SYMBOLS
+    universe_source = "explicit_BACKTEST_SYMBOLS_override" if SYMBOLS else "main.get_scan_coins_current_Binance_Spot_exchangeInfo_plus_24h_volume"
+    if not SYMBOLS:
+        # Resolve the production exchangeInfo + 24h liquidity-ranked universe only
+        # when the replay actually runs; importing this module remains offline-safe.
+        SYMBOLS = [main.to_binance_usdt_symbol(s) for s in main.get_scan_coins()][:100]
+        if not SYMBOLS:
+            raise RuntimeError("Production Binance Spot universe is empty; refusing a partial backtest")
+    universe_snapshot = {
+        "resolved_at_utc": pd.Timestamp.now(tz="UTC").isoformat(),
+        "source": universe_source,
+        "symbols": SYMBOLS,
+        "symbol_count": len(SYMBOLS),
+        "max_symbols": 100 if universe_source != "explicit_BACKTEST_SYMBOLS_override" else "override",
+        "btc_context_only": True,
+        "minimum_24h_quote_volume_usdt": getattr(main, "MIN_24H_USDT_VOLUME", None),
+        "selection_note": "Current Binance active Spot USDT directional universe ranked by current 24h quote volume; not a historical point-in-time universe, so survivorship/universe-selection bias remains.",
+    }
+    (OUT/"universe_snapshot.json").write_text(json.dumps(universe_snapshot,indent=2),encoding="utf-8")
     # Fixed UTC end lets baseline and experiment use identical closed-candle windows.
     end_raw = os.getenv("BACKTEST_END_TIME", "").strip()
     if end_raw:
@@ -848,67 +870,66 @@ def run():
                         diagnostics["first_no_signal_reasons"].append({"symbol":sym,"time":str(close_time),"first_rejection":trace.get("first_rejection"),"final_rejection":trace.get("final_rejection"),"error":scan.get("error") if isinstance(scan,dict) else "invalid scan result"})
                     continue
 
-                # Build independent candidate streams: choose the strongest candidate
-                # within each engine at this timestamp, not one global winner. This avoids
-                # contaminating TREND-vs-REVERSAL results with cross-engine selection bias.
-                by_engine={}
-                for candidate in candidates:
-                    engine_name=str(candidate.get("engine",candidate.get("signal_mode","UNKNOWN"))).upper()
-                    previous=by_engine.get(engine_name)
-                    rank=(float(candidate.get("professional_quality_score",0) or 0),
-                          float(candidate.get("score",0) or 0),
-                          1 if candidate.get("strength")=="STRONG" else 0)
-                    if previous is None or rank>previous[0]:
-                        by_engine[engine_name]=(rank,candidate)
-                for engine_name,(_,engine_candidate) in by_engine.items():
-                    if i <= engine_last_exit.get(engine_name,idx-1):
-                        continue
-                    engine_side=str(engine_candidate.get("signal","NO_SIGNAL")).upper()
-                    engine_trade,engine_exit_i=simulate(
-                        sym,engine_side,c.open_time,i+1,h1,float(c.get("atr",0) or 0),
-                        engine_candidate.get("score",0),engine_candidate.get("strength",""),engine_candidate
-                    )
-                    if engine_trade:
-                        engine_trade["engine"]=engine_name
-                        engine_trade["signal_mode"]=engine_candidate.get("signal_mode","UNKNOWN")
-                        engine_trade["btc_regime"]=btc_regime.get("combined","UNKNOWN")
-                        engine_trade.update(signal_diagnostics(data["1h"],engine_side))
-                        engine_candidate_trades.setdefault(engine_name,[]).append(engine_trade)
-                        engine_last_exit[engine_name]=engine_exit_i
-
-                # Primary baseline remains the production-style single strongest candidate.
-                if i <= baseline_last_exit:
-                    continue
+                # Long-only Spot replay. BUY opens; SELL closes an existing position only.
                 result=max(candidates,key=lambda x:(float(x.get("professional_quality_score",0) or 0),float(x.get("score",0) or 0),1 if x.get("strength")=="STRONG" else 0))
                 side=str(result.get("signal","NO_SIGNAL")).upper()
                 diagnostics["signals_before_execution"] += 1
-                # Anti-chase remains diagnostic-only and cannot veto the baseline.
                 location_diag=signal_diagnostics(data["1h"],side)
-                trade,exit_i=simulate(sym,side,c.open_time,i+1,h1,float(c.get("atr",0) or 0),result.get("score",0),result.get("strength",""),result)
-                if trade:
-                    trade.update(location_diag)
-                    trade["engine"]=str(result.get("engine",result.get("signal_mode","UNKNOWN"))).upper()
-                    trade["signal_mode"]=result.get("signal_mode","UNKNOWN")
-                    trade["btc_regime"]=btc_regime.get("combined","UNKNOWN")
-                    trades.append(trade); baseline_last_exit=exit_i
-                    print(f"TRADE {sym} {side} {trade['signal_time']} engine={trade['engine']} net={trade['net_pct']}% {trade['exit_reason']}",flush=True)
+                entry_i=i+1
+                if entry_i >= len(h1):
+                    continue
+                entry_bar=h1.iloc[entry_i]
+                engine_name=str(result.get("engine",result.get("signal_mode","UNKNOWN"))).upper()
+                if side == "BUY":
+                    trade,_=simulate_spot_buy(
+                        sym,c.close_time,entry_i,h1,result,
+                        fee_bps=FEE_BPS,slippage_bps=SLIPPAGE_BPS,
+                        evaluation_time=end+pd.Timedelta(hours=73),
+                        trend_invalidated_fn=lambda candle, _idx: (
+                            float(candle.get("close",0) or 0)>0
+                            and float(candle.get("ema21",0) or 0)>0
+                            and float(candle.get("close",0)) < float(candle.get("ema21",0))
+                            and float(candle.get("macd_hist",0) or 0)<0
+                        )
+                    )
+                    if trade:
+                        trade.update(location_diag)
+                        trade["engine"]=engine_name
+                        trade["signal_mode"]=result.get("signal_mode","UNKNOWN")
+                        trade["btc_regime"]=btc_regime.get("combined","UNKNOWN")
+                        trades.append(trade)
+                elif side == "SELL":
+                    raw_fill=float(entry_bar.open)
+                    sell_fill=raw_fill*(1.0-max(0.0,SLIPPAGE_BPS)/10000.0)
+                    trades.append({
+                        "symbol":sym,"side":"SELL","signal_time":str(c.close_time),
+                        "entry_time":str(entry_bar.open_time),"raw_entry":raw_fill,
+                        "entry":sell_fill,"score":result.get("score",0),
+                        "strength":result.get("strength",""),"engine":engine_name,
+                        "signal_mode":result.get("signal_mode","UNKNOWN"),
+                        "btc_regime":btc_regime.get("combined","UNKNOWN"),
+                        "fee_bps_per_side":FEE_BPS,
+                        "portfolio_instruction":"CLOSE_EXISTING_SPOT_POSITION",
+                        **location_diag
+                    })
         except Exception as exc:
             errors.append({"symbol":sym,"error":str(exc)}); print("ERROR",sym,exc,flush=True)
-    columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason"]
+    columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason","exit_events","portfolio_instruction","fee_bps_per_side"]
     pd.DataFrame(trades,columns=columns).to_csv(OUT/"trades.csv",index=False)
-    vals=[float(t["net_pct"]) for t in trades]
+    vals=[float(t["net_pct"]) for t in trades if str(t.get("side","BUY")).upper()=="BUY" and t.get("net_pct") is not None]
     portfolio_ledger_self_test(OUT)
+    spot_event_ledger_self_test(OUT)
     initial_capital=float(os.getenv("BACKTEST_INITIAL_CAPITAL_USDT","1000"))
     risk_pct=float(os.getenv("BACKTEST_RISK_PCT","1.0"))
     max_position_pct=float(os.getenv("BACKTEST_MAX_POSITION_PCT","100"))
-    portfolio=portfolio_ledger(trades,OUT,initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
+    portfolio=spot_event_ledger(trades,OUT,initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
     # Offline-only counterfactuals: replay each engine's candidate stream in its own
     # shared-cash account. These are diagnostic comparisons, not live filters.
     engine_portfolios={}
     for engine_name in sorted(engine_candidate_trades):
         engine_trades=engine_candidate_trades[engine_name]
         engine_out=OUT/"engine-comparison"/engine_name.lower()
-        engine_portfolios[engine_name]=portfolio_ledger(
+        engine_portfolios[engine_name]=spot_event_ledger(
             engine_trades,engine_out,initial_cash=initial_capital,
             risk_pct=risk_pct,max_position_pct=max_position_pct
         )
@@ -922,7 +943,7 @@ def run():
             side_trades=[t for t in engine_trades if str(t.get("side","")).upper()==trend_side]
             key=f"{engine_name}:{trend_side}"
             if side_trades:
-                trend_side_portfolios[key]=portfolio_ledger(
+                trend_side_portfolios[key]=spot_event_ledger(
                     side_trades,OUT/"engine-comparison"/("trend-"+trend_side.lower()),
                     initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct
                 )
@@ -936,14 +957,14 @@ def run():
     # Run a separate, explicitly experimental comparison. The baseline remains unchanged;
     # this does not activate the obstacle guard in main.py or the live Telegram scanner.
     guarded_trades=[t for t in trades if bool(t.get("entry_guard_allowed",True))]
-    guard_portfolio=portfolio_ledger(guarded_trades,OUT/"entry-location-guard",initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
+    guard_portfolio=spot_event_ledger(guarded_trades,OUT/"entry-location-guard",initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
     guard_comparison={"rule":"nearest obstacle in previous 20 closed 1H candles must be at least 0.80 ATR away","baseline_candidate_trades":len(trades),"guard_candidate_trades":len(guarded_trades),"filtered_candidate_trades":len(trades)-len(guarded_trades),"status":"EXPERIMENTAL_COMPARISON_ONLY; not enabled in live engine"}
     perf["stage_seconds"]={k:round(v,4) for k,v in perf["stage_seconds"].items()}
     (OUT/"engine-profile.json").write_text(json.dumps(engine_profile,indent=2),encoding="utf-8")
     perf["total_instrumented_seconds"]=round(sum(perf["stage_seconds"].values()),4)
     # Linux GitHub-hosted runners report ru_maxrss in KiB; diagnostics only.
     perf["peak_rss_kib"]=int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-    summary={"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"trend_buy_sell_portfolio_comparison":trend_side_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"adverse slippage applied to entry and exit fill prices; round-trip fees deducted separately; sizing reserves fees plus estimated round-trip slippage","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
+    summary={"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_signal_count":len(trades),"buy_candidate_count":sum(str(t.get("side","")).upper()=="BUY" for t in trades),"sell_close_signal_count":sum(str(t.get("side","")).upper()=="SELL" for t in trades),"standalone_full_path_candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(float(t.get("gross_pct",0) or 0) for t in trades if str(t.get("side","")).upper()=="BUY"),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"standalone_full_path_avg_net_candidate_pct":round(sum(vals)/len(vals),4) if vals else None,"standalone_full_path_candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t.get("exit_reason")==k for t in trades if str(t.get("side","")).upper()=="BUY") for k in sorted({t.get("exit_reason") for t in trades if str(t.get("side","")).upper()=="BUY"})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"trend_buy_sell_portfolio_comparison":trend_side_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; TP1 sells 50%; remaining 50% stays open until later TP2, protective stop, time exit, or SELL close signal","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"adverse slippage applied to entry and exit fill prices; round-trip fees deducted separately; sizing reserves fees plus estimated round-trip slippage","capital":"long-only Spot shared-cash ledger; 1% equity risk per BUY; max position capped at 100% of equity and available cash; SELL only closes an existing position","overlap":"concurrent trades compete for free cash; one long Spot position per symbol; SELL signals close existing positions only","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
     (OUT/"summary.json").write_text(json.dumps(summary,indent=2),encoding="utf-8"); print(json.dumps(summary,indent=2),flush=True)
     if not trades: raise SystemExit("No trades produced; do not infer profitability.")
 if __name__=="__main__": run()
