@@ -40,7 +40,7 @@ jobs:
     timeout-minutes: 90
     env:
       BACKTEST_DAYS: ${{ github.event.inputs.days || '180' }}
-      BACKTEST_SYMBOLS: ${{ github.event.inputs.symbols || 'ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT' }}
+      BACKTEST_SYMBOLS: ${{ github.event.inputs.symbols || '' }}
       BACKTEST_FEE_BPS: ${{ github.event.inputs.fee_bps || '10' }}
       BACKTEST_SLIPPAGE_BPS: ${{ github.event.inputs.slippage_bps || '5' }}
       BACKTEST_END_TIME: ${{ github.event.inputs.end_time || '2026-10-13T13:00:00Z' }}
@@ -60,13 +60,14 @@ jobs:
           python -m pip install -r requirements.txt
       - name: Compile and verify offline replay
         run: |
-          python -m py_compile main.py historical_backtest.py portfolio_ledger.py
+          python -m py_compile main.py historical_backtest.py portfolio_ledger.py spot_position_manager.py spot_backtest_replay.py spot_event_ledger.py
           python - <<'PY'
           from pathlib import Path
           s=Path("historical_backtest.py").read_text()
           assert "main.analyze_one_symbol(" in s
           assert "next 1H candle open" in s
-          assert "portfolio_ledger" in s
+          assert "spot_event_ledger" in s
+          assert "simulate_spot_buy" in s
           assert "WARMUP_DAYS = 250" in s and "WARMUP_BARS = 200" in s
           assert "validate_warmup" in s
           from historical_backtest import validate_warmup_self_test, simulate_self_test, entry_location_guard_self_test, closed_prefix_self_test, closed_end_cutoff_self_test, boundary_execution_candle_self_test, finite_ohlcv_self_test
@@ -79,6 +80,8 @@ jobs:
           finite_ohlcv_self_test()
           from portfolio_ledger import portfolio_ledger_self_test
           portfolio_ledger_self_test("backtest-results")
+          from spot_event_ledger import spot_event_ledger_self_test
+          spot_event_ledger_self_test("backtest-results")
           print("Backtest source, warm-up, and shared-account verification: PASS")
           PY
       - name: Run historical replay
