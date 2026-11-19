@@ -5,7 +5,9 @@ from pathlib import Path
 import pandas as pd
 import requests
 import main
-from portfolio_ledger import portfolio_ledger, portfolio_ledger_self_test
+from portfolio_ledger import portfolio_ledger_self_test
+from spot_backtest_replay import simulate_spot_buy
+from spot_event_ledger import spot_event_ledger, spot_event_ledger_self_test
 
 BASE = os.getenv("BINANCE_BASE_URL", "https://data-api.binance.vision")
 SYMBOLS = [s.strip().upper().replace("/", "").replace("-", "") for s in (os.getenv("BACKTEST_SYMBOLS") or "ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT").split(",") if s.strip()]
