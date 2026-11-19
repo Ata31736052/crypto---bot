@@ -1,9 +1,6 @@
 name: Historical Binance Backtest | 180D | Offline Signals
 on:
-  push:
-    branches:
-      - experiment/spot-faithful-backtest-20261119
-  # 180-day replay remains manually available after this one-time branch validation.
+  # 180-day replay is manual-only after the one-time experiment-branch run.
   workflow_dispatch:
     inputs:
       days:
