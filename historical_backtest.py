@@ -10,7 +10,12 @@ from spot_backtest_replay import simulate_spot_buy
 from spot_event_ledger import spot_event_ledger, spot_event_ledger_self_test
 
 BASE = os.getenv("BINANCE_BASE_URL", "https://data-api.binance.vision")
-SYMBOLS = [s.strip().upper().replace("/", "").replace("-", "") for s in (os.getenv("BACKTEST_SYMBOLS") or "ETHUSDT,SOLUSDT,BNBUSDT,XRPUSDT,LINKUSDT").split(",") if s.strip()]
+_SYMBOL_OVERRIDE = os.getenv("BACKTEST_SYMBOLS", "").strip()
+if _SYMBOL_OVERRIDE:
+    SYMBOLS = [s.strip().upper().replace("/", "").replace("-", "") for s in _SYMBOL_OVERRIDE.split(",") if s.strip()]
+else:
+    # Match the production Binance Spot universe, capped at 100 directional assets.
+    SYMBOLS = [main.to_binance_usdt_symbol(s) for s in main.get_scan_coins()][:100]
 DAYS = max(30, min(365, int((os.getenv("BACKTEST_DAYS") or "180"))))
 FEE_BPS = float((os.getenv("BACKTEST_FEE_BPS") or "10"))
 SLIPPAGE_BPS = float((os.getenv("BACKTEST_SLIPPAGE_BPS") or "5"))
