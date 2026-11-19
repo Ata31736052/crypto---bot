@@ -66,6 +66,22 @@ class SpotBacktestReplayTests(unittest.TestCase):
         self.assertEqual([e["event"] for e in trade["exit_events"]], ["TP1_PARTIAL", "BREAK_EVEN_EXIT"])
         self.assertEqual(trade["exit_events"][1]["quantity_fraction"], 0.5)
 
+    def test_production_trend_invalidation_closes_remaining_position(self):
+        candles = self.frame([104], [99], [102])
+        candles["ema21"] = [103.0]
+        candles["macd_hist"] = [-0.5]
+        trade, _ = simulate_spot_buy(
+            "ETHUSDT", "2026-01-01T00:59:59Z", 0, candles, self.signal(),
+            fee_bps=0, slippage_bps=0,
+            evaluation_time="2026-01-01T03:00:00Z",
+            trend_invalidated_fn=lambda row, _idx: (
+                float(row["close"]) < float(row["ema21"]) and float(row["macd_hist"]) < 0
+            ),
+        )
+        self.assertIsNotNone(trade)
+        self.assertEqual(trade["exit_reason"], "TREND_INVALIDATION_EXIT")
+        self.assertEqual(trade["exit_events"][0]["quantity_fraction"], 1.0)
+
     def test_incomplete_candle_is_not_used(self):
         candles = self.frame([110], [99], [109])
         trade, _ = simulate_spot_buy(
