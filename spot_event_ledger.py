@@ -175,7 +175,7 @@ def spot_event_ledger_self_test(out_dir):
     base = {
         "symbol": "ETHUSDT", "side": "BUY", "entry_time": t0,
         "entry": 100.0, "stop_loss": 95.0, "score": 95,
-        "fee_cost_pct": 0.1, "risk_cost_pct": 0.3,
+        "fee_cost_pct": 0.2105, "risk_cost_pct": 0.3,
         "exit_events": [
             {"time": t1, "event": "TP1_PARTIAL", "quantity_fraction": 0.5,
              "fill_price": 109.0, "fee_contribution_pct": 0.0545},
