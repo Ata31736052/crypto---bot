@@ -278,3 +278,26 @@ jobs:
           path: btc-three-state-results/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Verify Bottom Hunter RSI A/B isolation and compile
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/run_bottom_hunter_rsi_ab.py
+          ! grep -nE 'TELEGRAM_TOKEN|TELEGRAM_CHAT_ID|send_message|python main.py' scripts/run_bottom_hunter_rsi_ab.py
+          echo "Bottom Hunter RSI A/B isolation: PASS"
+
+      - name: Run paired 180-day Bottom Hunter RSI A/B
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/run_bottom_hunter_rsi_ab.py
+
+      - name: Upload Bottom Hunter RSI A/B artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bottom-hunter-rsi-ab-${{ github.run_number }}
+          path: btc-bottom-hunter-rsi-ab/
+          if-no-files-found: error
+          retention-days: 14
