@@ -30,10 +30,15 @@ def spot_event_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
             (dict(e) for e in t.get("exit_events", [])),
             key=lambda e: pd.Timestamp(e["time"]),
         )
-        if str(t.get("side", "BUY")).upper() != "BUY":
-            t["_invalid"] = "SPOT_SELL_CANNOT_OPEN_POSITION"
-        elif not t["_events"] or not 0 < sum(float(e.get("quantity_fraction", 0)) for e in t["_events"]) <= 1.0 + 1e-6:
-            t["_invalid"] = "INVALID_PARTIAL_EXIT_EVENTS"
+        side = str(t.get("side", "BUY")).upper()
+        if side == "BUY":
+            if not t["_events"] or not 0 < sum(float(e.get("quantity_fraction", 0)) for e in t["_events"]) <= 1.0 + 1e-6:
+                t["_invalid"] = "INVALID_PARTIAL_EXIT_EVENTS"
+        elif side == "SELL":
+            if float(t.get("entry", 0) or 0) <= 0:
+                t["_invalid"] = "INVALID_SPOT_SELL_FILL"
+        else:
+            t["_invalid"] = "UNSUPPORTED_SPOT_SIGNAL_SIDE"
         parsed.append(t)
 
     timeline = sorted(
@@ -79,8 +84,43 @@ def spot_event_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
                 active_symbols.discard(p["symbol"])
                 del positions[pid]
 
-        for t in sorted(entries.get(now, []),
-                        key=lambda x: (-float(x.get("score", 0) or 0), str(x.get("symbol", "")))):
+        timestamp_entries = sorted(entries.get(now, []),
+                                    key=lambda x: (-float(x.get("score", 0) or 0), str(x.get("symbol", ""))))
+        for t in timestamp_entries:
+            if str(t.get("side", "BUY")).upper() != "SELL":
+                continue
+            if t.get("_invalid"):
+                t["portfolio_status"] = "REJECTED"
+                t["portfolio_reject_reason"] = t["_invalid"]
+                rejected.append(t)
+                continue
+            symbol = str(t.get("symbol", "")).upper()
+            matching = [(pid, p) for pid, p in positions.items() if p["symbol"] == symbol]
+            if not matching:
+                t["portfolio_status"] = "REJECTED"
+                t["portfolio_reject_reason"] = "SELL_WITHOUT_OPEN_SPOT_POSITION"
+                rejected.append(t)
+                continue
+            pid, p = matching[0]
+            fill = float(t["entry"])
+            fraction = p["remaining_fraction"]
+            fee_bps = max(0.0, float(t.get("fee_bps_per_side", 10.0)))
+            fee = p["notional"] * fraction * (fill / p["entry"]) * fee_bps / 10000.0
+            proceeds = p["notional"] * fraction * fill / p["entry"]
+            pnl = proceeds - p["notional"] * fraction - fee
+            cash += proceeds - fee
+            realized[p["symbol"]] = realized.get(p["symbol"], 0.0) + pnl
+            active_symbols.discard(symbol)
+            del positions[pid]
+            t["portfolio_status"] = "CLOSED_EXISTING_SPOT_POSITION"
+            t["portfolio_reject_reason"] = ""
+            t["closed_position_notional_usdt"] = round(p["notional"] * fraction, 6)
+            t["portfolio_pnl_usdt"] = round(pnl, 6)
+            accepted.append(t)
+
+        for t in timestamp_entries:
+            if str(t.get("side", "BUY")).upper() != "BUY":
+                continue
             if t.get("_invalid"):
                 t["portfolio_status"] = "REJECTED"
                 t["portfolio_reject_reason"] = t["_invalid"]
