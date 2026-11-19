@@ -22,6 +22,7 @@ def simulate_spot_buy(
     slippage_bps: float = 5.0,
     max_hold_hours: float = 72.0,
     evaluation_time: Optional[Any] = None,
+    trend_invalidated_fn=None,
 ) -> Tuple[Optional[Dict[str, Any]], int]:
     """Replay one BUY using the live Spot lifecycle; SELL can never open a short.
 
@@ -110,8 +111,10 @@ def simulate_spot_buy(
             "low": float(candle["low"]),
             "close": float(candle["close"]),
         }
+        trend_invalidated = bool(trend_invalidated_fn(candle, idx)) if trend_invalidated_fn else False
         transition = evaluate_closed_candle(
-            position, candle_payload, max_hold_hours=max_hold_hours
+            position, candle_payload, trend_invalidated=trend_invalidated,
+            max_hold_hours=max_hold_hours
         )
         path.append({"time": close_time.isoformat(), "price": float(candle["close"])})
         last_index = idx
