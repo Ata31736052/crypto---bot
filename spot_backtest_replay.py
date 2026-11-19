@@ -90,6 +90,7 @@ def simulate_spot_buy(
     last_index = int(entry_index)
     entry_fee_pct = fee_rate * 100.0
     total_gross_pct = 0.0
+    total_raw_gross_pct = 0.0
     total_exit_fee_pct = 0.0
 
     for idx in range(int(entry_index), len(candles)):
@@ -121,8 +122,10 @@ def simulate_spot_buy(
             exit_fill = raw_exit * (1.0 - slip)
             fraction = quantity / float(position["initial_quantity"])
             gross_pct = (exit_fill - entry) / entry * 100.0
+            raw_gross_pct = (raw_exit - raw_entry) / raw_entry * 100.0
             exit_fee_pct = fee_rate * 100.0 * fraction * (exit_fill / entry)
             total_gross_pct += gross_pct * fraction
+            total_raw_gross_pct += raw_gross_pct * fraction
             total_exit_fee_pct += exit_fee_pct
             events.append({
                 "time": close_time.isoformat(),
@@ -142,7 +145,6 @@ def simulate_spot_buy(
     if not events or position.get("status") != "CLOSED":
         return None, last_index
 
-    entry_slippage_pct = (entry / raw_entry - 1.0) * 100.0
     fee_pct = entry_fee_pct + total_exit_fee_pct
     gross_pct = total_gross_pct
     net_pct = gross_pct - fee_pct
@@ -164,10 +166,10 @@ def simulate_spot_buy(
         "exit": final_event["fill_price"],
         "exit_reason": final_event["event"],
         "exit_events": events,
-        "raw_gross_pct": round(gross_pct + entry_slippage_pct, 6),
+        "raw_gross_pct": round(total_raw_gross_pct, 6),
         "gross_pct": round(gross_pct, 6),
         "fee_cost_pct": round(fee_pct, 6),
-        "slippage_cost_pct": round(entry_slippage_pct + max(0.0, gross_pct - total_gross_pct), 6),
+        "slippage_cost_pct": round(total_raw_gross_pct - gross_pct, 6),
         "cost_pct": round(fee_pct, 6),
         "risk_cost_pct": round(fee_pct + 2.0 * max(0.0, float(slippage_bps)) / 100.0, 6),
         "net_pct": round(net_pct, 6),
