@@ -242,5 +242,17 @@ def spot_event_ledger_self_test(out_dir):
         result = spot_event_ledger([partial], d, initial_cash=1000, risk_pct=100, max_position_pct=100)
         assert result["open_positions_at_end"] == 1, "TP1 must not close the remaining half"
         assert result["cash_usdt_at_end"] > 0, "TP1 proceeds must return to available cash"
-    print("SPOT_EVENT_LEDGER_SELF_TEST: PASS (long-only, partial proceeds, residual inventory)")
+    with tempfile.TemporaryDirectory() as d:
+        buy = {**base, "_path": [{"time": t1, "price": 109.0}],
+               "exit_events": base["exit_events"]}
+        close_signal = {
+            "symbol": "ETHUSDT", "side": "SELL", "entry_time": "2026-01-01T02:30:00Z",
+            "entry": 108.0, "fee_bps_per_side": 0.0, "score": 96,
+        }
+        result = spot_event_ledger([buy, close_signal], d, initial_cash=1000,
+                                   risk_pct=100, max_position_pct=100)
+        assert result["accepted_trades"] == 2, "SELL should close an existing Spot position"
+        assert result["rejected_trades"] == 0
+        assert result["open_positions_at_end"] == 0
+        print("SPOT_EVENT_LEDGER_SELF_TEST: PASS (long-only, partial proceeds, residual inventory)")
     return True
