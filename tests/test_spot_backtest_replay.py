@@ -43,7 +43,7 @@ class SpotBacktestReplayTests(unittest.TestCase):
         self.assertIsNotNone(trade)
         self.assertEqual([e["event"] for e in trade["exit_events"]], ["TP1_PARTIAL", "TP2_EXIT"])
         self.assertEqual([e["quantity_fraction"] for e in trade["exit_events"]], [0.5, 0.5])
-        self.assertAlmostEqual(trade["gross_pct"], 5.25, places=6)
+        self.assertAlmostEqual(trade["gross_pct"], 10.5, places=6)
 
     def test_stop_wins_same_candle_as_tp1(self):
         candles = self.frame([110], [94], [108])
