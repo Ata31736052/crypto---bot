@@ -91,6 +91,28 @@ class HistoricalUniverseTests(unittest.TestCase):
         self.assertNotIn("BTCUSDT", result["symbols"])
         self.assertNotIn("NEWUSDT", result["daily_snapshots"]["2026-01-03T00:00:00Z"])
 
+
+    def test_delisted_symbol_archive_fallback_reads_microsecond_daily_file(self):
+        open_us = int(pd.Timestamp("2026-10-01T00:00:00Z").timestamp() * 1_000_000)
+        row = [open_us, 100, 102, 99, 101, 10, open_us + 3_599_999_999, 1000, 5, 4, 400, 0]
+        monthly_404 = FakeResponse(status_code=404)
+        daily_zip = FakeResponse(make_zip([row]))
+        fake_session = FakeSession([monthly_404, daily_zip])
+        original = historical_backtest.SESSION
+        try:
+            historical_backtest.SESSION = fake_session
+            rows = historical_backtest.fetch_vision_archive_rows(
+                "DELISTEDUSDT", "1h",
+                int(pd.Timestamp("2026-10-01T00:00:00Z").timestamp() * 1000),
+                int(pd.Timestamp("2026-10-01T23:59:00Z").timestamp() * 1000),
+            )
+        finally:
+            historical_backtest.SESSION = original
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0][0], open_us // 1000)
+        self.assertEqual(rows[0][6], (open_us + 3_599_999_999) // 1000)
+        self.assertIn("/daily/klines/DELISTEDUSDT/1h/", fake_session.calls[1][0])
+
     def test_missing_previous_day_volume_is_not_forward_filled(self):
         start = pd.Timestamp("2026-01-02T00:00:00Z")
         end = pd.Timestamp("2026-01-03T00:00:00Z")
