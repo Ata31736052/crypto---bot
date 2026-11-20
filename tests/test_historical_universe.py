@@ -52,15 +52,23 @@ class HistoricalUniverseTests(unittest.TestCase):
         </ListBucketResult>"""
         second = b"""<ListBucketResult>
           <CommonPrefixes><Prefix>data/spot/monthly/klines/DELISTEDUSDT/</Prefix></CommonPrefixes>
-          <CommonPrefixes><Prefix>data/spot/monthly/klines/SOLUSDT/</Prefix></CommonPrefixes>
           <IsTruncated>false</IsTruncated>
         </ListBucketResult>"""
-        client = FakeSession([FakeResponse(first), FakeResponse(second)])
+        third = b"""<ListBucketResult>
+          <CommonPrefixes><Prefix>data/spot/daily/klines/NEWLISTUSDT/</Prefix></CommonPrefixes>
+          <IsTruncated>false</IsTruncated>
+        </ListBucketResult>"""
+        fourth = b"""<ListBucketResult>
+          <CommonPrefixes><Prefix>data/spot/daily/klines/SOLUSDT/</Prefix></CommonPrefixes>
+          <IsTruncated>false</IsTruncated>
+        </ListBucketResult>"""
+        client = FakeSession([FakeResponse(first), FakeResponse(second), FakeResponse(third), FakeResponse(fourth)])
         self.assertEqual(
             list_historical_spot_symbols(session=client),
-            ["DELISTEDUSDT", "ETHUSDT", "OLDUSDT", "SOLUSDT"],
+            ["DELISTEDUSDT", "ETHUSDT", "NEWLISTUSDT", "OLDUSDT", "SOLUSDT"],
         )
         self.assertEqual(client.calls[1][1]["continuation-token"], "next-page")
+        self.assertEqual(client.calls[2][1]["prefix"], "data/spot/daily/klines/")
 
     def test_hourly_archive_parser_handles_microsecond_timestamps(self):
         open_us = int(pd.Timestamp("2026-01-01T00:00:00Z").timestamp() * 1_000_000)
