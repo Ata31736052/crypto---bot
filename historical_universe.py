@@ -80,8 +80,8 @@ def list_daily_spot_symbols(session=None, timeout=30):
 
 def month_keys(start, end):
     """Return YYYY-MM keys overlapping [start, end], inclusive."""
-    first = pd.Timestamp(start).tz_convert("UTC").to_period("M")
-    last = pd.Timestamp(end).tz_convert("UTC").to_period("M")
+    first = pd.Timestamp(start).tz_convert("UTC").tz_localize(None).to_period("M")
+    last = pd.Timestamp(end).tz_convert("UTC").tz_localize(None).to_period("M")
     return [str(period) for period in pd.period_range(first, last, freq="M")]
 
 
