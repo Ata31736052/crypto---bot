@@ -358,6 +358,19 @@ def prepare(d):
     return x.sort_values("open_time").reset_index(drop=True) if x is not None and not x.empty else pd.DataFrame()
 
 
+def filter_backtest_symbols(symbols):
+    """Normalize Spot pairs and remove BTC from directional backtest candidates."""
+    btc_base = main.normalize_coin_symbol(getattr(main, "BTC_SYMBOL", "BTCUSDT"))
+    normalized = list(dict.fromkeys(
+        main.to_binance_usdt_symbol(symbol)
+        for symbol in (symbols or [])
+        if symbol
+    ))
+    excluded = [symbol for symbol in normalized if main.normalize_coin_symbol(symbol) == btc_base]
+    eligible = [symbol for symbol in normalized if main.normalize_coin_symbol(symbol) != btc_base]
+    return eligible, excluded
+
+
 def validate_warmup(frames, start_time, symbol="", required_timeframes=None):
     """Fail closed unless each requested timeframe has enough closed pre-test candles."""
     required_timeframes = tuple(required_timeframes or ("1h", "30m", "4h", "1d"))
@@ -713,9 +726,7 @@ def run():
         # Resolve the production exchangeInfo + 24h liquidity-ranked universe only
         # when the replay actually runs; importing this module remains offline-safe.
         SYMBOLS = [main.to_binance_usdt_symbol(s) for s in main.get_scan_coins()][:100]
-    btc_base = main.normalize_coin_symbol(getattr(main, "BTC_SYMBOL", "BTCUSDT"))
-    btc_excluded_symbols = [s for s in SYMBOLS if main.normalize_coin_symbol(s) == btc_base]
-    SYMBOLS = [s for s in SYMBOLS if main.normalize_coin_symbol(s) != btc_base]
+    SYMBOLS, btc_excluded_symbols = filter_backtest_symbols(SYMBOLS)
     if not SYMBOLS:
         raise RuntimeError("Directional Binance Spot universe is empty after excluding BTC context asset")
     universe_snapshot = {
