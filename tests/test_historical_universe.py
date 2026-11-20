@@ -140,6 +140,8 @@ class HistoricalUniverseTests(unittest.TestCase):
         end = pd.Timestamp("2026-01-02T02:00:00Z")
         with tempfile.TemporaryDirectory() as cache:
             with patch("historical_universe.list_historical_spot_symbols", return_value=["ETHUSDT"]), patch(
+                "historical_universe.list_daily_spot_symbols", return_value=[]
+            ), patch(
                 "historical_universe._download_hourly_month",
                 return_value=pd.DataFrame(columns=["open_time", "quote_volume"]),
             ):
