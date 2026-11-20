@@ -2,7 +2,7 @@ name: Crypto Bot Diagnostics Tests
 
 on:
   push:
-    branches: [main, backtest/main-engine-baseline-180d, backtest/divergence-reuse-ab-20261013-run]
+    branches: [main, backtest/main-engine-baseline-180d, backtest/divergence-reuse-ab-20261013-run, experiment/spot-faithful-backtest-20261119]
   pull_request:
     branches: [main, backtest/main-engine-baseline-180d]
   workflow_dispatch:
