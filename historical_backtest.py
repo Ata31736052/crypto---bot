@@ -713,8 +713,11 @@ def run():
         # Resolve the production exchangeInfo + 24h liquidity-ranked universe only
         # when the replay actually runs; importing this module remains offline-safe.
         SYMBOLS = [main.to_binance_usdt_symbol(s) for s in main.get_scan_coins()][:100]
-        if not SYMBOLS:
-            raise RuntimeError("Production Binance Spot universe is empty; refusing a partial backtest")
+    btc_base = main.normalize_coin_symbol(getattr(main, "BTC_SYMBOL", "BTCUSDT"))
+    btc_excluded_symbols = [s for s in SYMBOLS if main.normalize_coin_symbol(s) == btc_base]
+    SYMBOLS = [s for s in SYMBOLS if main.normalize_coin_symbol(s) != btc_base]
+    if not SYMBOLS:
+        raise RuntimeError("Directional Binance Spot universe is empty after excluding BTC context asset")
     universe_snapshot = {
         "resolved_at_utc": pd.Timestamp.now(tz="UTC").isoformat(),
         "source": universe_source,
@@ -722,8 +725,11 @@ def run():
         "symbol_count": len(SYMBOLS),
         "max_symbols": 100 if universe_source != "explicit_BACKTEST_SYMBOLS_override" else "override",
         "btc_context_only": True,
+        "btc_excluded_symbols": btc_excluded_symbols,
         "minimum_24h_quote_volume_usdt": getattr(main, "MIN_24H_USDT_VOLUME", None),
-        "selection_note": "Current Binance active Spot USDT directional universe ranked by current 24h quote volume; not a historical point-in-time universe, so survivorship/universe-selection bias remains.",
+        "historical_point_in_time": False,
+        "selection_bias": "CURRENT_UNIVERSE_SURVIVORSHIP_BIAS",
+        "selection_note": "Current active Binance Spot USDT universe ranked by current 24h quote volume; not a historical point-in-time universe. Results are research-only and retain survivorship/universe-selection bias.",
     }
     (OUT/"universe_snapshot.json").write_text(json.dumps(universe_snapshot,indent=2),encoding="utf-8")
     # Fixed UTC end lets baseline and experiment use identical closed-candle windows.
@@ -738,7 +744,7 @@ def run():
     else:
         end = pd.Timestamp.now(tz="UTC").floor("h")
     start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
-    trades=[]; engine_candidate_trades={}; errors=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
+    trades=[]; engine_candidate_trades={}; errors=[]; excluded_symbols=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
     perf={"stage_seconds":{},"counters":{"candle_steps":0,"timeframe_index_lookups":0,"rows_materialized":0,"btc_regime_lookups":0,"engine_calls":0}}
     # ENGINE_INTERNAL_PROFILE: profile exactly one real production-engine invocation.
     # This is offline-only instrumentation; no signal, score, or trade decision is changed.
@@ -774,13 +780,19 @@ def run():
                                   include_boundary_open=True,signal_boundary_ms=int(end.timestamp()*1000))
                 else:
                     raw[tf]=fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000))
-            if len(raw["1h"])<250 or len(raw["30m"])<50: raise RuntimeError("Insufficient historical candles")
-            t_prepare=time.perf_counter()
-            frames={tf:prepare(d) for tf,d in raw.items()}
-            stage_done("prepare_symbol_history", t_prepare)
-            validate_warmup(frames, start, sym)
+            try:
+                if len(raw["1h"])<250 or len(raw["30m"])<50:
+                    raise RuntimeError("Insufficient historical candles")
+                t_prepare=time.perf_counter()
+                frames={tf:prepare(d) for tf,d in raw.items()}
+                stage_done("prepare_symbol_history", t_prepare)
+                validate_warmup(frames, start, sym)
+                validate_boundary_execution_candle(frames["1h"], end)
+            except Exception as warmup_exc:
+                excluded_symbols.append({"symbol":sym,"reason":str(warmup_exc)})
+                print("EXCLUDE",sym,"insufficient historical coverage:",warmup_exc,flush=True)
+                continue
             h1=frames["1h"]
-            validate_boundary_execution_candle(h1, end)
             idx=max(220,int(h1.open_time.searchsorted(start)))
             baseline_last_exit=idx-1
             engine_last_exit={}
@@ -964,7 +976,10 @@ def run():
     perf["total_instrumented_seconds"]=round(sum(perf["stage_seconds"].values()),4)
     # Linux GitHub-hosted runners report ru_maxrss in KiB; diagnostics only.
     perf["peak_rss_kib"]=int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-    summary={"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else "COMPLETED","period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"candidate_signal_count":len(trades),"buy_candidate_count":sum(str(t.get("side","")).upper()=="BUY" for t in trades),"sell_close_signal_count":sum(str(t.get("side","")).upper()=="SELL" for t in trades),"standalone_full_path_candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(float(t.get("gross_pct",0) or 0) for t in trades if str(t.get("side","")).upper()=="BUY"),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"standalone_full_path_avg_net_candidate_pct":round(sum(vals)/len(vals),4) if vals else None,"standalone_full_path_candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t.get("exit_reason")==k for t in trades if str(t.get("side","")).upper()=="BUY") for k in sorted({t.get("exit_reason") for t in trades if str(t.get("side","")).upper()=="BUY"})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"trend_buy_sell_portfolio_comparison":trend_side_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; TP1 sells 50%; remaining 50% stays open until later TP2, protective stop, time exit, or SELL close signal","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"adverse slippage applied to entry and exit fill prices; round-trip fees deducted separately; sizing reserves fees plus estimated round-trip slippage","capital":"long-only Spot shared-cash ledger; 1% equity risk per BUY; max position capped at 100% of equity and available cash; SELL only closes an existing position","overlap":"concurrent trades compete for free cash; one long Spot position per symbol; SELL signals close existing positions only","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
+    completion_status = ("COMPLETED_WITH_ERRORS_AND_EXCLUSIONS" if errors and excluded_symbols else
+                         "COMPLETED_WITH_ERRORS" if errors else
+                         "COMPLETED_WITH_EXCLUSIONS" if excluded_symbols else "COMPLETED")
+    summary={"performance":perf,"status":completion_status,"period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"requested_symbol_count":len(SYMBOLS)+len(btc_excluded_symbols),"eligible_symbol_count":len(SYMBOLS)-len(excluded_symbols),"excluded_symbols":excluded_symbols,"btc_excluded_symbols":btc_excluded_symbols,"historical_universe_validity":"BIASED_CURRENT_UNIVERSE_NOT_POINT_IN_TIME","candidate_signal_count":len(trades),"buy_candidate_count":sum(str(t.get("side","")).upper()=="BUY" for t in trades),"sell_close_signal_count":sum(str(t.get("side","")).upper()=="SELL" for t in trades),"standalone_full_path_candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(float(t.get("gross_pct",0) or 0) for t in trades if str(t.get("side","")).upper()=="BUY"),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"standalone_full_path_avg_net_candidate_pct":round(sum(vals)/len(vals),4) if vals else None,"standalone_full_path_candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t.get("exit_reason")==k for t in trades if str(t.get("side","")).upper()=="BUY") for k in sorted({t.get("exit_reason") for t in trades if str(t.get("side","")).upper()=="BUY"})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"trend_buy_sell_portfolio_comparison":trend_side_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; TP1 sells 50%; remaining 50% stays open until later TP2, protective stop, time exit, or SELL close signal","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"adverse slippage applied to entry and exit fill prices; round-trip fees deducted separately; sizing reserves fees plus estimated round-trip slippage","capital":"long-only Spot shared-cash ledger; 1% equity risk per BUY; max position capped at 100% of equity and available cash; SELL only closes an existing position","overlap":"concurrent trades compete for free cash; one long Spot position per symbol; SELL signals close existing positions only","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
     (OUT/"summary.json").write_text(json.dumps(summary,indent=2),encoding="utf-8"); print(json.dumps(summary,indent=2),flush=True)
     if not trades: raise SystemExit("No trades produced; do not infer profitability.")
 if __name__=="__main__": run()
