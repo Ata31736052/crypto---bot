@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Closed-candle historical replay of the repository signal engine. No orders or Telegram."""
-import json, os, time, cProfile, pstats, io, resource, math
+import json, os, time, cProfile, pstats, io, resource, math, zipfile
 from pathlib import Path
+from io import BytesIO
 import pandas as pd
 import requests
 import main
 from portfolio_ledger import portfolio_ledger_self_test
 from spot_backtest_replay import simulate_spot_buy
 from spot_event_ledger import spot_event_ledger, spot_event_ledger_self_test
+from historical_universe import build_point_in_time_universe
 
 BASE = os.getenv("BINANCE_BASE_URL", "https://data-api.binance.vision")
 _SYMBOL_OVERRIDE = os.getenv("BACKTEST_SYMBOLS", "").strip()
@@ -93,11 +95,76 @@ def replay_signal_indices(frame, start_index, end_time):
     return range(max(0, int(start_index)), boundary_index)
 
 
+def fetch_vision_archive_rows(symbol, tf, start_ms, end_ms):
+    """Load delisted/archived Spot candles from Binance Vision monthly ZIPs."""
+    start = pd.to_datetime(start_ms, unit="ms", utc=True)
+    end = pd.to_datetime(end_ms, unit="ms", utc=True)
+    months = pd.period_range(start=start.tz_localize(None).to_period("M"), end=end.tz_localize(None).to_period("M"), freq="M")
+    rows = []
+    for month in months:
+        key = str(month)
+        url = f"https://data.binance.vision/data/spot/monthly/klines/{symbol}/{tf}/{symbol}-{tf}-{key}.zip"
+        response = SESSION.get(url, timeout=45)
+        if response.status_code == 404:
+            # The current/incomplete month may only have daily archives.
+            for day in pd.date_range(start=start.floor("D"), end=end.floor("D"), freq="D", tz="UTC"):
+                if day.to_period("M") != month:
+                    continue
+                day_key = day.strftime("%Y-%m-%d")
+                daily_url = f"https://data.binance.vision/data/spot/daily/klines/{symbol}/{tf}/{symbol}-{tf}-{day_key}.zip"
+                daily_response = SESSION.get(daily_url, timeout=30)
+                if daily_response.status_code == 404:
+                    continue
+                daily_response.raise_for_status()
+                with zipfile.ZipFile(BytesIO(daily_response.content)) as archive:
+                    csv_names = [name for name in archive.namelist() if name.lower().endswith(".csv")]
+                    if len(csv_names) != 1:
+                        raise RuntimeError(f"{symbol} {tf} {day_key}: invalid Binance Vision daily archive")
+                    frame = pd.read_csv(archive.open(csv_names[0]), header=None)
+                rows.extend(frame.values.tolist())
+            continue
+        response.raise_for_status()
+        with zipfile.ZipFile(BytesIO(response.content)) as archive:
+            csv_names = [name for name in archive.namelist() if name.lower().endswith(".csv")]
+            if len(csv_names) != 1:
+                raise RuntimeError(f"{symbol} {tf} {key}: invalid Binance Vision monthly archive")
+            frame = pd.read_csv(archive.open(csv_names[0]), header=None)
+        rows.extend(frame.values.tolist())
+    if not rows:
+        raise RuntimeError(f"No Binance Vision historical archive candles found for {symbol} {tf}")
+    normalized = []
+    for row in rows:
+        if len(row) < 12:
+            raise RuntimeError(f"Malformed Binance Vision kline row for {symbol} {tf}")
+        open_raw, close_raw = int(float(row[0])), int(float(row[6]))
+        # Spot archive timestamps are microseconds from 2025-01-01 onward.
+        if open_raw >= 10**14:
+            open_raw //= 1000
+            close_raw //= 1000
+        if start_ms <= open_raw <= end_ms:
+            item = list(row)
+            item[0], item[6] = open_raw, close_raw
+            normalized.append(item)
+    return normalized
+
+
 def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, now=None, signal_boundary_ms=None):
     rows=[]; cursor=start_ms
     while cursor < end_ms:
         r=SESSION.get(f"{BASE}/api/v3/klines",params={"symbol":symbol,"interval":tf,"startTime":cursor,"endTime":end_ms,"limit":1000},timeout=30)
-        r.raise_for_status(); batch=r.json()
+        try:
+            r.raise_for_status()
+        except requests.HTTPError:
+            payload = {}
+            try:
+                payload = r.json()
+            except Exception:
+                pass
+            if r.status_code == 400 and int(payload.get("code", 0) or 0) == -1121:
+                rows = fetch_vision_archive_rows(symbol, tf, start_ms, end_ms)
+                break
+            raise
+        batch=r.json()
         if not isinstance(batch,list): raise RuntimeError(f"Bad Binance response: {symbol} {tf}")
         if not batch: break
         rows.extend(batch); nxt=int(batch[-1][0])+MS[tf]
@@ -721,28 +788,6 @@ def simulate_self_test():
 
 def run():
     global SYMBOLS
-    universe_source = "explicit_BACKTEST_SYMBOLS_override" if SYMBOLS else "main.get_scan_coins_current_Binance_Spot_exchangeInfo_plus_24h_volume"
-    if not SYMBOLS:
-        # Resolve the production exchangeInfo + 24h liquidity-ranked universe only
-        # when the replay actually runs; importing this module remains offline-safe.
-        SYMBOLS = [main.to_binance_usdt_symbol(s) for s in main.get_scan_coins()][:100]
-    SYMBOLS, btc_excluded_symbols = filter_backtest_symbols(SYMBOLS)
-    if not SYMBOLS:
-        raise RuntimeError("Directional Binance Spot universe is empty after excluding BTC context asset")
-    universe_snapshot = {
-        "resolved_at_utc": pd.Timestamp.now(tz="UTC").isoformat(),
-        "source": universe_source,
-        "symbols": SYMBOLS,
-        "symbol_count": len(SYMBOLS),
-        "max_symbols": 100 if universe_source != "explicit_BACKTEST_SYMBOLS_override" else "override",
-        "btc_context_only": True,
-        "btc_excluded_symbols": btc_excluded_symbols,
-        "minimum_24h_quote_volume_usdt": getattr(main, "MIN_24H_USDT_VOLUME", None),
-        "historical_point_in_time": False,
-        "selection_bias": "CURRENT_UNIVERSE_SURVIVORSHIP_BIAS",
-        "selection_note": "Current active Binance Spot USDT universe ranked by current 24h quote volume; not a historical point-in-time universe. Results are research-only and retain survivorship/universe-selection bias.",
-    }
-    (OUT/"universe_snapshot.json").write_text(json.dumps(universe_snapshot,indent=2),encoding="utf-8")
     # Fixed UTC end lets baseline and experiment use identical closed-candle windows.
     end_raw = os.getenv("BACKTEST_END_TIME", "").strip()
     if end_raw:
@@ -755,6 +800,66 @@ def run():
     else:
         end = pd.Timestamp.now(tz="UTC").floor("h")
     start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
+
+    if SYMBOLS:
+        universe_source = "explicit_BACKTEST_SYMBOLS_override"
+        SYMBOLS, btc_excluded_symbols = filter_backtest_symbols(SYMBOLS)
+        daily_snapshots = {
+            day.strftime("%Y-%m-%dT%H:%M:%SZ"): list(SYMBOLS)
+            for day in pd.date_range(start=start.floor("D"), end=end.floor("D"), freq="D", tz="UTC")
+        }
+        universe_snapshot = {
+            "resolved_at_utc": pd.Timestamp.now(tz="UTC").isoformat(),
+            "source": universe_source,
+            "symbols": SYMBOLS,
+            "symbol_count": len(SYMBOLS),
+            "max_symbols": "override",
+            "btc_context_only": True,
+            "btc_excluded_symbols": btc_excluded_symbols,
+            "historical_point_in_time": False,
+            "selection_bias": "EXPLICIT_FIXED_SYMBOL_OVERRIDE",
+            "selection_note": "Explicit fixed symbol override; no historical ranking claim is made.",
+        }
+    else:
+        historical = build_point_in_time_universe(
+            start=start,
+            end=end,
+            min_quote_volume_usdt=float(getattr(main, "MIN_24H_USDT_VOLUME", 5_000_000)),
+            max_symbols=100,
+            cache_dir=os.getenv("BINANCE_VISION_CACHE", ".cache/binance-vision"),
+            is_directional_base=main.is_directional_spot_asset,
+            excluded_base_assets=("BTC",),
+        )
+        SYMBOLS = historical["symbols"]
+        daily_snapshots = historical["daily_snapshots"]
+        universe_source = historical["source"]
+        universe_snapshot = {
+            "resolved_at_utc": pd.Timestamp.now(tz="UTC").isoformat(),
+            "source": universe_source,
+            "symbols": SYMBOLS,
+            "symbol_count": len(SYMBOLS),
+            "max_symbols": 100,
+            "btc_context_only": True,
+            "btc_excluded_symbols": ["BTCUSDT"],
+            "minimum_24h_quote_volume_usdt": historical["min_quote_volume_usdt"],
+            "historical_point_in_time": True,
+            "selection_bias": "NONE_WITHIN_DAILY_SNAPSHOT_METHOD",
+            "selection_method": historical["selection_method"],
+            "snapshot_cadence": historical["snapshot_cadence"],
+            "candidate_symbol_count": historical["candidate_symbol_count"],
+            "selected_union_count": historical["selected_union_count"],
+            "known_limitations": historical["known_limitations"],
+        }
+        (OUT/"universe_daily_snapshots.json").write_text(
+            json.dumps(historical["daily_counts"], indent=2), encoding="utf-8"
+        )
+    if not SYMBOLS:
+        raise RuntimeError("Directional historical Spot universe is empty after excluding BTC context asset")
+    daily_snapshot_sets = {key: set(value) for key, value in daily_snapshots.items()}
+    universe_snapshot["daily_snapshot_count"] = len(daily_snapshots)
+    universe_snapshot["start_utc"] = start.isoformat()
+    universe_snapshot["end_utc"] = end.isoformat()
+    (OUT/"universe_snapshot.json").write_text(json.dumps(universe_snapshot,indent=2),encoding="utf-8")
     trades=[]; engine_candidate_trades={}; errors=[]; excluded_symbols=[]; replayed_symbols=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
     perf={"stage_seconds":{},"counters":{"candle_steps":0,"timeframe_index_lookups":0,"rows_materialized":0,"btc_regime_lookups":0,"engine_calls":0}}
     # ENGINE_INTERNAL_PROFILE: profile exactly one real production-engine invocation.
@@ -812,6 +917,9 @@ def run():
                 t_step=time.perf_counter()
                 c=h1.iloc[i]; close_time=c.close_time
                 if close_time<start: continue
+                snapshot_key = pd.Timestamp(close_time).floor("D").strftime("%Y-%m-%dT%H:%M:%SZ")
+                if sym not in daily_snapshot_sets.get(snapshot_key, set()):
+                    continue
                 perf["counters"]["candle_steps"] += 1
                 data={}
                 for tf,df in frames.items():
