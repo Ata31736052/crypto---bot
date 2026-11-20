@@ -5,10 +5,10 @@ import zipfile
 from unittest.mock import patch
 
 import pandas as pd
-import historical_backtest
 
 from historical_universe import (
-    _read_daily_archive,
+    _hourly_rolling_quote_volume,
+    _read_archive_zip,
     build_point_in_time_universe,
     list_historical_spot_symbols,
 )
@@ -43,93 +43,102 @@ class FakeSession:
 
 
 class HistoricalUniverseTests(unittest.TestCase):
-    def test_s3_listing_paginates_and_returns_historical_usdt_pairs(self):
+    def test_s3_listing_paginates_and_includes_three_character_base_symbols(self):
         first = b"""<ListBucketResult>
           <CommonPrefixes><Prefix>data/spot/monthly/klines/OLDUSDT/</Prefix></CommonPrefixes>
+          <CommonPrefixes><Prefix>data/spot/monthly/klines/ETHUSDT/</Prefix></CommonPrefixes>
           <CommonPrefixes><Prefix>data/spot/monthly/klines/ETHBTC/</Prefix></CommonPrefixes>
           <IsTruncated>true</IsTruncated><NextContinuationToken>next-page</NextContinuationToken>
         </ListBucketResult>"""
         second = b"""<ListBucketResult>
           <CommonPrefixes><Prefix>data/spot/monthly/klines/DELISTEDUSDT/</Prefix></CommonPrefixes>
+          <CommonPrefixes><Prefix>data/spot/monthly/klines/SOLUSDT/</Prefix></CommonPrefixes>
           <IsTruncated>false</IsTruncated>
         </ListBucketResult>"""
         client = FakeSession([FakeResponse(first), FakeResponse(second)])
         self.assertEqual(
             list_historical_spot_symbols(session=client),
-            ["DELISTEDUSDT", "OLDUSDT"],
+            ["DELISTEDUSDT", "ETHUSDT", "OLDUSDT", "SOLUSDT"],
         )
         self.assertEqual(client.calls[1][1]["continuation-token"], "next-page")
 
-    def test_archive_parser_handles_microsecond_timestamps(self):
+    def test_hourly_archive_parser_handles_microsecond_timestamps(self):
         open_us = int(pd.Timestamp("2026-01-01T00:00:00Z").timestamp() * 1_000_000)
-        parsed = _read_daily_archive(make_zip([[open_us, 1, 2, 1, 2, 10, open_us + 86_399_999_999, 6_000_000, 3, 5, 3, 0]]), "ETHUSDT", "2026-01")
-        self.assertEqual(parsed.iloc[0]["day"], pd.Timestamp("2026-01-01T00:00:00Z"))
+        parsed = _read_archive_zip(
+            make_zip([[open_us, 1, 2, 1, 2, 10, open_us + 3_599_999_999, 6_000_000, 3, 5, 3, 0]]),
+            "ETHUSDT", "2026-01",
+        )
+        self.assertEqual(parsed.iloc[0]["open_time"], pd.Timestamp("2026-01-01T00:00:00Z"))
         self.assertEqual(float(parsed.iloc[0]["quote_volume"]), 6_000_000)
 
-    def test_universe_uses_only_previous_closed_day_and_top_n(self):
-        start = pd.Timestamp("2026-01-02T12:00:00Z")
-        end = pd.Timestamp("2026-01-03T12:00:00Z")
-        jan1 = pd.Timestamp("2026-01-01T00:00:00Z")
-        jan2 = pd.Timestamp("2026-01-02T00:00:00Z")
+    def test_hourly_rolling_volume_uses_only_previous_24_closed_bars(self):
+        opens = pd.date_range("2026-01-01T01:00:00Z", periods=25, freq="h")
+        frame = pd.DataFrame({
+            "open_time": opens,
+            "quote_volume": [250_000] * 24 + [10_000_000],
+        })
+        snapshots = pd.date_range("2026-01-02T01:00:00Z", periods=2, freq="h")
+        rolling = _hourly_rolling_quote_volume(frame, snapshots)
+        self.assertEqual(float(rolling.loc[snapshots[0]]), 6_000_000)
+        self.assertEqual(float(rolling.loc[snapshots[1]]), 15_750_000)
+        self.assertNotIn(opens[-1] + pd.Timedelta(hours=1), rolling.index)
+
+    def test_missing_hour_invalidates_24h_window(self):
+        opens = pd.date_range("2026-01-01T01:00:00Z", periods=25, freq="h").delete(8)
+        frame = pd.DataFrame({"open_time": opens, "quote_volume": [1_000_000] * len(opens)})
+        snapshots = pd.date_range("2026-01-02T01:00:00Z", periods=2, freq="h")
+        rolling = _hourly_rolling_quote_volume(frame, snapshots)
+        self.assertTrue(rolling.empty)
+
+    def test_hourly_universe_ranks_rolling_volume_excludes_btc_and_waits_for_24_bars(self):
+        opens = pd.date_range("2026-01-01T01:00:00Z", periods=25, freq="h")
         data = {
-            "ETHUSDT": pd.DataFrame({"day": [jan1, jan2], "quote_volume": [8_000_000, 1_000_000]}),
-            "SOLUSDT": pd.DataFrame({"day": [jan1, jan2], "quote_volume": [6_000_000, 9_000_000]}),
-            "BTCUSDT": pd.DataFrame({"day": [jan1, jan2], "quote_volume": [99_000_000, 99_000_000]}),
-            "NEWUSDT": pd.DataFrame({"day": [jan2], "quote_volume": [100_000_000]}),
+            "ETHUSDT": pd.DataFrame({"open_time": opens, "quote_volume": [250_000] * 24 + [10_000_000]}),
+            "SOLUSDT": pd.DataFrame({"open_time": opens, "quote_volume": [300_000] * 25}),
+            "BTCUSDT": pd.DataFrame({"open_time": opens, "quote_volume": [99_000_000] * 25}),
+            # Newly listed pair has fewer than 24 bars at the first snapshot.
+            "NEWUSDT": pd.DataFrame({
+                "open_time": opens[1:],
+                "quote_volume": [1_000_000] * 24,
+            }),
         }
+
         def fake_download(symbol, month, cache_dir):
-            return data.get(symbol, pd.DataFrame(columns=["day", "quote_volume"]))
+            return data.get(symbol, pd.DataFrame(columns=["open_time", "quote_volume"]))
+
         with tempfile.TemporaryDirectory() as cache:
             with patch("historical_universe.list_historical_spot_symbols", return_value=list(data)), patch(
-                "historical_universe._download_daily_month", side_effect=fake_download
+                "historical_universe._download_hourly_month", side_effect=fake_download
             ):
                 result = build_point_in_time_universe(
-                    start, end, min_quote_volume_usdt=5_000_000, max_symbols=1,
-                    cache_dir=cache, is_directional_base=lambda base: True,
+                    pd.Timestamp("2026-01-02T00:00:00Z"),
+                    pd.Timestamp("2026-01-02T02:00:00Z"),
+                    min_quote_volume_usdt=5_000_000,
+                    max_symbols=2,
+                    cache_dir=cache,
+                    is_directional_base=lambda base: True,
                 )
-        self.assertEqual(result["daily_snapshots"]["2026-01-02T00:00:00Z"], ["ETHUSDT"])
-        self.assertEqual(result["daily_snapshots"]["2026-01-03T00:00:00Z"], ["SOLUSDT"])
+
+        first = result["hourly_snapshots"]["2026-01-02T01:00:00Z"]
+        second = result["hourly_snapshots"]["2026-01-02T02:00:00Z"]
+        self.assertEqual(first, ["SOLUSDT", "ETHUSDT"])
+        self.assertEqual(second, ["NEWUSDT", "ETHUSDT"])
         self.assertNotIn("BTCUSDT", result["symbols"])
-        self.assertNotIn("NEWUSDT", result["daily_snapshots"]["2026-01-03T00:00:00Z"])
+        self.assertEqual(result["snapshot_cadence"], "hourly_at_next_1h_open")
+        self.assertEqual(result["selection_method"], "previous_24_closed_1h_quote_volume_ranked_at_each_hour")
+        self.assertTrue(result["lookahead_free"])
+        self.assertEqual(result["candidate_symbol_count"], 4)
 
-
-    def test_delisted_symbol_archive_fallback_reads_microsecond_daily_file(self):
-        day = pd.Timestamp.now(tz="UTC").floor("D")
-        open_us = int(day.timestamp() * 1_000_000)
-        row = [open_us, 100, 102, 99, 101, 10, open_us + 3_599_999_999, 1000, 5, 4, 400, 0]
-        monthly_404 = FakeResponse(status_code=404)
-        daily_zip = FakeResponse(make_zip([row]))
-        fake_session = FakeSession([monthly_404, daily_zip])
-        original = historical_backtest.SESSION
-        try:
-            historical_backtest.SESSION = fake_session
-            rows = historical_backtest.fetch_vision_archive_rows(
-                "DELISTEDUSDT", "1h",
-                int(day.timestamp() * 1000),
-                int((day + pd.Timedelta(hours=23, minutes=59)).timestamp() * 1000),
-            )
-        finally:
-            historical_backtest.SESSION = original
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0][0], open_us // 1000)
-        self.assertEqual(rows[0][6], (open_us + 3_599_999_999) // 1000)
-        self.assertIn("/daily/klines/DELISTEDUSDT/1h/", fake_session.calls[1][0])
-
-    def test_missing_previous_day_volume_is_not_forward_filled(self):
+    def test_empty_history_is_not_forward_filled(self):
         start = pd.Timestamp("2026-01-02T00:00:00Z")
-        end = pd.Timestamp("2026-01-03T00:00:00Z")
-        frame = pd.DataFrame({
-            "day": [pd.Timestamp("2026-01-01T00:00:00Z"), pd.Timestamp("2026-01-02T00:00:00Z")],
-            "quote_volume": [6_000_000, 1_000_000],
-        })
+        end = pd.Timestamp("2026-01-02T02:00:00Z")
         with tempfile.TemporaryDirectory() as cache:
             with patch("historical_universe.list_historical_spot_symbols", return_value=["ETHUSDT"]), patch(
-                "historical_universe._download_daily_month", return_value=frame
+                "historical_universe._download_hourly_month",
+                return_value=pd.DataFrame(columns=["open_time", "quote_volume"]),
             ):
-                result = build_point_in_time_universe(start, end, cache_dir=cache)
-        self.assertEqual(result["daily_snapshots"]["2026-01-02T00:00:00Z"], ["ETHUSDT"])
-        self.assertEqual(result["daily_snapshots"]["2026-01-03T00:00:00Z"], [])
-
+                with self.assertRaisesRegex(RuntimeError, "universe is empty"):
+                    build_point_in_time_universe(start, end, cache_dir=cache)
 
 if __name__ == "__main__":
     unittest.main()
