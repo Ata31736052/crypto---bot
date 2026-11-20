@@ -19,7 +19,7 @@ import requests
 
 S3_LIST_URL = "https://s3-ap-northeast-1.amazonaws.com/data.binance.vision"
 VISION_URL = "https://data.binance.vision"
-SYMBOL_PREFIX = "data/spot/monthly/klines/"
+SYMBOL_PREFIXES = ("data/spot/monthly/klines/", "data/spot/daily/klines/")
 ONE_HOUR = pd.Timedelta(hours=1)
 KLINE_COLUMNS = [
     "open_ms", "open", "high", "low", "close", "volume", "close_ms",
@@ -32,42 +32,44 @@ def _local_name(tag):
 
 
 def list_historical_spot_symbols(session=None, timeout=30):
-    """Enumerate current and delisted Spot symbol directories in Binance Vision."""
+    """Enumerate current and delisted Spot symbols from monthly and daily archives."""
     client = session or requests
-    token = None
     symbols = set()
-    while True:
-        params = {
-            "list-type": "2",
-            "prefix": SYMBOL_PREFIX,
-            "delimiter": "/",
-            "max-keys": "1000",
-        }
-        if token:
-            params["continuation-token"] = token
-        response = client.get(S3_LIST_URL, params=params, timeout=timeout)
-        response.raise_for_status()
-        root = ET.fromstring(response.content)
-        next_token = None
-        truncated = False
-        for node in root.iter():
-            name = _local_name(node.tag)
-            if name == "Prefix" and node.text:
-                value = node.text.strip()
-                if value.startswith(SYMBOL_PREFIX):
-                    symbol = value[len(SYMBOL_PREFIX):].strip("/")
-                    # Binance base assets can be 1-30 characters (e.g. ETHUSDT).
-                    if re.fullmatch(r"[A-Z0-9_]{1,30}USDT", symbol):
-                        symbols.add(symbol)
-            elif name == "NextContinuationToken":
-                next_token = node.text
-            elif name == "IsTruncated":
-                truncated = (node.text or "").strip().lower() == "true"
-        if not truncated:
-            break
-        if not next_token or next_token == token:
-            raise RuntimeError("Binance Vision S3 listing pagination stalled")
-        token = next_token
+    for prefix in SYMBOL_PREFIXES:
+        token = None
+        while True:
+            params = {
+                "list-type": "2",
+                "prefix": prefix,
+                "delimiter": "/",
+                "max-keys": "1000",
+            }
+            if token:
+                params["continuation-token"] = token
+            response = client.get(S3_LIST_URL, params=params, timeout=timeout)
+            response.raise_for_status()
+            root = ET.fromstring(response.content)
+            next_token = None
+            truncated = False
+            for node in root.iter():
+                name = _local_name(node.tag)
+                if name == "Prefix" and node.text:
+                    value = node.text.strip()
+                    if value.startswith(prefix):
+                        symbol = value[len(prefix):].strip("/")
+                        # Base assets can be 1-30 chars (e.g. ETHUSDT); daily-only
+                        # folders capture newly listed pairs before monthly publication.
+                        if re.fullmatch(r"[A-Z0-9_]{1,30}USDT", symbol):
+                            symbols.add(symbol)
+                elif name == "NextContinuationToken":
+                    next_token = node.text
+                elif name == "IsTruncated":
+                    truncated = (node.text or "").strip().lower() == "true"
+            if not truncated:
+                break
+            if not next_token or next_token == token:
+                raise RuntimeError(f"Binance Vision S3 listing pagination stalled for {prefix}")
+            token = next_token
     if not symbols:
         raise RuntimeError("Binance Vision historical Spot symbol listing returned no USDT pairs")
     return sorted(symbols)
