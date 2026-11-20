@@ -94,7 +94,8 @@ class HistoricalUniverseTests(unittest.TestCase):
 
 
     def test_delisted_symbol_archive_fallback_reads_microsecond_daily_file(self):
-        open_us = int(pd.Timestamp("2026-10-01T00:00:00Z").timestamp() * 1_000_000)
+        day = pd.Timestamp.now(tz="UTC").floor("D")
+        open_us = int(day.timestamp() * 1_000_000)
         row = [open_us, 100, 102, 99, 101, 10, open_us + 3_599_999_999, 1000, 5, 4, 400, 0]
         monthly_404 = FakeResponse(status_code=404)
         daily_zip = FakeResponse(make_zip([row]))
@@ -104,8 +105,8 @@ class HistoricalUniverseTests(unittest.TestCase):
             historical_backtest.SESSION = fake_session
             rows = historical_backtest.fetch_vision_archive_rows(
                 "DELISTEDUSDT", "1h",
-                int(pd.Timestamp("2026-10-01T00:00:00Z").timestamp() * 1000),
-                int(pd.Timestamp("2026-10-01T23:59:00Z").timestamp() * 1000),
+                int(day.timestamp() * 1000),
+                int((day + pd.Timedelta(hours=23, minutes=59)).timestamp() * 1000),
             )
         finally:
             historical_backtest.SESSION = original
@@ -118,8 +119,8 @@ class HistoricalUniverseTests(unittest.TestCase):
         start = pd.Timestamp("2026-01-02T00:00:00Z")
         end = pd.Timestamp("2026-01-03T00:00:00Z")
         frame = pd.DataFrame({
-            "day": [pd.Timestamp("2026-01-01T00:00:00Z")],
-            "quote_volume": [6_000_000],
+            "day": [pd.Timestamp("2026-01-01T00:00:00Z"), pd.Timestamp("2026-01-02T00:00:00Z")],
+            "quote_volume": [6_000_000, 1_000_000],
         })
         with tempfile.TemporaryDirectory() as cache:
             with patch("historical_universe.list_historical_spot_symbols", return_value=["ETHUSDT"]), patch(
