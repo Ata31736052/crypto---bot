@@ -106,7 +106,12 @@ def fetch_vision_archive_rows(symbol, tf, start_ms, end_ms):
         url = f"https://data.binance.vision/data/spot/monthly/klines/{symbol}/{tf}/{symbol}-{tf}-{key}.zip"
         response = SESSION.get(url, timeout=45)
         if response.status_code == 404:
-            # The current/incomplete month may only have daily archives.
+            # Only the current incomplete month may lack its monthly bundle.
+            # Older missing monthly bundles are treated as no archived history;
+            # probing every daily URL there would create pointless requests.
+            current_month = pd.Period(pd.Timestamp.now(tz="UTC").strftime("%Y-%m"), freq="M")
+            if month != current_month:
+                continue
             for day in pd.date_range(start=start.floor("D"), end=end.floor("D"), freq="D", tz="UTC"):
                 if day.to_period("M") != month:
                     continue
