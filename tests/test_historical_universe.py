@@ -5,6 +5,7 @@ import zipfile
 from unittest.mock import patch
 
 import pandas as pd
+import historical_backtest
 
 from historical_universe import (
     _read_daily_archive,
