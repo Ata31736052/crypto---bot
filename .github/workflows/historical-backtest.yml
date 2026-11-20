@@ -55,9 +55,9 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: .cache/binance-vision
-          key: binance-vision-spot-daily-1d-\${{ runner.os }}-v1-\${{ github.run_id }}
+          key: binance-vision-spot-daily-1d-${{ runner.os }}-v1-${{ github.run_id }}
           restore-keys: |
-            binance-vision-spot-daily-1d-\${{ runner.os }}-v1-
+            binance-vision-spot-daily-1d-${{ runner.os }}-v1-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
