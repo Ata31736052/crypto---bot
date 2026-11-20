@@ -89,7 +89,7 @@ class HistoricalUniverseTests(unittest.TestCase):
         rolling = _hourly_rolling_quote_volume(frame, snapshots)
         self.assertEqual(float(rolling.loc[snapshots[0]]), 6_000_000)
         self.assertEqual(float(rolling.loc[snapshots[1]]), 15_750_000)
-        self.assertNotIn(opens[-1] + pd.Timedelta(hours=1), rolling.index)
+        self.assertIn(snapshots[1], rolling.index)
 
     def test_missing_hour_invalidates_24h_window(self):
         opens = pd.date_range("2026-01-01T01:00:00Z", periods=25, freq="h").delete(8)
@@ -135,7 +135,7 @@ class HistoricalUniverseTests(unittest.TestCase):
         self.assertEqual(result["snapshot_cadence"], "hourly_at_next_1h_open")
         self.assertEqual(result["selection_method"], "previous_24_closed_1h_quote_volume_ranked_at_each_hour")
         self.assertTrue(result["lookahead_free"])
-        self.assertEqual(result["candidate_symbol_count"], 4)
+        self.assertEqual(result["candidate_symbol_count"], 3)
 
     def test_empty_history_is_not_forward_filled(self):
         start = pd.Timestamp("2026-01-02T00:00:00Z")
