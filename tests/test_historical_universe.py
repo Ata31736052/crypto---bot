@@ -11,6 +11,7 @@ from historical_universe import (
     _read_archive_zip,
     build_point_in_time_universe,
     list_historical_spot_symbols,
+    list_daily_spot_symbols,
 )
 
 
@@ -54,21 +55,18 @@ class HistoricalUniverseTests(unittest.TestCase):
           <CommonPrefixes><Prefix>data/spot/monthly/klines/DELISTEDUSDT/</Prefix></CommonPrefixes>
           <IsTruncated>false</IsTruncated>
         </ListBucketResult>"""
-        third = b"""<ListBucketResult>
-          <CommonPrefixes><Prefix>data/spot/daily/klines/NEWLISTUSDT/</Prefix></CommonPrefixes>
-          <IsTruncated>false</IsTruncated>
-        </ListBucketResult>"""
-        fourth = b"""<ListBucketResult>
-          <CommonPrefixes><Prefix>data/spot/daily/klines/SOLUSDT/</Prefix></CommonPrefixes>
-          <IsTruncated>false</IsTruncated>
-        </ListBucketResult>"""
-        client = FakeSession([FakeResponse(first), FakeResponse(second), FakeResponse(third), FakeResponse(fourth)])
+        client = FakeSession([FakeResponse(first), FakeResponse(second)])
         self.assertEqual(
             list_historical_spot_symbols(session=client),
-            ["DELISTEDUSDT", "ETHUSDT", "NEWLISTUSDT", "OLDUSDT", "SOLUSDT"],
+            ["DELISTEDUSDT", "ETHUSDT", "OLDUSDT"],
         )
         self.assertEqual(client.calls[1][1]["continuation-token"], "next-page")
-        self.assertEqual(client.calls[2][1]["prefix"], "data/spot/daily/klines/")
+        daily = FakeSession([FakeResponse(b"""<ListBucketResult>
+          <CommonPrefixes><Prefix>data/spot/daily/klines/NEWLISTUSDT/</Prefix></CommonPrefixes>
+          <CommonPrefixes><Prefix>data/spot/daily/klines/SOLUSDT/</Prefix></CommonPrefixes>
+          <IsTruncated>false</IsTruncated>
+        </ListBucketResult>""")])
+        self.assertEqual(list_daily_spot_symbols(session=daily), ["NEWLISTUSDT", "SOLUSDT"])
 
     def test_hourly_archive_parser_handles_microsecond_timestamps(self):
         open_us = int(pd.Timestamp("2026-01-01T00:00:00Z").timestamp() * 1_000_000)
@@ -111,13 +109,13 @@ class HistoricalUniverseTests(unittest.TestCase):
             }),
         }
 
-        def fake_download(symbol, month, cache_dir):
+        def fake_download(symbol, month, cache_dir, **kwargs):
             return data.get(symbol, pd.DataFrame(columns=["open_time", "quote_volume"]))
 
         with tempfile.TemporaryDirectory() as cache:
             with patch("historical_universe.list_historical_spot_symbols", return_value=list(data)), patch(
-                "historical_universe._download_hourly_month", side_effect=fake_download
-            ):
+                "historical_universe.list_daily_spot_symbols", return_value=[]
+            ), patch("historical_universe._download_hourly_month", side_effect=fake_download):
                 result = build_point_in_time_universe(
                     pd.Timestamp("2026-01-02T00:00:00Z"),
                     pd.Timestamp("2026-01-02T02:00:00Z"),
