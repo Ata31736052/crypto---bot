@@ -19,7 +19,8 @@ import requests
 
 S3_LIST_URL = "https://s3-ap-northeast-1.amazonaws.com/data.binance.vision"
 VISION_URL = "https://data.binance.vision"
-SYMBOL_PREFIXES = ("data/spot/monthly/klines/", "data/spot/daily/klines/")
+MONTHLY_SYMBOL_PREFIX = "data/spot/monthly/klines/"
+DAILY_SYMBOL_PREFIX = "data/spot/daily/klines/"
 ONE_HOUR = pd.Timedelta(hours=1)
 KLINE_COLUMNS = [
     "open_ms", "open", "high", "low", "close", "volume", "close_ms",
@@ -31,48 +32,50 @@ def _local_name(tag):
     return tag.rsplit("}", 1)[-1]
 
 
-def list_historical_spot_symbols(session=None, timeout=30):
-    """Enumerate current and delisted Spot symbols from monthly and daily archives."""
+def _list_symbols_for_prefix(prefix, session=None, timeout=30):
     client = session or requests
+    token = None
     symbols = set()
-    for prefix in SYMBOL_PREFIXES:
-        token = None
-        while True:
-            params = {
-                "list-type": "2",
-                "prefix": prefix,
-                "delimiter": "/",
-                "max-keys": "1000",
-            }
-            if token:
-                params["continuation-token"] = token
-            response = client.get(S3_LIST_URL, params=params, timeout=timeout)
-            response.raise_for_status()
-            root = ET.fromstring(response.content)
-            next_token = None
-            truncated = False
-            for node in root.iter():
-                name = _local_name(node.tag)
-                if name == "Prefix" and node.text:
-                    value = node.text.strip()
-                    if value.startswith(prefix):
-                        symbol = value[len(prefix):].strip("/")
-                        # Base assets can be 1-30 chars (e.g. ETHUSDT); daily-only
-                        # folders capture newly listed pairs before monthly publication.
-                        if re.fullmatch(r"[A-Z0-9_]{1,30}USDT", symbol):
-                            symbols.add(symbol)
-                elif name == "NextContinuationToken":
-                    next_token = node.text
-                elif name == "IsTruncated":
-                    truncated = (node.text or "").strip().lower() == "true"
-            if not truncated:
-                break
-            if not next_token or next_token == token:
-                raise RuntimeError(f"Binance Vision S3 listing pagination stalled for {prefix}")
-            token = next_token
+    while True:
+        params = {"list-type": "2", "prefix": prefix, "delimiter": "/", "max-keys": "1000"}
+        if token:
+            params["continuation-token"] = token
+        response = client.get(S3_LIST_URL, params=params, timeout=timeout)
+        response.raise_for_status()
+        root = ET.fromstring(response.content)
+        next_token = None
+        truncated = False
+        for node in root.iter():
+            name = _local_name(node.tag)
+            if name == "Prefix" and node.text:
+                value = node.text.strip()
+                if value.startswith(prefix):
+                    symbol = value[len(prefix):].strip("/")
+                    if re.fullmatch(r"[A-Z0-9_]{1,30}USDT", symbol):
+                        symbols.add(symbol)
+            elif name == "NextContinuationToken":
+                next_token = node.text
+            elif name == "IsTruncated":
+                truncated = (node.text or "").strip().lower() == "true"
+        if not truncated:
+            break
+        if not next_token or next_token == token:
+            raise RuntimeError(f"Binance Vision S3 listing pagination stalled for {prefix}")
+        token = next_token
+    return symbols
+
+
+def list_historical_spot_symbols(session=None, timeout=30):
+    """Enumerate historical monthly Spot symbols, including delisted pairs."""
+    symbols = _list_symbols_for_prefix(MONTHLY_SYMBOL_PREFIX, session=session, timeout=timeout)
     if not symbols:
-        raise RuntimeError("Binance Vision historical Spot symbol listing returned no USDT pairs")
+        raise RuntimeError("Binance Vision monthly Spot symbol listing returned no USDT pairs")
     return sorted(symbols)
+
+
+def list_daily_spot_symbols(session=None, timeout=30):
+    """Enumerate symbols with daily archive folders (new listings before monthly publication)."""
+    return sorted(_list_symbols_for_prefix(DAILY_SYMBOL_PREFIX, session=session, timeout=timeout))
 
 
 def month_keys(start, end):
@@ -135,7 +138,10 @@ def _read_archive_zip(content, symbol, key):
     return frame[["open_time", "quote_volume"]].groupby("open_time", as_index=False).sum()
 
 
-def _download_hourly_month(symbol, month, cache_dir, timeout=45):
+def _download_hourly_month(
+    symbol, month, cache_dir, allow_daily_fallback=False,
+    daily_start=None, daily_end=None, timeout=45,
+):
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
     path = cache_dir / f"{symbol}-1h-{month}.zip"
@@ -144,17 +150,16 @@ def _download_hourly_month(symbol, month, cache_dir, timeout=45):
     url = f"{VISION_URL}/data/spot/monthly/klines/{symbol}/1h/{symbol}-1h-{month}.zip"
     response = requests.get(url, timeout=timeout)
     if response.status_code == 404:
-        # Daily files are used only for the current incomplete month. For an
-        # older completed month, a missing monthly archive means no archived
-        # listing/coverage for that symbol-month; probing 30 daily URLs would
-        # create a large amount of useless traffic for pre-listing periods.
-        current_month = pd.Period(pd.Timestamp.now(tz="UTC").strftime("%Y-%m"), freq="M")
-        if pd.Period(month, freq="M") != current_month:
+        if not allow_daily_fallback or daily_start is None or daily_end is None:
             return pd.DataFrame(columns=["open_time", "quote_volume"])
         month_start = pd.Timestamp(f"{month}-01", tz="UTC")
-        month_end = min(month_start + pd.offsets.MonthEnd(0), pd.Timestamp.now(tz="UTC").floor("D"))
+        month_end = month_start + pd.offsets.MonthEnd(0)
+        first_day = max(month_start, pd.Timestamp(daily_start).tz_convert("UTC").floor("D"))
+        last_day = min(month_end, pd.Timestamp(daily_end).tz_convert("UTC").floor("D"))
+        if first_day > last_day:
+            return pd.DataFrame(columns=["open_time", "quote_volume"])
         daily_frames = []
-        for day in pd.date_range(month_start, month_end, freq="D", tz="UTC"):
+        for day in pd.date_range(first_day, last_day, freq="D", tz="UTC"):
             day_key = day.strftime("%Y-%m-%d")
             daily_path = cache_dir / f"{symbol}-1h-{day_key}.zip"
             if daily_path.exists() and daily_path.stat().st_size:
@@ -229,7 +234,13 @@ def build_point_in_time_universe(
     if min_quote_volume_usdt < 0 or max_symbols < 1:
         raise ValueError("invalid historical universe limits")
 
-    all_symbols = list(symbols) if symbols is not None else list_historical_spot_symbols(session=session)
+    if symbols is not None:
+        all_symbols = list(symbols)
+        daily_symbols = set()
+    else:
+        monthly_symbols = set(list_historical_spot_symbols(session=session))
+        daily_symbols = set(list_daily_spot_symbols(session=session))
+        all_symbols = sorted(monthly_symbols | daily_symbols)
     excluded = set(excluded_base_assets)
     candidates = sorted({
         str(symbol).upper().replace("/", "").replace("-", "")
@@ -257,10 +268,15 @@ def build_point_in_time_universe(
 
     frames_by_symbol = {}
     failures = []
+    current_month = pd.Timestamp.now(tz="UTC").strftime("%Y-%m")
     tasks = [(symbol, month) for symbol in candidates for month in months]
     with ThreadPoolExecutor(max_workers=max(1, int(max_workers))) as pool:
         future_map = {
-            pool.submit(_download_hourly_month, symbol, month, cache_dir): (symbol, month)
+            pool.submit(
+                _download_hourly_month, symbol, month, cache_dir,
+                allow_daily_fallback=(symbol in daily_symbols and month == current_month),
+                daily_start=volume_start, daily_end=volume_end,
+            ): (symbol, month)
             for symbol, month in tasks
         }
         for future in as_completed(future_map):
