@@ -144,9 +144,15 @@ def _download_hourly_month(symbol, month, cache_dir, timeout=45):
     url = f"{VISION_URL}/data/spot/monthly/klines/{symbol}/1h/{symbol}-1h-{month}.zip"
     response = requests.get(url, timeout=timeout)
     if response.status_code == 404:
-        # Binance may expose only daily files for the not-yet-published month.
+        # Daily files are used only for the current incomplete month. For an
+        # older completed month, a missing monthly archive means no archived
+        # listing/coverage for that symbol-month; probing 30 daily URLs would
+        # create a large amount of useless traffic for pre-listing periods.
+        current_month = pd.Period(pd.Timestamp.now(tz="UTC").strftime("%Y-%m"), freq="M")
+        if pd.Period(month, freq="M") != current_month:
+            return pd.DataFrame(columns=["open_time", "quote_volume"])
         month_start = pd.Timestamp(f"{month}-01", tz="UTC")
-        month_end = month_start + pd.offsets.MonthEnd(0)
+        month_end = min(month_start + pd.offsets.MonthEnd(0), pd.Timestamp.now(tz="UTC").floor("D"))
         daily_frames = []
         for day in pd.date_range(month_start, month_end, freq="D", tz="UTC"):
             day_key = day.strftime("%Y-%m-%d")
