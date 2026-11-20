@@ -773,6 +773,12 @@ def is_directional_spot_asset(base_asset):
         return False
     return not any(base.endswith(suffix) for suffix in LEVERAGED_SUFFIXES)
 
+def is_btc_context_symbol(symbol):
+    """Return True when a symbol resolves to the BTC context asset, in base or pair form."""
+    if not BTC_CONTEXT_ONLY:
+        return False
+    return normalize_coin_symbol(symbol) == normalize_coin_symbol(BTC_SYMBOL)
+
 
 def normalize_coin_symbol(symbol):
     """
@@ -1012,7 +1018,7 @@ def get_scan_coins():
     # gets scanned. BTC remains context-only.
     common_coins = {
         coin for coin in binance_coins
-        if (not BTC_CONTEXT_ONLY or coin != BTC_SYMBOL)
+        if not is_btc_context_symbol(coin)
         and is_directional_spot_asset(coin)
     }
 
