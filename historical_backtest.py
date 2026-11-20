@@ -804,9 +804,9 @@ def run():
     if SYMBOLS:
         universe_source = "explicit_BACKTEST_SYMBOLS_override"
         SYMBOLS, btc_excluded_symbols = filter_backtest_symbols(SYMBOLS)
-        daily_snapshots = {
-            day.strftime("%Y-%m-%dT%H:%M:%SZ"): list(SYMBOLS)
-            for day in pd.date_range(start=start.floor("D"), end=end.floor("D"), freq="D", tz="UTC")
+        hourly_snapshots = {
+            boundary.strftime("%Y-%m-%dT%H:%M:%SZ"): list(SYMBOLS)
+            for boundary in pd.date_range(start=start.floor("h") + pd.Timedelta(hours=1), end=end.floor("h"), freq="h", tz="UTC")
         }
         universe_snapshot = {
             "resolved_at_utc": pd.Timestamp.now(tz="UTC").isoformat(),
@@ -831,7 +831,7 @@ def run():
             excluded_base_assets=("BTC",),
         )
         SYMBOLS = historical["symbols"]
-        daily_snapshots = historical["daily_snapshots"]
+        hourly_snapshots = historical["hourly_snapshots"]
         universe_source = historical["source"]
         universe_snapshot = {
             "resolved_at_utc": pd.Timestamp.now(tz="UTC").isoformat(),
@@ -843,20 +843,20 @@ def run():
             "btc_excluded_symbols": ["BTCUSDT"],
             "minimum_24h_quote_volume_usdt": historical["min_quote_volume_usdt"],
             "historical_point_in_time": True,
-            "selection_bias": "NONE_WITHIN_DAILY_SNAPSHOT_METHOD",
+            "selection_bias": "ARCHIVE_RECONSTRUCTED_POINT_IN_TIME_WITH_COVERAGE_LIMITS",
             "selection_method": historical["selection_method"],
             "snapshot_cadence": historical["snapshot_cadence"],
             "candidate_symbol_count": historical["candidate_symbol_count"],
             "selected_union_count": historical["selected_union_count"],
             "known_limitations": historical["known_limitations"],
         }
-        (OUT/"universe_daily_snapshots.json").write_text(
-            json.dumps(historical["daily_counts"], indent=2), encoding="utf-8"
+        (OUT/"universe_hourly_snapshots.json").write_text(
+            json.dumps(historical["hourly_counts"], indent=2), encoding="utf-8"
         )
     if not SYMBOLS:
         raise RuntimeError("Directional historical Spot universe is empty after excluding BTC context asset")
-    daily_snapshot_sets = {key: set(value) for key, value in daily_snapshots.items()}
-    universe_snapshot["daily_snapshot_count"] = len(daily_snapshots)
+    hourly_snapshot_sets = {key: set(value) for key, value in hourly_snapshots.items()}
+    universe_snapshot["hourly_snapshot_count"] = len(hourly_snapshots)
     universe_snapshot["start_utc"] = start.isoformat()
     universe_snapshot["end_utc"] = end.isoformat()
     (OUT/"universe_snapshot.json").write_text(json.dumps(universe_snapshot,indent=2),encoding="utf-8")
@@ -917,8 +917,11 @@ def run():
                 t_step=time.perf_counter()
                 c=h1.iloc[i]; close_time=c.close_time
                 if close_time<start: continue
-                snapshot_key = pd.Timestamp(close_time).floor("D").strftime("%Y-%m-%dT%H:%M:%SZ")
-                if sym not in daily_snapshot_sets.get(snapshot_key, set()):
+                # Universe membership is evaluated at the next-hour decision boundary,
+                # using only the 24 fully closed hourly candles ending there.
+                snapshot_time = (pd.Timestamp(close_time) + pd.Timedelta(milliseconds=1)).floor("h")
+                snapshot_key = snapshot_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+                if sym not in hourly_snapshot_sets.get(snapshot_key, set()):
                     continue
                 perf["counters"]["candle_steps"] += 1
                 data={}
