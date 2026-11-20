@@ -1,8 +1,8 @@
-"""Point-in-time Binance Spot USDT universe from historical public kline archives.
+"""Point-in-time Binance Spot USDT universe from Binance Vision hourly archives.
 
-Universe snapshots are made at 00:00 UTC from the previous fully closed UTC
-1d candle's quote-asset volume. This is deliberately a daily snapshot cadence;
-the signal engine itself continues to evaluate every closed 1h candle.
+Each snapshot is taken at an hourly decision boundary and uses only the 24
+fully closed 1h candles ending at that boundary. The archive contains historical
+and delisted symbols; current exchangeInfo is never used for historical ranking.
 """
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ import requests
 S3_LIST_URL = "https://s3-ap-northeast-1.amazonaws.com/data.binance.vision"
 VISION_URL = "https://data.binance.vision"
 SYMBOL_PREFIX = "data/spot/monthly/klines/"
+ONE_HOUR = pd.Timedelta(hours=1)
 KLINE_COLUMNS = [
     "open_ms", "open", "high", "low", "close", "volume", "close_ms",
     "quote_volume", "trades", "taker_base", "taker_quote", "ignore",
@@ -31,7 +32,7 @@ def _local_name(tag):
 
 
 def list_historical_spot_symbols(session=None, timeout=30):
-    """Enumerate symbol directories in Binance Vision's historical Spot archive."""
+    """Enumerate current and delisted Spot symbol directories in Binance Vision."""
     client = session or requests
     token = None
     symbols = set()
@@ -55,7 +56,8 @@ def list_historical_spot_symbols(session=None, timeout=30):
                 value = node.text.strip()
                 if value.startswith(SYMBOL_PREFIX):
                     symbol = value[len(SYMBOL_PREFIX):].strip("/")
-                    if re.fullmatch(r"[A-Z0-9_]{4,30}USDT", symbol):
+                    # Binance base assets can be 1-30 characters (e.g. ETHUSDT).
+                    if re.fullmatch(r"[A-Z0-9_]{1,30}USDT", symbol):
                         symbols.add(symbol)
             elif name == "NextContinuationToken":
                 next_token = node.text
@@ -78,48 +80,118 @@ def month_keys(start, end):
     return [str(period) for period in pd.period_range(first, last, freq="M")]
 
 
-def _read_daily_archive(content, symbol, month):
+def _read_hourly_archive(content, symbol, month):
     try:
         with zipfile.ZipFile(io.BytesIO(content)) as archive:
             names = [name for name in archive.namelist() if name.lower().endswith(".csv")]
             if len(names) != 1:
-                raise RuntimeError(f"{symbol} 1d {month}: expected one CSV in archive, found {len(names)}")
-            frame = pd.read_csv(archive.open(names[0]), header=None, usecols=[0, 7], names=["open_ms", "quote_volume"])
+                raise RuntimeError(f"{symbol} 1h {month}: expected one CSV in archive, found {len(names)}")
+            frame = pd.read_csv(
+                archive.open(names[0]), header=None, usecols=[0, 7],
+                names=["open_ms", "quote_volume"],
+            )
     except (zipfile.BadZipFile, pd.errors.ParserError, ValueError) as exc:
-        raise RuntimeError(f"{symbol} 1d {month}: corrupt/unreadable Binance Vision archive: {exc}") from exc
+        raise RuntimeError(f"{symbol} 1h {month}: corrupt/unreadable Binance Vision archive: {exc}") from exc
     if frame.empty:
-        return pd.DataFrame(columns=["day", "quote_volume"])
+        return pd.DataFrame(columns=["open_time", "quote_volume"])
     frame["open_ms"] = pd.to_numeric(frame["open_ms"], errors="coerce")
     frame["quote_volume"] = pd.to_numeric(frame["quote_volume"], errors="coerce")
     frame = frame.dropna(subset=["open_ms", "quote_volume"])
     if frame.empty:
-        return pd.DataFrame(columns=["day", "quote_volume"])
-    # Binance Spot archive timestamps changed from milliseconds to microseconds
-    # starting 2025-01-01; magnitude detection handles both formats.
+        return pd.DataFrame(columns=["open_time", "quote_volume"])
+    # Spot archive timestamps switched from milliseconds to microseconds in 2025.
     unit = "us" if float(frame["open_ms"].max()) >= 10**14 else "ms"
-    frame["day"] = pd.to_datetime(frame["open_ms"], unit=unit, utc=True).dt.floor("D")
+    frame["open_time"] = pd.to_datetime(frame["open_ms"], unit=unit, utc=True)
     if (frame["quote_volume"] < 0).any():
-        raise RuntimeError(f"{symbol} 1d {month}: negative quote volume in archive")
-    return frame[["day", "quote_volume"]].groupby("day", as_index=False).sum()
+        raise RuntimeError(f"{symbol} 1h {month}: negative quote volume in archive")
+    return frame[["open_time", "quote_volume"]].groupby("open_time", as_index=False).sum()
 
 
-def _download_daily_month(symbol, month, cache_dir, timeout=45):
+def _read_archive_zip(content, symbol, key):
+    try:
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            names = [name for name in archive.namelist() if name.lower().endswith(".csv")]
+            if len(names) != 1:
+                raise RuntimeError(f"{symbol} 1h {key}: expected one CSV in archive, found {len(names)}")
+            frame = pd.read_csv(
+                archive.open(names[0]), header=None, usecols=[0, 7],
+                names=["open_ms", "quote_volume"],
+            )
+    except (zipfile.BadZipFile, pd.errors.ParserError, ValueError) as exc:
+        raise RuntimeError(f"{symbol} 1h {key}: corrupt/unreadable Binance Vision archive: {exc}") from exc
+    if frame.empty:
+        return pd.DataFrame(columns=["open_time", "quote_volume"])
+    frame["open_ms"] = pd.to_numeric(frame["open_ms"], errors="coerce")
+    frame["quote_volume"] = pd.to_numeric(frame["quote_volume"], errors="coerce")
+    frame = frame.dropna(subset=["open_ms", "quote_volume"])
+    if frame.empty:
+        return pd.DataFrame(columns=["open_time", "quote_volume"])
+    unit = "us" if float(frame["open_ms"].max()) >= 10**14 else "ms"
+    frame["open_time"] = pd.to_datetime(frame["open_ms"], unit=unit, utc=True)
+    if (frame["quote_volume"] < 0).any():
+        raise RuntimeError(f"{symbol} 1h {key}: negative quote volume in archive")
+    return frame[["open_time", "quote_volume"]].groupby("open_time", as_index=False).sum()
+
+
+def _download_hourly_month(symbol, month, cache_dir, timeout=45):
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
-    path = cache_dir / f"{symbol}-1d-{month}.zip"
+    path = cache_dir / f"{symbol}-1h-{month}.zip"
     if path.exists() and path.stat().st_size:
-        return _read_daily_archive(path.read_bytes(), symbol, month)
-    url = f"{VISION_URL}/data/spot/monthly/klines/{symbol}/1d/{symbol}-1d-{month}.zip"
+        return _read_archive_zip(path.read_bytes(), symbol, month)
+    url = f"{VISION_URL}/data/spot/monthly/klines/{symbol}/1h/{symbol}-1h-{month}.zip"
     response = requests.get(url, timeout=timeout)
     if response.status_code == 404:
-        return pd.DataFrame(columns=["day", "quote_volume"])
+        # Binance may expose only daily files for the not-yet-published month.
+        month_start = pd.Timestamp(f"{month}-01", tz="UTC")
+        month_end = month_start + pd.offsets.MonthEnd(0)
+        daily_frames = []
+        for day in pd.date_range(month_start, month_end, freq="D", tz="UTC"):
+            day_key = day.strftime("%Y-%m-%d")
+            daily_path = cache_dir / f"{symbol}-1h-{day_key}.zip"
+            if daily_path.exists() and daily_path.stat().st_size:
+                daily_frames.append(_read_archive_zip(daily_path.read_bytes(), symbol, day_key))
+                continue
+            daily_url = f"{VISION_URL}/data/spot/daily/klines/{symbol}/1h/{symbol}-1h-{day_key}.zip"
+            daily_response = requests.get(daily_url, timeout=timeout)
+            if daily_response.status_code == 404:
+                continue
+            daily_response.raise_for_status()
+            parsed = _read_archive_zip(daily_response.content, symbol, day_key)
+            temp = daily_path.with_suffix(".zip.tmp")
+            temp.write_bytes(daily_response.content)
+            temp.replace(daily_path)
+            daily_frames.append(parsed)
+        if not daily_frames:
+            return pd.DataFrame(columns=["open_time", "quote_volume"])
+        return pd.concat(daily_frames, ignore_index=True).drop_duplicates("open_time").sort_values("open_time")
     response.raise_for_status()
-    # Validate before caching so a truncated download cannot poison later runs.
-    parsed = _read_daily_archive(response.content, symbol, month)
+    parsed = _read_archive_zip(response.content, symbol, month)
     temp = path.with_suffix(".zip.tmp")
     temp.write_bytes(response.content)
     temp.replace(path)
     return parsed
+
+
+def _hourly_rolling_quote_volume(frame, snapshot_times):
+    """Return only complete, gap-free trailing 24-closed-hour quote-volume windows."""
+    if frame is None or frame.empty:
+        return pd.Series(dtype="float64")
+    data = frame[["open_time", "quote_volume"]].copy()
+    data["open_time"] = pd.to_datetime(data["open_time"], utc=True)
+    data["quote_volume"] = pd.to_numeric(data["quote_volume"], errors="coerce")
+    data = data.dropna().drop_duplicates("open_time", keep="last").sort_values("open_time")
+    if data.empty or (data["quote_volume"] < 0).any():
+        return pd.Series(dtype="float64")
+    index = pd.DatetimeIndex(data["open_time"])
+    values = pd.Series(data["quote_volume"].astype(float).to_numpy(), index=index)
+    rolling = values.rolling(window=24, min_periods=24).sum()
+    consecutive = pd.Series(index.to_series().diff().eq(ONE_HOUR).to_numpy(), index=index)
+    gap_free = consecutive.rolling(window=23, min_periods=23).sum().eq(23)
+    rolling = rolling[gap_free & rolling.notna()]
+    # A 1h candle opened at t becomes usable at the next hour boundary.
+    rolling.index = rolling.index + ONE_HOUR
+    return rolling[rolling.index.isin(snapshot_times)]
 
 
 def build_point_in_time_universe(
@@ -127,55 +199,60 @@ def build_point_in_time_universe(
     end,
     min_quote_volume_usdt=5_000_000,
     max_symbols=100,
-    cache_dir=".cache/binance-vision",
+    cache_dir=".cache/binance-vision-hourly",
     symbols=None,
     max_workers=16,
     session=None,
     is_directional_base=None,
     excluded_base_assets=("BTC",),
 ):
-    """Build daily 00:00 UTC universe snapshots using only the previous UTC day's volume.
+    """Build hourly top-N snapshots using the previous 24 closed 1h quote-volume bars.
 
-    Missing symbol/day candles are not carried forward: a pair must have an
-    observed prior-day candle and meet the quote-volume threshold to qualify.
+    Listing history is inferred from Binance Vision's historical Spot archive,
+    which includes delisted pairs. A symbol only qualifies when all 24 hourly
+    candles exist consecutively and its rolling quote volume meets the threshold.
     """
-    start = pd.Timestamp(start)
-    end = pd.Timestamp(end)
+    start, end = pd.Timestamp(start), pd.Timestamp(end)
     if start.tzinfo is None or end.tzinfo is None:
         raise ValueError("start and end must be timezone-aware")
     start, end = start.tz_convert("UTC"), end.tz_convert("UTC")
-    if end < start:
-        raise ValueError("end must not precede start")
+    if end <= start:
+        raise ValueError("end must be after start")
     if min_quote_volume_usdt < 0 or max_symbols < 1:
         raise ValueError("invalid historical universe limits")
 
     all_symbols = list(symbols) if symbols is not None else list_historical_spot_symbols(session=session)
+    excluded = set(excluded_base_assets)
     candidates = sorted({
         str(symbol).upper().replace("/", "").replace("-", "")
         for symbol in all_symbols
         if str(symbol).upper().replace("/", "").replace("-", "").endswith("USDT")
+        and str(symbol).upper().replace("/", "").replace("-", "")[:-4] not in excluded
+        and (
+            is_directional_base is None
+            or is_directional_base(str(symbol).upper().replace("/", "").replace("-", "")[:-4])
+        )
     })
-    excluded = set(excluded_base_assets)
-    if is_directional_base:
-        candidates = [
-            symbol for symbol in candidates
-            if is_directional_base(symbol[:-4]) and symbol[:-4] not in excluded
-        ]
-    else:
-        candidates = [symbol for symbol in candidates if symbol[:-4] not in excluded]
     if not candidates:
-        raise RuntimeError("Historical archive contained no eligible USDT Spot symbols")
+        raise RuntimeError("Historical archive contained no eligible directional USDT Spot symbols")
 
-    snapshots = pd.date_range(start=start.floor("D"), end=end.floor("D"), freq="D", tz="UTC")
-    required_days = [day - pd.Timedelta(days=1) for day in snapshots]
-    months = month_keys(min(required_days), max(required_days))
+    # A signal candle closing at t-1ms is acted on at boundary t. The universe
+    # at t uses the 24 candles whose opens are [t-24h, t-1h].
+    first_snapshot = start.floor("h") + ONE_HOUR
+    last_snapshot = end.floor("h")
+    snapshot_times = pd.date_range(first_snapshot, last_snapshot, freq="h", tz="UTC")
+    if snapshot_times.empty:
+        raise RuntimeError("No hourly universe snapshots fall inside the requested replay window")
+    volume_start = snapshot_times[0] - pd.Timedelta(hours=24)
+    volume_end = snapshot_times[-1] - ONE_HOUR
+    months = month_keys(volume_start, volume_end)
 
-    daily_by_symbol = {}
+    frames_by_symbol = {}
     failures = []
     tasks = [(symbol, month) for symbol in candidates for month in months]
     with ThreadPoolExecutor(max_workers=max(1, int(max_workers))) as pool:
         future_map = {
-            pool.submit(_download_daily_month, symbol, month, cache_dir): (symbol, month)
+            pool.submit(_download_hourly_month, symbol, month, cache_dir): (symbol, month)
             for symbol, month in tasks
         }
         for future in as_completed(future_map):
@@ -186,62 +263,66 @@ def build_point_in_time_universe(
                 failures.append({"symbol": symbol, "month": month, "error": str(exc)})
                 continue
             if not frame.empty:
-                daily_by_symbol.setdefault(symbol, []).append(frame)
+                frames_by_symbol.setdefault(symbol, []).append(frame)
 
     if failures:
-        sample = failures[:10]
         raise RuntimeError(
-            f"Historical universe archive download incomplete: {len(failures)} symbol-month failures; "
-            f"sample={sample}"
+            f"Historical hourly universe archive download incomplete: {len(failures)} failures; "
+            f"sample={failures[:10]}"
         )
 
-    volumes = {}
-    for symbol, frames in daily_by_symbol.items():
-        combined = pd.concat(frames, ignore_index=True).drop_duplicates("day", keep="last")
-        volumes[symbol] = combined.set_index("day")["quote_volume"].to_dict()
+    candidates_by_time = {}
+    symbols_with_usable_windows = set()
+    for symbol, pieces in frames_by_symbol.items():
+        combined = pd.concat(pieces, ignore_index=True).drop_duplicates("open_time", keep="last")
+        rolling = _hourly_rolling_quote_volume(combined, snapshot_times)
+        if rolling.empty:
+            continue
+        symbols_with_usable_windows.add(symbol)
+        for decision_time, quote_volume in rolling.items():
+            if float(quote_volume) >= float(min_quote_volume_usdt):
+                candidates_by_time.setdefault(decision_time, []).append((symbol, float(quote_volume)))
 
-    daily_snapshots = {}
+    hourly_snapshots = {}
     selected_union = set()
-    daily_counts = []
-    for snapshot_time in snapshots:
-        volume_day = snapshot_time - pd.Timedelta(days=1)
-        ranked = [
-            (symbol, float(by_day[volume_day]))
-            for symbol, by_day in volumes.items()
-            if volume_day in by_day and float(by_day[volume_day]) >= float(min_quote_volume_usdt)
-        ]
+    hourly_counts = []
+    for snapshot_time in snapshot_times:
+        ranked = candidates_by_time.get(snapshot_time, [])
         ranked.sort(key=lambda item: (-item[1], item[0]))
         chosen = ranked[:int(max_symbols)]
-        day_key = snapshot_time.strftime("%Y-%m-%dT%H:%M:%SZ")
-        daily_snapshots[day_key] = [symbol for symbol, _ in chosen]
-        selected_union.update(daily_snapshots[day_key])
-        daily_counts.append({
-            "snapshot_time_utc": day_key,
-            "volume_candle_day_utc": volume_day.strftime("%Y-%m-%d"),
+        key = snapshot_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+        hourly_snapshots[key] = [symbol for symbol, _ in chosen]
+        selected_union.update(hourly_snapshots[key])
+        hourly_counts.append({
+            "snapshot_time_utc": key,
+            "volume_window_start_utc": (snapshot_time - pd.Timedelta(hours=24)).isoformat(),
+            "volume_window_end_utc": (snapshot_time - ONE_HOUR).isoformat(),
             "eligible_above_threshold": len(ranked),
             "selected_count": len(chosen),
             "symbols": [{"symbol": symbol, "quote_volume_usdt": round(volume, 8)} for symbol, volume in chosen],
         })
 
     if not selected_union:
-        raise RuntimeError("Historical point-in-time universe is empty for the requested period")
+        raise RuntimeError("Historical point-in-time hourly universe is empty for the requested period")
     return {
         "symbols": sorted(selected_union),
-        "daily_snapshots": daily_snapshots,
-        "daily_counts": daily_counts,
-        "source": "Binance Vision historical Spot monthly 1d kline archives",
-        "selection_method": "previous_closed_UTC_1d_quote_volume",
-        "snapshot_cadence": "daily_at_00:00_UTC",
+        "hourly_snapshots": hourly_snapshots,
+        "hourly_counts": hourly_counts,
+        "source": "Binance Vision historical Spot monthly/daily 1h kline archives",
+        "selection_method": "previous_24_closed_1h_quote_volume_ranked_at_each_hour",
+        "snapshot_cadence": "hourly_at_next_1h_open",
         "min_quote_volume_usdt": float(min_quote_volume_usdt),
         "max_symbols_per_snapshot": int(max_symbols),
         "candidate_symbol_count": len(candidates),
+        "symbols_with_usable_24h_windows": len(symbols_with_usable_windows),
         "selected_union_count": len(selected_union),
         "archive_failures": 0,
         "historical_point_in_time": True,
         "lookahead_free": True,
         "known_limitations": [
-            "Universe membership is sampled daily at 00:00 UTC, while signal evaluation remains hourly.",
-            "Pairs need an archived prior-UTC-day candle to qualify; missing/no-trade days are not forward-filled.",
-            "A pair must still pass the signal engine's 200-bar timeframe warm-up before it can be replayed.",
+            "Historical tradability is inferred from Binance Vision archived hourly candles, not archived exchangeInfo status snapshots.",
+            "A symbol must have 24 consecutive archived hourly candles; any missing hour invalidates that 24h volume window.",
+            "Temporary trading halts or archive gaps can make a pair ineligible even if Binance status was TRADING.",
+            "The archive is Binance's historical data source and includes delisted symbols, avoiding selection from today's active-symbol list.",
         ],
     }
