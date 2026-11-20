@@ -91,6 +91,8 @@ jobs:
           spot_event_ledger_self_test("backtest-results")
           print("Backtest source, warm-up, and shared-account verification: PASS")
           PY
+          python -m unittest discover -s tests -p 'test_historical_universe.py'
+          PY
       - name: Run historical replay
         run: python historical_backtest.py
       - name: Upload backtest results
