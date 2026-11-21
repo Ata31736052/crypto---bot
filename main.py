@@ -8058,14 +8058,15 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
         reasons.append("Strong bearish ADX - higher reversal risk")
 
     btc = str((btc_regime or {}).get("combined", "")).upper()
-    if "BEARISH" in btc and ("STRONG" in btc or "SEVERE" in btc or btc == "BEARISH"):
+    btc_is_bearish = "BEARISH" in btc
+    if btc_is_bearish and ("STRONG" in btc or "SEVERE" in btc):
         dmark("btc_blocked")
         dmark("final_rejected")
         return None
     dmark("btc_allowed")
-    if btc and "BEARISH" not in btc:
+    if btc and not btc_is_bearish:
         score += 3
-        reasons.append("BTC regime not strongly bearish")
+        reasons.append("BTC regime not bearish")
 
     # 4H + Daily context is deliberately a soft filter for Bottom Hunter.
     # It helps distinguish a supported reversal from a counter-trend bounce
@@ -8104,6 +8105,22 @@ def score_bottom_hunter(df_1h, df_30m, btc_regime=None, diagnostic=None, mtf_con
 
     if raw_score > score:
         reasons.append(f"Raw score {raw_score}; quality-adjusted score {score}")
+
+    # In an ordinary bearish BTC regime, allow only a confirmed reversal attempt.
+    # Extreme STRONG/SEVERE bearish regimes remain hard-blocked above.
+    if btc_is_bearish:
+        bearish_confirmation_ok = (
+            dist_low <= 7
+            and reversal
+            and confirm >= 5
+            and vol >= 0.80
+        )
+        if not bearish_confirmation_ok:
+            dmark("btc_bearish_confirmation_blocked")
+            dmark("final_rejected")
+            return None
+        dmark("btc_bearish_confirmation_passed")
+        reasons.append("BTC bearish: strong 30M reversal and volume confirmation")
 
     if dist_low <= 7:
         dmark("passed_near_low")
