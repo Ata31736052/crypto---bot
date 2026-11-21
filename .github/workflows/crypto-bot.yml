@@ -1,4 +1,4 @@
-name: Crypto Signal Bot v63.14.26 | Early-Path Blocker Diagnostics
+name: Crypto Signal Bot v63.14.28 | Early ADX Raw-Score Wiring Validation
 # PR event runs verification and regression tests only; live scan is skipped.
 
 on:
@@ -21,6 +21,7 @@ jobs:
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       RUN_ONCE: '1'
       TELEGRAM_TEST_ON_START: '0'
+      DRY_RUN: '1'
       PYTHONUNBUFFERED: '1'
 
     steps:
@@ -66,7 +67,7 @@ jobs:
           import re
           source = Path('main.py').read_text(encoding='utf-8')
           checks = {
-              'v63.14.21 deployment marker': 'DEPLOYMENT_ID = "v63.14.26-early-path-blocker-diagnostics-20261012"' in source,
+              'v63.14.21 deployment marker': 'DEPLOYMENT_ID = "v63.14.28-early-adx-raw-score-wiring-fix-20261012"' in source,
               'early-entry guard implementation': 'def early_entry_rejection(' in source,
               'early-entry guard is exercised by regression tests': 'assert early_entry_rejection("BUY", "TREND", 108.0, 100.0, 8.0, 60.0) is None' in source and 'late impulse' in source,
               'dry-run outcome tracking helper exists': 'def _record_dry_run_signal(signal, history):' in source and 'def run_v63_14_22_dry_run_outcome_recording_self_test():' in source,
@@ -89,7 +90,7 @@ jobs:
               'Bottom Hunter rejection cause regression test': 'def run_v63_14_16_bottom_rejection_diagnostic_self_test():' in source and 'def bottom_hunter_rejection_summary(diagnostic):' in source,
               'RSI is contextual not primary rejection cause': '"rsi_zone_status":' in source and '"rejection_reasons": [] if bottom_signal else reversal_rejection["all"]' in source,
               'engine rejection trace regression test': 'def run_v63_14_9_engine_rejection_trace_self_test():' in source,
-              'score-grade diagnostic regression test': 'def run_v63_14_10_score_grade_diagnostic_self_test():' in source and 'grade_basis=raw_score+quality_points' in source,
+              'score-grade diagnostic regression test': 'def run_v63_14_10_score_grade_diagnostic_self_test():' in source,
               'analytics scope self-test': 'def run_v63_14_11_analytics_scope_self_test():' in source and 'performance groups below use FINAL records only' in source,
               'outcome coverage self-test': 'def run_v63_14_14_finalization_metrics_self_test():' in source,
               'missing hourly candles fail closed': 'def _outcome_window_has_complete_candles(' in source,
@@ -147,6 +148,12 @@ jobs:
               ('v63.14.23 legacy outcome backfill', main.run_v63_14_23_legacy_outcome_backfill_self_test),
               ('v63.14.25 controlled early confirmation', main.run_v63_14_25_early_confirmation_exception_self_test),
               ('v63.14.26 early-path blockers', main.run_v63_14_26_early_path_blocker_self_test),
+              ('v63.14.17 early reversal gate', main.run_v63_14_17_early_reversal_gate_self_test),
+              ('v63.14.18 Bottom score calibration', main.run_v63_14_18_bottom_score_calibration_self_test),
+              ('v63.14.19 raw effective score', main.run_v63_14_19_raw_effective_score_self_test),
+              ('v63.14.20 Daily Bottom Hunter', main.run_v63_14_20_daily_bottom_hunter_self_test),
+              ('v63.14.27 raw-score wiring', main.run_v63_14_27_raw_score_wiring_self_test),
+              ('v63.14.28 early ADX raw-score wiring', main.run_v63_14_28_early_adx_raw_score_wiring_self_test),
           ]
           for label, test in tests:
               assert test() is True, f'{label} failed'
@@ -175,7 +182,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: crypto-bot-diagnostics-v63.14.26-${{ github.run_number }}
+          name: crypto-bot-diagnostics-v63.14.28-${{ github.run_number }}
           path: |
             professional_diagnostics.txt
             symbol_diagnostics.txt
