@@ -74,8 +74,9 @@ jobs:
           assert "validate_warmup" in s
           assert "main.get_scan_coins()" in s and "universe_source" in s
           assert "BACKTEST_END_TIME" in s
-          from historical_backtest import validate_warmup_self_test, warmup_exclusion_self_test, simulate_self_test, entry_location_guard_self_test, closed_prefix_self_test, closed_end_cutoff_self_test, boundary_execution_candle_self_test, finite_ohlcv_self_test
+          from historical_backtest import validate_warmup_self_test, rolling_warmup_self_test, warmup_exclusion_self_test, simulate_self_test, entry_location_guard_self_test, closed_prefix_self_test, closed_end_cutoff_self_test, boundary_execution_candle_self_test, finite_ohlcv_self_test
           validate_warmup_self_test()
+          rolling_warmup_self_test()
           warmup_exclusion_self_test()
           simulate_self_test()
           entry_location_guard_self_test()
