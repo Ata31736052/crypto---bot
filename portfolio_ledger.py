@@ -11,7 +11,7 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
     cash = float(initial_cash)
     positions = {}
     active_symbols = set()
-    accepted, rejected, parsed = [], [], []
+    accepted, rejected, parsed, sell_events = [], [], [], []
     equity_rows = []
     realized_by_symbol = {}
     peak = float(initial_cash)
@@ -23,6 +23,16 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
         trade = dict(source)
         trade["_id"] = idx
         trade["_entry_dt"] = pd.Timestamp(trade["entry_time"])
+        side = str(trade.get("side", "BUY")).upper()
+        if side == "SELL":
+            # In Spot, SELL is an instruction to reduce/close inventory, never a short entry.
+            sell_events.append(trade)
+            continue
+        if side != "BUY":
+            trade["portfolio_status"] = "REJECTED"
+            trade["portfolio_reject_reason"] = "UNSUPPORTED_SPOT_SIDE"
+            rejected.append(trade)
+            continue
         trade["_exit_dt"] = pd.Timestamp(trade["exit_time"])
         trade["_path_map"] = {
             pd.Timestamp(point["time"]): float(point["price"])
@@ -33,10 +43,16 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
     timeline = sorted(
         {t["_entry_dt"] for t in parsed}
         | {stamp for t in parsed for stamp in t["_path_map"]}
+        | {t["_entry_dt"] for t in sell_events}
     )
     entries = {}
     for trade in parsed:
         entries.setdefault(trade["_entry_dt"], []).append(trade)
+    sell_entries = {}
+    for trade in sell_events:
+        sell_entries.setdefault(trade["_entry_dt"], []).append(trade)
+    sell_exits_executed = 0
+    sell_signals_without_position = 0
 
     for now in timeline:
         for position in positions.values():
@@ -53,6 +69,51 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
                 realized_by_symbol[symbol] = realized_by_symbol.get(symbol, 0.0) + pnl
                 active_symbols.discard(symbol)
                 del positions[pid]
+
+        # Spot SELL signals close an existing long position at the next-bar sell fill.
+        # They never create a short position or earn from a price decline.
+        for sell in sorted(sell_entries.get(now, []),
+                           key=lambda t: (-float(t.get("score", 0) or 0),
+                                          str(t.get("symbol", "")))):
+            symbol = str(sell.get("symbol", ""))
+            pid = next((key for key, value in positions.items()
+                        if value["symbol"] == symbol), None)
+            if pid is None:
+                sell["portfolio_status"] = "NO_OPEN_SPOT_POSITION"
+                sell["portfolio_reject_reason"] = "NO_POSITION_TO_CLOSE"
+                sell_signals_without_position += 1
+                continue
+            try:
+                sell_fill = float(sell.get("entry", 0) or 0)
+            except (TypeError, ValueError):
+                sell_fill = 0.0
+            if sell_fill <= 0:
+                sell["portfolio_status"] = "REJECTED"
+                sell["portfolio_reject_reason"] = "INVALID_SPOT_SELL_FILL"
+                rejected.append(sell)
+                continue
+            position = positions.pop(pid)
+            gross_pct = (sell_fill - position["entry"]) / position["entry"] * 100.0
+            net_pct = gross_pct - position["cost_pct"]
+            pnl = position["notional"] * net_pct / 100.0
+            cash += position["notional"] + pnl
+            realized_by_symbol[symbol] = realized_by_symbol.get(symbol, 0.0) + pnl
+            active_symbols.discard(symbol)
+            buy_trade = position["trade"]
+            buy_trade["exit_time"] = now.isoformat()
+            buy_trade["exit"] = sell_fill
+            buy_trade["exit_reason"] = "SELL_SIGNAL"
+            buy_trade["gross_pct"] = round(gross_pct, 4)
+            buy_trade["net_pct"] = round(net_pct, 4)
+            buy_trade["portfolio_pnl_usdt"] = round(pnl, 6)
+            buy_trade["portfolio_return_on_initial_pct"] = (
+                round(pnl / initial_cash * 100.0, 6) if initial_cash else None
+            )
+            sell["portfolio_status"] = "EXECUTED_SPOT_EXIT"
+            sell["portfolio_reject_reason"] = ""
+            sell["portfolio_pnl_usdt"] = round(pnl, 6)
+            sell["closed_position_entry_time"] = position["trade"]["entry_time"]
+            sell_exits_executed += 1
 
         # Deterministic tie-break: higher score first, then symbol name.
         for trade in sorted(entries.get(now, []),
@@ -120,7 +181,8 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
                 "notional": notional,
                 "entry": entry,
                 "mark": entry,
-                "side": str(trade.get("side", "BUY")).upper(),
+                "side": "BUY",
+                "trade": trade,
                 "net_pct": float(trade["net_pct"]),
                 "cost_pct": float(trade.get("cost_pct", 0) or 0),
                 "exit_dt": trade["_exit_dt"],
@@ -134,8 +196,6 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
         for position in positions.values():
             gross_pct = (
                 (position["mark"] - position["entry"]) / position["entry"] * 100
-                if position["side"] == "BUY"
-                else (position["entry"] - position["mark"]) / position["entry"] * 100
             )
             position["unrealized_pnl"] = (
                 position["notional"] * (gross_pct - position["cost_pct"]) / 100
@@ -190,13 +250,15 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
                 if key in status:
                     trade[key] = status[key]
 
-    symbols = sorted({str(t.get("symbol", "")) for t in parsed})
+    symbols = sorted({str(t.get("symbol", "")) for t in parsed + sell_events})
     per_symbol = []
     for symbol in symbols:
         trades = [t for t in accepted if str(t.get("symbol", "")) == symbol]
         per_symbol.append({
             "symbol": symbol,
-            "candidate_trades": sum(str(t.get("symbol", "")) == symbol for t in parsed),
+            "candidate_trades": sum(
+                str(t.get("symbol", "")) == symbol for t in parsed + sell_events
+            ),
             "accepted_trades": len(trades),
             "rejected_trades": sum(str(t.get("symbol", "")) == symbol for t in rejected),
             "realized_pnl_usdt": round(realized_by_symbol.get(symbol, 0.0), 6),
@@ -208,7 +270,9 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
     pd.DataFrame(equity_rows).to_csv(out_dir / "portfolio_equity.csv", index=False)
     pd.DataFrame(per_symbol).to_csv(out_dir / "per_symbol.csv", index=False)
     pd.DataFrame([{k: v for k, v in t.items() if not k.startswith("_")}
-                  for t in parsed]).to_csv(out_dir / "portfolio_trades.csv", index=False)
+                  for t in parsed + sell_events + [
+                      t for t in rejected if t not in parsed and t not in sell_events
+                  ]]).to_csv(out_dir / "portfolio_trades.csv", index=False)
 
     return {
         "initial_capital_usdt": initial_cash,
@@ -216,9 +280,12 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
         "net_pnl_usdt": round(final_equity - initial_cash, 6),
         "net_return_pct": round((final_equity / initial_cash - 1) * 100, 6) if initial_cash else None,
         "max_drawdown_pct": round(max_drawdown, 6),
-        "candidate_trades": len(parsed),
+        "candidate_trades": len(parsed) + len(sell_events),
         "accepted_trades": len(accepted),
         "rejected_trades": len(rejected),
+        "sell_signal_count": len(sell_events),
+        "sell_exits_executed": sell_exits_executed,
+        "sell_signals_without_position": sell_signals_without_position,
         "capital_utilization_max_pct": round(max_utilization, 6),
         "gross_exposure_max_pct_equity": round(max_gross_exposure_pct_equity, 6),
         "risk_per_trade_pct_of_equity": risk_pct,
@@ -233,12 +300,11 @@ def portfolio_ledger_self_test(out_dir):
     import tempfile
 
     def make_trade(symbol, entry_time, exit_time, net_pct, score=95,
-                   cost_pct=0.0, exit_price=None):
-        entry = 100.0
+                   cost_pct=0.0, exit_price=None, side="BUY", entry=100.0):
         if exit_price is None:
             exit_price = entry * (1.0 + net_pct / 100.0)
         return {
-            "symbol": symbol, "side": "BUY", "entry_time": entry_time,
+            "symbol": symbol, "side": side, "entry_time": entry_time,
             "exit_time": exit_time, "entry": entry, "stop_loss": 95.0,
             "net_pct": net_pct, "cost_pct": cost_pct, "score": score,
             "_path": [{"time": exit_time, "price": exit_price}],
@@ -330,4 +396,31 @@ def portfolio_ledger_self_test(out_dir):
         assert curve["equity_usdt"].min() <= expected_equity + 1e-5
         assert curve["drawdown_pct"].max() >= expected_drawdown - 1e-4
 
-    print("PORTFOLIO_LEDGER_SELF_TEST: PASS (simultaneous allocation, capital release, fee scaling, drawdown)")
+    # 6) A Spot SELL signal closes an existing BUY; it cannot open a profitable short.
+    with tempfile.TemporaryDirectory() as d:
+        buy = make_trade("AAAUSDT", t0, t4, 5.0, cost_pct=0.2, exit_price=105.0)
+        buy["_path"] = [
+            {"time": t1, "price": 102.0},
+            {"time": t4, "price": 105.0},
+        ]
+        sell = make_trade("AAAUSDT", t2, t3, 20.0, cost_pct=0.2,
+                          exit_price=90.0, side="SELL", entry=110.0)
+        orphan_sell = make_trade("BBBUSDT", t2, t3, 50.0, cost_pct=0.2,
+                                 exit_price=80.0, side="SELL", entry=120.0)
+        r = portfolio_ledger([buy, sell, orphan_sell], d, initial_cash=1000,
+                             risk_pct=100, max_position_pct=100)
+        expected_notional = 1000.0 / 1.002
+        expected_pnl = expected_notional * 0.098
+        assert r["accepted_trades"] == 1, "only the BUY may open a Spot position"
+        assert r["sell_exits_executed"] == 1, "SELL must close the existing long"
+        assert r["sell_signals_without_position"] == 1, "SELL without inventory must not open a short"
+        assert abs(r["final_equity_usdt"] - (1000.0 + expected_pnl)) < 1e-5
+        rows = pd.read_csv(Path(d) / "portfolio_trades.csv")
+        buy_row = rows[(rows["symbol"] == "AAAUSDT") & (rows["side"] == "BUY")].iloc[0]
+        assert buy_row["exit_reason"] == "SELL_SIGNAL"
+        assert abs(float(buy_row["net_pct"]) - 9.8) < 1e-5
+        assert set(rows.loc[rows["side"] == "SELL", "portfolio_status"]) == {
+            "EXECUTED_SPOT_EXIT", "NO_OPEN_SPOT_POSITION"
+        }
+
+    print("PORTFOLIO_LEDGER_SELF_TEST: PASS (cash allocation, fees, drawdown, Spot SELL exits)")
