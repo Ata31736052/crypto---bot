@@ -401,6 +401,41 @@ def validate_warmup_self_test():
     print("HISTORICAL_WARMUP_SELF_TEST: PASS")
     return True
 
+def rolling_warmup_ready(frames, decision_time, required_timeframes=None):
+    """Require 200 closed candles by each decision time, not necessarily before test day one."""
+    required_timeframes = tuple(required_timeframes or ("1h", "30m", "4h", "1d"))
+    decision_time = pd.Timestamp(decision_time)
+    if decision_time.tzinfo is None:
+        decision_time = decision_time.tz_localize("UTC")
+    else:
+        decision_time = decision_time.tz_convert("UTC")
+    counts = {}
+    for tf in required_timeframes:
+        frame = frames.get(tf)
+        if frame is None or frame.empty or "close_time" not in frame:
+            counts[tf] = 0
+        else:
+            counts[tf] = int((frame["close_time"] <= decision_time).sum())
+    return all(counts[tf] >= WARMUP_BARS for tf in required_timeframes), counts
+
+
+def rolling_warmup_self_test():
+    """A new listing becomes eligible only after it accumulates 200 closed candles per timeframe."""
+    decision = pd.Timestamp("2026-10-01T00:00:00Z")
+    frames = {
+        "1h": pd.DataFrame({"close_time": pd.date_range(end=decision, periods=220, freq="1h", tz="UTC")}),
+        "30m": pd.DataFrame({"close_time": pd.date_range(end=decision, periods=220, freq="30min", tz="UTC")}),
+        "4h": pd.DataFrame({"close_time": pd.date_range(end=decision, periods=220, freq="4h", tz="UTC")}),
+        "1d": pd.DataFrame({"close_time": pd.date_range(end=decision, periods=199, freq="1d", tz="UTC")}),
+    }
+    ready, counts = rolling_warmup_ready(frames, decision)
+    assert not ready and counts["1d"] == 199, "199 daily candles must remain in warm-up"
+    frames["1d"] = pd.DataFrame({"close_time": pd.date_range(end=decision, periods=200, freq="1d", tz="UTC")})
+    ready, counts = rolling_warmup_ready(frames, decision)
+    assert ready and all(value == 200 or value > 200 for value in counts.values())
+    print("ROLLING_HISTORICAL_WARMUP_SELF_TEST: PASS")
+    return True
+
 
 def signal_diagnostics(df, side):
     """Capture signal-time location/momentum fields to diagnose late entries."""
@@ -762,7 +797,7 @@ def run():
     if not symbols:
         raise RuntimeError("No eligible non-BTC Binance Spot USDT symbols for historical replay.")
     start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
-    trades=[]; engine_candidate_trades={}; errors=[]; warmup_exclusions=[]; tested_symbols=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
+    trades=[]; engine_candidate_trades={}; errors=[]; warmup_exclusions=[]; tested_symbols=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[],"warmup_deferred_steps":0,"warmup_deferred_by_timeframe":{"1h":0,"30m":0,"4h":0,"1d":0}}
     perf={"stage_seconds":{},"counters":{"candle_steps":0,"timeframe_index_lookups":0,"rows_materialized":0,"btc_regime_lookups":0,"engine_calls":0}}
     # ENGINE_INTERNAL_PROFILE: profile exactly one real production-engine invocation.
     # This is offline-only instrumentation; no signal, score, or trade decision is changed.
@@ -801,14 +836,22 @@ def run():
             t_prepare=time.perf_counter()
             frames={tf:prepare(d) for tf,d in raw.items()}
             stage_done("prepare_symbol_history", t_prepare)
-            try:
-                validate_warmup(frames, start, sym)
-            except RuntimeError as exc:
-                if is_warmup_exclusion(exc):
-                    warmup_exclusions.append({"symbol": sym, "reason": str(exc)})
-                    print("EXCLUDED_INSUFFICIENT_WARMUP", sym, str(exc), flush=True)
-                    continue
-                raise
+            missing_timeframes = [tf for tf in ("1h", "30m", "4h", "1d")
+                                  if frames.get(tf) is None or frames[tf].empty]
+            if missing_timeframes:
+                reason = {"symbol": sym, "category": "NO_HISTORICAL_CANDLES",
+                          "missing_timeframes": missing_timeframes}
+                warmup_exclusions.append(reason)
+                print("EXCLUDED_NO_HISTORICAL_CANDLES", sym, missing_timeframes, flush=True)
+                continue
+            daily_bars_by_end = int((frames["1d"]["close_time"] <= end).sum())
+            if daily_bars_by_end < WARMUP_BARS:
+                reason = {"symbol": sym, "category": "INSUFFICIENT_TOTAL_DAILY_HISTORY",
+                          "daily_closed_bars_by_test_end": daily_bars_by_end,
+                          "required_daily_bars": WARMUP_BARS}
+                warmup_exclusions.append(reason)
+                print("EXCLUDED_INSUFFICIENT_TOTAL_HISTORY", sym, daily_bars_by_end, flush=True)
+                continue
             tested_symbols.append(sym)
             h1=frames["1h"]
             validate_boundary_execution_candle(h1, end)
@@ -831,7 +874,13 @@ def run():
                     else:
                         data[tf]=None
                 stage_done("closed_candle_selection", t_step)
-                if len(data["1h"])<50 or len(data["30m"])<30: continue
+                ready_for_signal, warmup_counts = rolling_warmup_ready(data, close_time)
+                if not ready_for_signal:
+                    diagnostics["warmup_deferred_steps"] += 1
+                    for tf, count in warmup_counts.items():
+                        if count < WARMUP_BARS:
+                            diagnostics["warmup_deferred_by_timeframe"][tf] += 1
+                    continue
                 t_btc=time.perf_counter()
                 btc_regime=historical_btc_regime(btc_frames,close_time)
                 perf["counters"]["btc_regime_lookups"] += 1
@@ -1004,7 +1053,7 @@ def run():
     perf["total_instrumented_seconds"]=round(sum(perf["stage_seconds"].values()),4)
     # Linux GitHub-hosted runners report ru_maxrss in KiB; diagnostics only.
     perf["peak_rss_kib"]=int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-    summary={"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else ("COMPLETED_WITH_WARNINGS" if warmup_exclusions else "COMPLETED"),"period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":tested_symbols,"requested_symbols":symbols,"tested_symbol_count":len(tested_symbols),"warmup_exclusions":warmup_exclusions,"excluded_symbol_count":len(warmup_exclusions),"universe_source":universe_source,"universe_snapshot_time_utc":str(pd.Timestamp.now(tz="UTC")),"universe_max_symbols":target_max,"candidate_trade_count":len(trades),"buy_candidate_trade_count":len(buy_trades),"sell_signal_count":len(sell_signals),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(float(t["gross_pct"]) for t in buy_trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"trend_buy_sell_portfolio_comparison":trend_side_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"BUY entries and SELL exits execute at the next 1H candle open after the signal candle closes","exit_timestamp":"planned exits use the exit candle close; SELL signal exits use the next-bar open","spot_direction":"long-only Spot accounting; SELL signals close existing BUY inventory and never open shorts","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"adverse slippage applied to actual BUY and SELL fills; round-trip fees deducted once per completed position; sizing reserves fees plus estimated round-trip slippage","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted BUY; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one long position per symbol; SELL signals close an open long position","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"candidate return sums include BUY entries only and are not portfolio return"},"engine_breakdown":{k:{"candidate_trades":len(v),"buy_candidate_trades":sum(str(t.get("side","")).upper()=="BUY" for t in v),"sell_signal_count":sum(str(t.get("side","")).upper()=="SELL" for t in v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v if str(t.get("side","")).upper()=="BUY"),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
+    summary={"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else ("COMPLETED_WITH_WARNINGS" if warmup_exclusions else "COMPLETED"),"period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":tested_symbols,"requested_symbols":symbols,"tested_symbol_count":len(tested_symbols),"warmup_exclusions":warmup_exclusions,"excluded_symbol_count":len(warmup_exclusions),"warmup_deferred_steps":diagnostics["warmup_deferred_steps"],"warmup_deferred_by_timeframe":diagnostics["warmup_deferred_by_timeframe"],"historical_universe_status":"CURRENT_SNAPSHOT_ONLY_NOT_POINT_IN_TIME; delisted and past liquidity-ranked constituents are not reconstructed","universe_source":universe_source,"universe_snapshot_time_utc":str(pd.Timestamp.now(tz="UTC")),"universe_max_symbols":target_max,"candidate_trade_count":len(trades),"buy_candidate_trade_count":len(buy_trades),"sell_signal_count":len(sell_signals),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(float(t["gross_pct"]) for t in buy_trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"trend_buy_sell_portfolio_comparison":trend_side_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"BUY entries and SELL exits execute at the next 1H candle open after the signal candle closes","exit_timestamp":"planned exits use the exit candle close; SELL signal exits use the next-bar open","spot_direction":"long-only Spot accounting; SELL signals close existing BUY inventory and never open shorts","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"adverse slippage applied to actual BUY and SELL fills; round-trip fees deducted once per completed position; sizing reserves fees plus estimated round-trip slippage","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted BUY; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one long position per symbol; SELL signals close an open long position","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"candidate return sums include BUY entries only and are not portfolio return"},"engine_breakdown":{k:{"candidate_trades":len(v),"buy_candidate_trades":sum(str(t.get("side","")).upper()=="BUY" for t in v),"sell_signal_count":sum(str(t.get("side","")).upper()=="SELL" for t in v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v if str(t.get("side","")).upper()=="BUY"),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
     (OUT/"summary.json").write_text(json.dumps(summary,indent=2),encoding="utf-8"); print(json.dumps(summary,indent=2),flush=True)
     if not trades: raise SystemExit("No trades produced; do not infer profitability.")
 if __name__=="__main__": run()
