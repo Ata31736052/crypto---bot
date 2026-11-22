@@ -5,7 +5,7 @@ import pandas as pd
 
 def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
                      max_position_pct=100.0):
-    """Replay candidate trades chronologically on one cash account, no leverage."""
+    """Replay long-only Spot positions on shared cash; SELL signals close existing inventory."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     cash = float(initial_cash)
@@ -120,7 +120,6 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
             )
             sell["portfolio_status"] = "EXECUTED_SPOT_EXIT"
             sell["portfolio_reject_reason"] = ""
-            sell["portfolio_pnl_usdt"] = round(pnl, 6)
             sell["closed_position_entry_time"] = position["trade"]["entry_time"]
             sell_exits_executed += 1
 
@@ -299,7 +298,7 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
         "gross_exposure_max_pct_equity": round(max_gross_exposure_pct_equity, 6),
         "risk_per_trade_pct_of_equity": risk_pct,
         "max_position_pct_of_equity": max_position_pct,
-        "execution_model": "one shared cash account; no leverage; position size is min(1% equity risk / stop distance, position cap, free cash); open positions marked to market at historical hourly closes; fees/slippage included",
+        "execution_model": "long-only Spot; BUY opens a cash-backed position; SELL closes existing inventory at the next-bar sell fill; no leverage or short positions; fees/slippage included",
         "per_symbol": per_symbol,
     }
 
