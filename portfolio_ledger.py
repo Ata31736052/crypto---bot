@@ -100,11 +100,20 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
             realized_by_symbol[symbol] = realized_by_symbol.get(symbol, 0.0) + pnl
             active_symbols.discard(symbol)
             buy_trade = position["trade"]
+            raw_exit = float(sell.get("raw_entry", sell_fill) or sell_fill)
+            raw_entry = float(buy_trade.get("raw_entry", position["entry"]) or position["entry"])
+            raw_gross_pct = (raw_exit - raw_entry) / raw_entry * 100.0
             buy_trade["exit_time"] = now.isoformat()
+            buy_trade["raw_exit"] = raw_exit
             buy_trade["exit"] = sell_fill
             buy_trade["exit_reason"] = "SELL_SIGNAL"
+            buy_trade["raw_gross_pct"] = round(raw_gross_pct, 4)
             buy_trade["gross_pct"] = round(gross_pct, 4)
+            buy_trade["slippage_cost_pct"] = round(raw_gross_pct - gross_pct, 4)
             buy_trade["net_pct"] = round(net_pct, 4)
+            buy_trade["bars_held"] = max(
+                0, int((now - buy_trade["_entry_dt"]).total_seconds() // 3600)
+            )
             buy_trade["portfolio_pnl_usdt"] = round(pnl, 6)
             buy_trade["portfolio_return_on_initial_pct"] = (
                 round(pnl / initial_cash * 100.0, 6) if initial_cash else None
