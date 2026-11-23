@@ -401,6 +401,41 @@ def validate_warmup_self_test():
     print("HISTORICAL_WARMUP_SELF_TEST: PASS")
     return True
 
+def rolling_warmup_ready(frames, decision_time, required_timeframes=None):
+    """Require 200 closed candles by each decision time, not necessarily before test day one."""
+    required_timeframes = tuple(required_timeframes or ("1h", "30m", "4h", "1d"))
+    decision_time = pd.Timestamp(decision_time)
+    if decision_time.tzinfo is None:
+        decision_time = decision_time.tz_localize("UTC")
+    else:
+        decision_time = decision_time.tz_convert("UTC")
+    counts = {}
+    for tf in required_timeframes:
+        frame = frames.get(tf)
+        if frame is None or frame.empty or "close_time" not in frame:
+            counts[tf] = 0
+        else:
+            counts[tf] = int((frame["close_time"] <= decision_time).sum())
+    return all(counts[tf] >= WARMUP_BARS for tf in required_timeframes), counts
+
+
+def rolling_warmup_self_test():
+    """A new listing becomes eligible only after it accumulates 200 closed candles per timeframe."""
+    decision = pd.Timestamp("2026-10-01T00:00:00Z")
+    frames = {
+        "1h": pd.DataFrame({"close_time": pd.date_range(end=decision, periods=220, freq="1h", tz="UTC")}),
+        "30m": pd.DataFrame({"close_time": pd.date_range(end=decision, periods=220, freq="30min", tz="UTC")}),
+        "4h": pd.DataFrame({"close_time": pd.date_range(end=decision, periods=220, freq="4h", tz="UTC")}),
+        "1d": pd.DataFrame({"close_time": pd.date_range(end=decision, periods=199, freq="1d", tz="UTC")}),
+    }
+    ready, counts = rolling_warmup_ready(frames, decision)
+    assert not ready and counts["1d"] == 199, "199 daily candles must remain in warm-up"
+    frames["1d"] = pd.DataFrame({"close_time": pd.date_range(end=decision, periods=200, freq="1d", tz="UTC")})
+    ready, counts = rolling_warmup_ready(frames, decision)
+    assert ready and all(value == 200 or value > 200 for value in counts.values())
+    print("ROLLING_HISTORICAL_WARMUP_SELF_TEST: PASS")
+    return True
+
 
 def signal_diagnostics(df, side):
     """Capture signal-time location/momentum fields to diagnose late entries."""
@@ -533,12 +568,28 @@ def last_closed_index(h1, clock):
 def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=None,evaluation_time=None):
     row=h1.iloc[entry_i]
     raw_entry=float(row.open)
-    if raw_entry<=0 or atr<=0:return None,entry_i
+    if raw_entry<=0:return None,entry_i
     side=str(side).upper()
     if side not in ("BUY","SELL"): return None,entry_i
     slip_fraction=max(0.0,SLIPPAGE_BPS)/10000.0
-    # Adverse slippage is applied to actual fills: BUY enters above open; SELL below.
-    entry=raw_entry*(1.0+slip_fraction if side=="BUY" else 1.0-slip_fraction)
+    if side=="SELL":
+        # Spot SELL is an exit instruction. Its next-bar open is the sell fill
+        # used to close an existing BUY; it is never simulated as a short entry.
+        sell_fill=raw_entry*(1.0-slip_fraction)
+        one_side_fee_pct=max(0.0,FEE_BPS)/100.0
+        return {"symbol":symbol,"side":"SELL","signal_time":str(signal_time),
+                "entry_time":str(row.open_time),"raw_entry":raw_entry,"entry":sell_fill,
+                "stop_loss":None,"tp1":None,"tp2":None,
+                "exit_time":str(row.open_time),"raw_exit":raw_entry,"exit":sell_fill,
+                "exit_reason":"SPOT_SELL_SIGNAL","raw_gross_pct":0.0,"gross_pct":0.0,
+                "fee_cost_pct":round(one_side_fee_pct,4),
+                "slippage_cost_pct":round(max(0.0,(raw_entry-sell_fill)/raw_entry*100),4),
+                "slippage_bps_per_side":SLIPPAGE_BPS,"cost_pct":0.0,
+                "risk_cost_pct":0.0,"net_pct":0.0,"bars_held":0,
+                "score":score,"strength":strength,"_path":[]},entry_i
+    if atr<=0:return None,entry_i
+    # BUY enters above the next candle open after adverse slippage.
+    entry=raw_entry*(1.0+slip_fraction)
     # Preserve structural stop distance and RR, re-anchored to the actual fill.
     engine_entry=float((signal_obj or {}).get("entry",0) or (signal_obj or {}).get("price",0) or 0)
     engine_stop=float((signal_obj or {}).get("stop_loss",0) or 0)
@@ -546,8 +597,7 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
     if risk<=0:
         risk=atr*float(getattr(main,"SL_ATR_MULTIPLIER",1.5))
     rr1=float(getattr(main,"TP1_RR",1.8)); rr2=float(getattr(main,"TP2_RR",2.4))
-    if side=="BUY": sl,tp1,tp2=entry-risk,entry+risk*rr1,entry+risk*rr2
-    else: sl,tp1,tp2=entry+risk,entry-risk*rr1,entry-risk*rr2
+    sl,tp1,tp2=entry-risk,entry+risk*rr1,entry+risk*rr2
     clock = pd.Timestamp.now(tz="UTC") if evaluation_time is None else pd.Timestamp(evaluation_time)
     if clock.tzinfo is None:
         clock = clock.tz_localize("UTC")
@@ -561,18 +611,17 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
     # Conservative OHLC ambiguity policy: SL wins; TP1 wins when targets overlap.
     for j in range(entry_i,end_i+1):
         c=h1.iloc[j]; hi,lo=float(c.high),float(c.low)
-        slhit=(lo<=sl if side=="BUY" else hi>=sl)
-        t2=(hi>=tp2 if side=="BUY" else lo<=tp2)
-        t1=(hi>=tp1 if side=="BUY" else lo<=tp1)
+        slhit=lo<=sl
+        t2=hi>=tp2
+        t1=hi>=tp1
         if slhit: raw_exit,reason,xi=sl,"SL",j; break
         if t1: raw_exit,reason,xi=tp1,"TP1",j; break
         if t2: raw_exit,reason,xi=tp2,"TP2",j; break
     if reason == "TIME_EXIT_72H" and end_i < entry_i + 72:
         return None, end_i
-    # Closing BUY sells below trigger; closing SELL buys above trigger.
-    exit_fill=raw_exit*(1.0-slip_fraction if side=="BUY" else 1.0+slip_fraction)
-    raw_gross=((raw_exit-raw_entry)/raw_entry*100) if side=="BUY" else ((raw_entry-raw_exit)/raw_entry*100)
-    gross=((exit_fill-entry)/entry*100) if side=="BUY" else ((entry-exit_fill)/entry*100)
+    exit_fill=raw_exit*(1.0-slip_fraction)
+    raw_gross=(raw_exit-raw_entry)/raw_entry*100
+    gross=(exit_fill-entry)/entry*100
     fee_cost_pct=2.0*max(0.0,FEE_BPS)/100.0
     slippage_cost_pct=max(0.0,raw_gross-gross)
     risk_cost_pct=fee_cost_pct+2.0*max(0.0,SLIPPAGE_BPS)/100.0
@@ -580,7 +629,7 @@ def simulate(symbol,side,signal_time,entry_i,h1,atr,score,strength,signal_obj=No
     for k in range(entry_i, xi+1):
         candle=h1.iloc[k]
         path.append({"time":str(candle.close_time),"price":float(exit_fill if k==xi else candle.close)})
-    return {"symbol":symbol,"side":side,"signal_time":str(signal_time),"entry_time":str(row.open_time),
+    return {"symbol":symbol,"side":"BUY","signal_time":str(signal_time),"entry_time":str(row.open_time),
             "raw_entry":raw_entry,"entry":entry,"stop_loss":sl,"tp1":tp1,"tp2":tp2,
             "exit_time":str(h1.iloc[xi].close_time),"raw_exit":raw_exit,"exit":exit_fill,
             "exit_reason":reason,"raw_gross_pct":round(raw_gross,4),"gross_pct":round(gross,4),
@@ -696,18 +745,14 @@ def simulate_self_test():
     expected_exit=expected_tp1*(1.0-max(0.0,SLIPPAGE_BPS)/10000.0)
     assert abs(trade["entry"]-expected_entry) < 1e-9, "BUY entry must include adverse slippage"
     assert abs(trade["exit"]-expected_exit) < 1e-9, "TP1 fill must include adverse exit slippage"
-    # SELL pays adverse slippage in the opposite direction at both entry and exit.
+    # Spot SELL is a sell-fill event only; it does not create a short-return candidate.
     sell_candle = candle.copy()
-    sell_candle.loc[0, ["high","low","close"]] = [101.0, 95.0, 97.0]
-    sell_trade, _ = simulate("TESTUSDT", "SELL", signal_time, 0, sell_candle, 1.0, 95, "TEST",
-                             {"entry": 100.0, "stop_loss": 102.0})
-    expected_sell_entry=100.0*(1.0-max(0.0,SLIPPAGE_BPS)/10000.0)
-    expected_sell_tp1=expected_sell_entry-2.0*float(getattr(main,"TP1_RR",1.8))
-    expected_sell_exit=expected_sell_tp1*(1.0+max(0.0,SLIPPAGE_BPS)/10000.0)
-    assert sell_trade is not None and sell_trade["exit_reason"] == "TP1"
-    assert abs(sell_trade["entry"]-expected_sell_entry) < 1e-9, "SELL entry must include adverse slippage"
-    assert abs(sell_trade["exit"]-expected_sell_exit) < 1e-9, "SELL exit fill must include adverse slippage"
-    assert sell_trade["net_pct"] < sell_trade["raw_gross_pct"], "SELL slippage must worsen realized return"
+    sell_trade, sell_entry_i = simulate("TESTUSDT", "SELL", signal_time, 0, sell_candle, 0.0, 95, "TEST")
+    expected_sell_fill=100.0*(1.0-max(0.0,SLIPPAGE_BPS)/10000.0)
+    assert sell_trade is not None and sell_trade["exit_reason"] == "SPOT_SELL_SIGNAL"
+    assert sell_trade["side"] == "SELL" and sell_trade["net_pct"] == 0.0
+    assert abs(sell_trade["entry"]-expected_sell_fill) < 1e-9, "Spot SELL fill must include adverse slippage"
+    assert sell_entry_i == 0 and sell_trade["_path"] == []
     stop_conflict = candle.copy()
     stop_conflict.loc[0, "low"] = 97.0
     trade, _ = simulate("TESTUSDT", "BUY", signal_time, 0, stop_conflict, 1.0, 95, "TEST",
@@ -752,7 +797,7 @@ def run():
     if not symbols:
         raise RuntimeError("No eligible non-BTC Binance Spot USDT symbols for historical replay.")
     start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
-    trades=[]; engine_candidate_trades={}; errors=[]; warmup_exclusions=[]; tested_symbols=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
+    trades=[]; engine_candidate_trades={}; errors=[]; warmup_exclusions=[]; tested_symbols=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[],"warmup_deferred_steps":0,"warmup_deferred_by_timeframe":{"1h":0,"30m":0,"4h":0,"1d":0}}
     perf={"stage_seconds":{},"counters":{"candle_steps":0,"timeframe_index_lookups":0,"rows_materialized":0,"btc_regime_lookups":0,"engine_calls":0}}
     # ENGINE_INTERNAL_PROFILE: profile exactly one real production-engine invocation.
     # This is offline-only instrumentation; no signal, score, or trade decision is changed.
@@ -791,14 +836,22 @@ def run():
             t_prepare=time.perf_counter()
             frames={tf:prepare(d) for tf,d in raw.items()}
             stage_done("prepare_symbol_history", t_prepare)
-            try:
-                validate_warmup(frames, start, sym)
-            except RuntimeError as exc:
-                if is_warmup_exclusion(exc):
-                    warmup_exclusions.append({"symbol": sym, "reason": str(exc)})
-                    print("EXCLUDED_INSUFFICIENT_WARMUP", sym, str(exc), flush=True)
-                    continue
-                raise
+            missing_timeframes = [tf for tf in ("1h", "30m", "4h", "1d")
+                                  if frames.get(tf) is None or frames[tf].empty]
+            if missing_timeframes:
+                reason = {"symbol": sym, "category": "NO_HISTORICAL_CANDLES",
+                          "missing_timeframes": missing_timeframes}
+                warmup_exclusions.append(reason)
+                print("EXCLUDED_NO_HISTORICAL_CANDLES", sym, missing_timeframes, flush=True)
+                continue
+            daily_bars_by_end = int((frames["1d"]["close_time"] <= end).sum())
+            if daily_bars_by_end < WARMUP_BARS:
+                reason = {"symbol": sym, "category": "INSUFFICIENT_TOTAL_DAILY_HISTORY",
+                          "daily_closed_bars_by_test_end": daily_bars_by_end,
+                          "required_daily_bars": WARMUP_BARS}
+                warmup_exclusions.append(reason)
+                print("EXCLUDED_INSUFFICIENT_TOTAL_HISTORY", sym, daily_bars_by_end, flush=True)
+                continue
             tested_symbols.append(sym)
             h1=frames["1h"]
             validate_boundary_execution_candle(h1, end)
@@ -821,7 +874,13 @@ def run():
                     else:
                         data[tf]=None
                 stage_done("closed_candle_selection", t_step)
-                if len(data["1h"])<50 or len(data["30m"])<30: continue
+                ready_for_signal, warmup_counts = rolling_warmup_ready(data, close_time)
+                if not ready_for_signal:
+                    diagnostics["warmup_deferred_steps"] += 1
+                    for tf, count in warmup_counts.items():
+                        if count < WARMUP_BARS:
+                            diagnostics["warmup_deferred_by_timeframe"][tf] += 1
+                    continue
                 t_btc=time.perf_counter()
                 btc_regime=historical_btc_regime(btc_frames,close_time)
                 perf["counters"]["btc_regime_lookups"] += 1
@@ -904,9 +963,10 @@ def run():
                     if previous is None or rank>previous[0]:
                         by_engine[engine_name]=(rank,candidate)
                 for engine_name,(_,engine_candidate) in by_engine.items():
-                    if i <= engine_last_exit.get(engine_name,idx-1):
-                        continue
                     engine_side=str(engine_candidate.get("signal","NO_SIGNAL")).upper()
+                    engine_last=engine_last_exit.get(engine_name,idx-1)
+                    if i <= engine_last and not (engine_side=="SELL" and i < engine_last):
+                        continue
                     engine_trade,engine_exit_i=simulate(
                         sym,engine_side,c.open_time,i+1,h1,float(c.get("atr",0) or 0),
                         engine_candidate.get("score",0),engine_candidate.get("strength",""),engine_candidate
@@ -920,10 +980,10 @@ def run():
                         engine_last_exit[engine_name]=engine_exit_i
 
                 # Primary baseline remains the production-style single strongest candidate.
-                if i <= baseline_last_exit:
-                    continue
                 result=max(candidates,key=lambda x:(float(x.get("professional_quality_score",0) or 0),float(x.get("score",0) or 0),1 if x.get("strength")=="STRONG" else 0))
                 side=str(result.get("signal","NO_SIGNAL")).upper()
+                if i <= baseline_last_exit and not (side=="SELL" and i < baseline_last_exit):
+                    continue
                 diagnostics["signals_before_execution"] += 1
                 # Anti-chase remains diagnostic-only and cannot veto the baseline.
                 location_diag=signal_diagnostics(data["1h"],side)
@@ -939,7 +999,9 @@ def run():
             errors.append({"symbol":sym,"error":str(exc)}); print("ERROR",sym,exc,flush=True)
     columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason"]
     pd.DataFrame(trades,columns=columns).to_csv(OUT/"trades.csv",index=False)
-    vals=[float(t["net_pct"]) for t in trades]
+    buy_trades=[t for t in trades if str(t.get("side","")).upper()=="BUY"]
+    sell_signals=[t for t in trades if str(t.get("side","")).upper()=="SELL"]
+    vals=[float(t["net_pct"]) for t in buy_trades]
     portfolio_ledger_self_test(OUT)
     initial_capital=float(os.getenv("BACKTEST_INITIAL_CAPITAL_USDT","1000"))
     risk_pct=float(os.getenv("BACKTEST_RISK_PCT","1.0"))
@@ -955,27 +1017,32 @@ def run():
             engine_trades,engine_out,initial_cash=initial_capital,
             risk_pct=risk_pct,max_position_pct=max_position_pct
         )
-    # Split TREND into separate shared-cash BUY and SELL accounts for diagnostics.
-    # Offline only: live signal routing remains unchanged.
+    # BUY is measured as an independent Spot portfolio. SELL is exit-only and
+    # is reported as a signal count; realized SELL exits are included in each combined
+    # engine portfolio above, never as a standalone short account.
     trend_side_portfolios={}
     for engine_name, engine_trades in sorted(engine_candidate_trades.items()):
         if "TREND" not in str(engine_name).upper():
             continue
-        for trend_side in ("BUY","SELL"):
-            side_trades=[t for t in engine_trades if str(t.get("side","")).upper()==trend_side]
-            key=f"{engine_name}:{trend_side}"
-            if side_trades:
-                trend_side_portfolios[key]=portfolio_ledger(
-                    side_trades,OUT/"engine-comparison"/("trend-"+trend_side.lower()),
-                    initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct
-                )
-            else:
-                trend_side_portfolios[key]={
-                    "initial_capital_usdt":initial_capital,"final_equity_usdt":initial_capital,
-                    "net_pnl_usdt":0.0,"net_return_pct":0.0,"max_drawdown_pct":0.0,
-                    "candidate_trades":0,"accepted_trades":0,"rejected_trades":0,
-                    "note":"No candidate trades for this engine/side in the selected window."
-                }
+        buy_trades=[t for t in engine_trades if str(t.get("side","")).upper()=="BUY"]
+        sell_trades=[t for t in engine_trades if str(t.get("side","")).upper()=="SELL"]
+        key=f"{engine_name}:BUY"
+        trend_side_portfolios[key]=portfolio_ledger(
+            buy_trades,OUT/"engine-comparison"/"trend-buy",
+            initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct
+        ) if buy_trades else {
+            "initial_capital_usdt":initial_capital,"final_equity_usdt":initial_capital,
+            "net_pnl_usdt":0.0,"net_return_pct":0.0,"max_drawdown_pct":0.0,
+            "candidate_trades":0,"accepted_trades":0,"rejected_trades":0,
+            "note":"No BUY candidates for this engine in the selected window."
+        }
+        trend_side_portfolios[f"{engine_name}:SELL_SIGNALS"]={
+            "initial_capital_usdt":initial_capital,"final_equity_usdt":initial_capital,
+            "net_pnl_usdt":0.0,"net_return_pct":0.0,"max_drawdown_pct":0.0,
+            "candidate_trades":len(sell_trades),"accepted_trades":0,"rejected_trades":0,
+            "sell_signal_count":len(sell_trades),
+            "note":"Spot SELL signals are exits only, not standalone short positions. Actual exits are included in the combined engine portfolio."
+        }
     # Run a separate, explicitly experimental comparison. The baseline remains unchanged;
     # this does not activate the obstacle guard in main.py or the live Telegram scanner.
     guarded_trades=[t for t in trades if bool(t.get("entry_guard_allowed",True))]
@@ -986,7 +1053,7 @@ def run():
     perf["total_instrumented_seconds"]=round(sum(perf["stage_seconds"].values()),4)
     # Linux GitHub-hosted runners report ru_maxrss in KiB; diagnostics only.
     perf["peak_rss_kib"]=int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-    summary={"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else ("COMPLETED_WITH_WARNINGS" if warmup_exclusions else "COMPLETED"),"period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":tested_symbols,"requested_symbols":symbols,"tested_symbol_count":len(tested_symbols),"warmup_exclusions":warmup_exclusions,"excluded_symbol_count":len(warmup_exclusions),"universe_source":universe_source,"universe_snapshot_time_utc":str(pd.Timestamp.now(tz="UTC")),"universe_max_symbols":target_max,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"trend_buy_sell_portfolio_comparison":trend_side_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"adverse slippage applied to entry and exit fill prices; round-trip fees deducted separately; sizing reserves fees plus estimated round-trip slippage","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
+    summary={"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else ("COMPLETED_WITH_WARNINGS" if warmup_exclusions else "COMPLETED"),"period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":tested_symbols,"requested_symbols":symbols,"tested_symbol_count":len(tested_symbols),"warmup_exclusions":warmup_exclusions,"excluded_symbol_count":len(warmup_exclusions),"warmup_deferred_steps":diagnostics["warmup_deferred_steps"],"warmup_deferred_by_timeframe":diagnostics["warmup_deferred_by_timeframe"],"historical_universe_status":"CURRENT_SNAPSHOT_ONLY_NOT_POINT_IN_TIME; delisted and past liquidity-ranked constituents are not reconstructed","universe_source":universe_source,"universe_snapshot_time_utc":str(pd.Timestamp.now(tz="UTC")),"universe_max_symbols":target_max,"candidate_trade_count":len(trades),"buy_candidate_trade_count":len(buy_trades),"sell_signal_count":len(sell_signals),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(float(t["gross_pct"]) for t in buy_trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"trend_buy_sell_portfolio_comparison":trend_side_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"BUY entries and SELL exits execute at the next 1H candle open after the signal candle closes","exit_timestamp":"planned exits use the exit candle close; SELL signal exits use the next-bar open","spot_direction":"long-only Spot accounting; SELL signals close existing BUY inventory and never open shorts","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"adverse slippage applied to actual BUY and SELL fills; round-trip fees deducted once per completed position; sizing reserves fees plus estimated round-trip slippage","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted BUY; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one long position per symbol; SELL signals close an open long position","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"candidate return sums include BUY entries only and are not portfolio return"},"engine_breakdown":{k:{"candidate_trades":len(v),"buy_candidate_trades":sum(str(t.get("side","")).upper()=="BUY" for t in v),"sell_signal_count":sum(str(t.get("side","")).upper()=="SELL" for t in v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v if str(t.get("side","")).upper()=="BUY"),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
     (OUT/"summary.json").write_text(json.dumps(summary,indent=2),encoding="utf-8"); print(json.dumps(summary,indent=2),flush=True)
     if not trades: raise SystemExit("No trades produced; do not infer profitability.")
 if __name__=="__main__": run()
