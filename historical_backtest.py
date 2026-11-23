@@ -385,6 +385,46 @@ def warmup_exclusion_self_test():
     print("WARMUP_EXCLUSION_CLASSIFICATION_SELF_TEST: PASS")
     return True
 
+def spot_account_candidates(candidates):
+    """Spot account accepts BUY entries only; SELL signals never create synthetic shorts."""
+    return [trade for trade in candidates if str(trade.get("side", "")).upper() == "BUY"]
+
+
+def sell_signal_diagnostics(candidates):
+    """Describe SELL signal direction against subsequent price movement, never account PnL."""
+    rows = [trade for trade in candidates if str(trade.get("side", "")).upper() == "SELL"]
+    moves = []
+    for trade in rows:
+        entry = float(trade.get("raw_entry", 0) or 0)
+        exit_price = float(trade.get("raw_exit", 0) or 0)
+        if entry > 0 and exit_price > 0:
+            moves.append((exit_price / entry - 1.0) * 100.0)
+    favorable = sum(move < 0 for move in moves)
+    return {
+        "candidate_count": len(rows),
+        "evaluated_count": len(moves),
+        "price_declined_count": favorable,
+        "price_declined_rate_pct": round(favorable / len(moves) * 100.0, 3) if moves else None,
+        "mean_underlying_price_change_pct": round(sum(moves) / len(moves), 4) if moves else None,
+        "interpretation": "SELL is an exit/reduce signal in Spot; this is directional price diagnostics only, not short-trade or account PnL."
+    }
+
+
+def spot_account_scope_self_test():
+    sample = [
+        {"side": "BUY", "raw_entry": 100.0, "raw_exit": 102.0},
+        {"side": "SELL", "raw_entry": 100.0, "raw_exit": 98.0},
+        {"side": "BUY", "raw_entry": 100.0, "raw_exit": 99.0},
+    ]
+    buys = spot_account_candidates(sample)
+    sell_diag = sell_signal_diagnostics(sample)
+    assert len(buys) == 2 and all(row["side"] == "BUY" for row in buys)
+    assert sell_diag["candidate_count"] == 1
+    assert sell_diag["price_declined_count"] == 1
+    assert sell_diag["price_declined_rate_pct"] == 100.0
+    print("SPOT_LONG_ONLY_ACCOUNT_SCOPE_SELF_TEST: PASS")
+    return True
+
 
 def validate_warmup_self_test():
     """Regression test: adequate warm-up passes; one missing required bar fails closed."""
@@ -939,54 +979,48 @@ def run():
             errors.append({"symbol":sym,"error":str(exc)}); print("ERROR",sym,exc,flush=True)
     columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason"]
     pd.DataFrame(trades,columns=columns).to_csv(OUT/"trades.csv",index=False)
-    vals=[float(t["net_pct"]) for t in trades]
+    buy_trades=spot_account_candidates(trades)
+    buy_vals=[float(t["net_pct"]) for t in buy_trades]
+    sell_diagnostics=sell_signal_diagnostics(trades)
     portfolio_ledger_self_test(OUT)
+    spot_account_scope_self_test()
     initial_capital=float(os.getenv("BACKTEST_INITIAL_CAPITAL_USDT","1000"))
     risk_pct=float(os.getenv("BACKTEST_RISK_PCT","1.0"))
     max_position_pct=float(os.getenv("BACKTEST_MAX_POSITION_PCT","100"))
-    portfolio=portfolio_ledger(trades,OUT,initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
-    # Offline-only counterfactuals: replay each engine's candidate stream in its own
-    # shared-cash account. These are diagnostic comparisons, not live filters.
+    # Spot account performance is BUY-only. SELL signals are reported separately as
+    # directional diagnostics and are never booked as synthetic short positions.
+    portfolio=portfolio_ledger(buy_trades,OUT,initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
+    # Offline-only engine counterfactuals, each using BUY-only Spot account entries.
     engine_portfolios={}
     for engine_name in sorted(engine_candidate_trades):
-        engine_trades=engine_candidate_trades[engine_name]
+        engine_trades=spot_account_candidates(engine_candidate_trades[engine_name])
         engine_out=OUT/"engine-comparison"/engine_name.lower()
         engine_portfolios[engine_name]=portfolio_ledger(
             engine_trades,engine_out,initial_cash=initial_capital,
             risk_pct=risk_pct,max_position_pct=max_position_pct
         )
-    # Split TREND into separate shared-cash BUY and SELL accounts for diagnostics.
-    # Offline only: live signal routing remains unchanged.
+    # TREND BUY gets a Spot account; TREND SELL remains directional diagnostics only.
     trend_side_portfolios={}
     for engine_name, engine_trades in sorted(engine_candidate_trades.items()):
         if "TREND" not in str(engine_name).upper():
             continue
-        for trend_side in ("BUY","SELL"):
-            side_trades=[t for t in engine_trades if str(t.get("side","")).upper()==trend_side]
-            key=f"{engine_name}:{trend_side}"
-            if side_trades:
-                trend_side_portfolios[key]=portfolio_ledger(
-                    side_trades,OUT/"engine-comparison"/("trend-"+trend_side.lower()),
-                    initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct
-                )
-            else:
-                trend_side_portfolios[key]={
-                    "initial_capital_usdt":initial_capital,"final_equity_usdt":initial_capital,
-                    "net_pnl_usdt":0.0,"net_return_pct":0.0,"max_drawdown_pct":0.0,
-                    "candidate_trades":0,"accepted_trades":0,"rejected_trades":0,
-                    "note":"No candidate trades for this engine/side in the selected window."
-                }
+        trend_buys=spot_account_candidates(engine_trades)
+        trend_side_portfolios[f"{engine_name}:BUY"]=portfolio_ledger(
+            trend_buys,OUT/"engine-comparison"/("trend-"+str(engine_name).lower()+"-buy"),
+            initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct
+        )
+        trend_side_portfolios[f"{engine_name}:SELL_SIGNAL_DIAGNOSTICS"]=sell_signal_diagnostics(engine_trades)
     # Run a separate, explicitly experimental comparison. The baseline remains unchanged;
     # this does not activate the obstacle guard in main.py or the live Telegram scanner.
-    guarded_trades=[t for t in trades if bool(t.get("entry_guard_allowed",True))]
+    guarded_trades=[t for t in buy_trades if bool(t.get("entry_guard_allowed",True))]
     guard_portfolio=portfolio_ledger(guarded_trades,OUT/"entry-location-guard",initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
-    guard_comparison={"rule":"nearest obstacle in previous 20 closed 1H candles must be at least 0.80 ATR away","baseline_candidate_trades":len(trades),"guard_candidate_trades":len(guarded_trades),"filtered_candidate_trades":len(trades)-len(guarded_trades),"status":"EXPERIMENTAL_COMPARISON_ONLY; not enabled in live engine"}
+    guard_comparison={"rule":"nearest obstacle in previous 20 closed 1H candles must be at least 0.80 ATR away","baseline_candidate_trades":len(buy_trades),"guard_candidate_trades":len(guarded_trades),"filtered_candidate_trades":len(buy_trades)-len(guarded_trades),"status":"EXPERIMENTAL_COMPARISON_ONLY; not enabled in live engine"}
     perf["stage_seconds"]={k:round(v,4) for k,v in perf["stage_seconds"].items()}
     (OUT/"engine-profile.json").write_text(json.dumps(engine_profile,indent=2),encoding="utf-8")
     perf["total_instrumented_seconds"]=round(sum(perf["stage_seconds"].values()),4)
     # Linux GitHub-hosted runners report ru_maxrss in KiB; diagnostics only.
     perf["peak_rss_kib"]=int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-    summary={"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else ("COMPLETED_WITH_WARNINGS" if warmup_exclusions else "COMPLETED"),"period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":tested_symbols,"requested_symbols":symbols,"tested_symbol_count":len(tested_symbols),"warmup_exclusions":warmup_exclusions,"excluded_symbol_count":len(warmup_exclusions),"universe_source":universe_source,"universe_snapshot_time_utc":str(pd.Timestamp.now(tz="UTC")),"universe_max_symbols":target_max,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"trend_buy_sell_portfolio_comparison":trend_side_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"adverse slippage applied to entry and exit fill prices; round-trip fees deducted separately; sizing reserves fees plus estimated round-trip slippage","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
+    summary={"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else ("COMPLETED_WITH_WARNINGS" if warmup_exclusions else "COMPLETED"),"period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":tested_symbols,"requested_symbols":symbols,"tested_symbol_count":len(tested_symbols),"warmup_exclusions":warmup_exclusions,"excluded_symbol_count":len(warmup_exclusions),"universe_source":universe_source,"universe_snapshot_time_utc":str(pd.Timestamp.now(tz="UTC")),"universe_max_symbols":target_max,"candidate_trade_count":len(trades),"spot_buy_candidate_trade_count":len(buy_trades),"sell_signal_diagnostics":sell_diagnostics,"candidate_win_rate_pct":round(sum(v>0 for v in buy_vals)/len(buy_vals)*100,2) if buy_vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in buy_trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(buy_vals),4),"average_net_candidate_trade_pct":round(sum(buy_vals)/len(buy_vals),4) if buy_vals else None,"candidate_profit_factor":round(sum(v for v in buy_vals if v>0)/abs(sum(v for v in buy_vals if v<0)),3) if any(v<0 for v in buy_vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"trend_buy_sell_portfolio_comparison":trend_side_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"adverse slippage applied to entry and exit fill prices; round-trip fees deducted separately; sizing reserves fees plus estimated round-trip slippage","capital":"Spot long-only shared cash ledger; BUY entries only; no leverage or synthetic short exposure; SELL signals are excluded from account PnL and retained as directional diagnostics; 1% equity risk per accepted BUY; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"buy_candidate_trades":len(spot_account_candidates(v)),"sell_signal_diagnostics":sell_signal_diagnostics(v),"buy_naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in spot_account_candidates(v)),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
     (OUT/"summary.json").write_text(json.dumps(summary,indent=2),encoding="utf-8"); print(json.dumps(summary,indent=2),flush=True)
     if not trades: raise SystemExit("No trades produced; do not infer profitability.")
 if __name__=="__main__": run()
