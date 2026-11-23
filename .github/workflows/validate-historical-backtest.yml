@@ -1,0 +1,63 @@
+name: Historical Backtest Validation (No Replay)
+on:
+  push:
+    branches:
+      - "fix/**"
+    paths:
+      - "historical_backtest.py"
+      - "portfolio_ledger.py"
+      - "main.py"
+      - ".github/workflows/validate-historical-backtest.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      - name: Compile changed backtest modules
+        run: python -m py_compile main.py historical_backtest.py portfolio_ledger.py
+      - name: Run offline regression tests only (no market-data download)
+        run: |
+          mkdir -p backtest-results
+          python - <<'PY'
+          from historical_backtest import (
+              validate_warmup_self_test,
+              warmup_exclusion_self_test,
+              spot_account_scope_self_test,
+              simulate_self_test,
+              entry_location_guard_self_test,
+              closed_prefix_self_test,
+              closed_end_cutoff_self_test,
+              fetch_clock_boundary_self_test,
+              boundary_execution_candle_self_test,
+              finite_ohlcv_self_test,
+          )
+          from portfolio_ledger import portfolio_ledger_self_test
+
+          tests = [
+              validate_warmup_self_test,
+              warmup_exclusion_self_test,
+              spot_account_scope_self_test,
+              simulate_self_test,
+              entry_location_guard_self_test,
+              closed_prefix_self_test,
+              closed_end_cutoff_self_test,
+              fetch_clock_boundary_self_test,
+              boundary_execution_candle_self_test,
+              finite_ohlcv_self_test,
+              lambda: portfolio_ledger_self_test("backtest-results"),
+          ]
+          for test in tests:
+              test()
+          print(f"OFFLINE_REGRESSION_SUITE: PASS ({len(tests)} test groups)")
+          PY
