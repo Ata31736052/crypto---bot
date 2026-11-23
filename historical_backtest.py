@@ -409,6 +409,21 @@ def sell_signal_diagnostics(candidates):
         "interpretation": "SELL is an exit/reduce signal in Spot; this is directional price diagnostics only, not short-trade or account PnL."
     }
 
+def mark_sell_signal_only(trade):
+    """Remove synthetic short PnL fields from SELL rows while retaining price-path diagnostics."""
+    if not trade or str(trade.get("side", "")).upper() != "SELL":
+        return trade
+    entry = float(trade.get("raw_entry", 0) or 0)
+    exit_price = float(trade.get("raw_exit", 0) or 0)
+    trade["underlying_price_change_pct"] = (
+        round((exit_price / entry - 1.0) * 100.0, 4) if entry > 0 and exit_price > 0 else None
+    )
+    for field in ("raw_gross_pct", "gross_pct", "fee_cost_pct", "slippage_cost_pct",
+                  "cost_pct", "risk_cost_pct", "net_pct"):
+        trade[field] = None
+    trade["accounting_scope"] = "SELL_SIGNAL_DIAGNOSTIC_ONLY_NOT_SPOT_PNL"
+    return trade
+
 
 def spot_account_scope_self_test():
     sample = [
@@ -422,6 +437,10 @@ def spot_account_scope_self_test():
     assert sell_diag["candidate_count"] == 1
     assert sell_diag["price_declined_count"] == 1
     assert sell_diag["price_declined_rate_pct"] == 100.0
+    sell_row = mark_sell_signal_only(dict(sample[1]))
+    assert sell_row["net_pct"] is None and sell_row["gross_pct"] is None
+    assert sell_row["underlying_price_change_pct"] == -2.0
+    assert sell_row["accounting_scope"] == "SELL_SIGNAL_DIAGNOSTIC_ONLY_NOT_SPOT_PNL"
     print("SPOT_LONG_ONLY_ACCOUNT_SCOPE_SELF_TEST: PASS")
     return True
 
@@ -952,6 +971,8 @@ def run():
                         engine_candidate.get("score",0),engine_candidate.get("strength",""),engine_candidate
                     )
                     if engine_trade:
+                        if engine_side == "SELL":
+                            mark_sell_signal_only(engine_trade)
                         engine_trade["engine"]=engine_name
                         engine_trade["signal_mode"]=engine_candidate.get("signal_mode","UNKNOWN")
                         engine_trade["btc_regime"]=btc_regime.get("combined","UNKNOWN")
@@ -969,6 +990,8 @@ def run():
                 location_diag=signal_diagnostics(data["1h"],side)
                 trade,exit_i=simulate(sym,side,c.open_time,i+1,h1,float(c.get("atr",0) or 0),result.get("score",0),result.get("strength",""),result)
                 if trade:
+                    if side == "SELL":
+                        mark_sell_signal_only(trade)
                     trade.update(location_diag)
                     trade["engine"]=str(result.get("engine",result.get("signal_mode","UNKNOWN"))).upper()
                     trade["signal_mode"]=result.get("signal_mode","UNKNOWN")
@@ -977,7 +1000,7 @@ def run():
                     print(f"TRADE {sym} {side} {trade['signal_time']} engine={trade['engine']} net={trade['net_pct']}% {trade['exit_reason']}",flush=True)
         except Exception as exc:
             errors.append({"symbol":sym,"error":str(exc)}); print("ERROR",sym,exc,flush=True)
-    columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason"]
+    columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason","underlying_price_change_pct","accounting_scope"]
     pd.DataFrame(trades,columns=columns).to_csv(OUT/"trades.csv",index=False)
     buy_trades=spot_account_candidates(trades)
     buy_vals=[float(t["net_pct"]) for t in buy_trades]
