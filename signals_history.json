@@ -26151,5 +26151,72 @@
     "finalized_at": "2026-11-12T23:01:05.502517+03:30",
     "outcome_reason": "8h_observation_completed_without_SL_or_TP",
     "outcome_engine_version": 57
+  },
+  {
+    "timestamp": "2026-11-25T23:01:46.983269+03:30",
+    "symbol": "QQQB",
+    "signal": "BUY",
+    "score": 91,
+    "strength": "EARLY REVERSAL",
+    "price": 634.38,
+    "entry": 634.38,
+    "stop_loss": 605.756,
+    "tp1": 685.9032000000001,
+    "tp2": 703.0776000000001,
+    "rsi": 53.82541854537133,
+    "adx": 41.101699795968294,
+    "volume_ratio": 2.481196094521263,
+    "atr_percent": 0.9213651992978482,
+    "btc_regime": "NEUTRAL",
+    "candle_time": "2026-11-25 18:00:00+00:00",
+    "outcome_status": "OPEN",
+    "outcome_created_at": "2026-11-25T23:01:46.983277+03:30",
+    "horizons": {},
+    "first_event": null,
+    "first_event_time": null,
+    "outcome_reason": null,
+    "mfe_percent": 0.0,
+    "mae_percent": 0.0,
+    "reasons": [
+      "Near 72H low (3.71% above)",
+      "RSI recovering (46.2 -> 53.8)",
+      "MACD bullish divergence",
+      "MACD histogram improving",
+      "MACD above signal",
+      "Price near Fibonacci 0.618/0.786 zone",
+      "Volume expansion (2.48x)",
+      "Bullish 1H candle",
+      "Price reclaimed previous close",
+      "30M reversal confirmation",
+      "BTC regime not bearish",
+      "4H trend bearish (headwind)",
+      "Professional filter: directional structure",
+      "Professional filter: ADX/DI",
+      "Professional filter: 30M confirmation",
+      "Professional filter: volume/momentum",
+      "Professional filter: multi-timeframe context",
+      "Professional filter: trade structure/R:R",
+      "Professional quality grade: A"
+    ],
+    "htf_gate_observation": {
+      "valid_alignment": 0,
+      "legacy_alignment": 0,
+      "required_alignment": 0,
+      "valid_gate_pass": true,
+      "legacy_gate_pass": true,
+      "statuses": [
+        "4H=OPPOSED",
+        "Daily=INVALID"
+      ],
+      "status_counts": {
+        "ALIGNED": 0,
+        "OPPOSED": 1,
+        "NEUTRAL": 0,
+        "MISSING": 0,
+        "INVALID": 1,
+        "SHORT_DATA": 0
+      },
+      "professional_filter": "PASSED"
+    }
   }
 ]
