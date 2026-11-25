@@ -1,0 +1,26 @@
+name: Spot Ledger Unit Tests
+on:
+  push:
+    branches:
+      - fix/spot-ledger-long-only-20261125
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  spot-ledger-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install ledger dependency
+        run: python -m pip install pandas
+      - name: Compile Spot ledger
+        run: python -m py_compile portfolio_ledger.py
+      - name: Run shared-account and Spot-only regression tests
+        run: |
+          python - <<'PY'
+          from portfolio_ledger import portfolio_ledger_self_test
+          portfolio_ledger_self_test("test-output")
+          PY
