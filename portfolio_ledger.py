@@ -59,6 +59,15 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
                             key=lambda t: (-float(t.get("score", 0) or 0),
                                            str(t.get("symbol", "")))):
             symbol = str(trade.get("symbol", ""))
+            # Binance Spot is long-only in this replay: a SELL signal cannot open
+            # a position because this ledger has no pre-existing asset inventory.
+            # BUY trades are closed by their simulated exit; never model a short.
+            side = str(trade.get("side", "BUY")).upper()
+            if side != "BUY":
+                trade["portfolio_status"] = "REJECTED"
+                trade["portfolio_reject_reason"] = "SPOT_SHORT_NOT_ALLOWED"
+                rejected.append(trade)
+                continue
             if symbol in active_symbols:
                 trade["portfolio_status"] = "REJECTED"
                 trade["portfolio_reject_reason"] = "SYMBOL_ALREADY_OPEN"
@@ -223,7 +232,7 @@ def portfolio_ledger(candidates, out_dir, initial_cash=1000.0, risk_pct=1.0,
         "gross_exposure_max_pct_equity": round(max_gross_exposure_pct_equity, 6),
         "risk_per_trade_pct_of_equity": risk_pct,
         "max_position_pct_of_equity": max_position_pct,
-        "execution_model": "one shared cash account; no leverage; position size is min(1% equity risk / stop distance, position cap, free cash); open positions marked to market at historical hourly closes; fees/slippage included",
+        "execution_model": "Binance Spot long-only shared cash account; SELL entry candidates rejected because no pre-existing asset inventory is modeled; no leverage; BUY positions close via simulated exit; position size is min(1% equity risk / stop distance, position cap, free cash); open positions marked to market at historical hourly closes; fees/slippage included",
         "per_symbol": per_symbol,
     }
 
@@ -330,4 +339,18 @@ def portfolio_ledger_self_test(out_dir):
         assert curve["equity_usdt"].min() <= expected_equity + 1e-5
         assert curve["drawdown_pct"].max() >= expected_drawdown - 1e-4
 
-    print("PORTFOLIO_LEDGER_SELF_TEST: PASS (simultaneous allocation, capital release, fee scaling, drawdown)")
+    # 6) Spot-only ledger must reject SELL entries rather than simulate short exposure.
+    with tempfile.TemporaryDirectory() as d:
+        short_candidate = make_trade("AAAUSDT", t0, t2, 5.0, cost_pct=0.3)
+        short_candidate["side"] = "SELL"
+        r = portfolio_ledger([short_candidate], d, initial_cash=1000, risk_pct=100,
+                             max_position_pct=100)
+        assert r["accepted_trades"] == 0, "Spot ledger must never accept a SELL entry"
+        assert r["rejected_trades"] == 1
+        assert abs(r["final_equity_usdt"] - 1000.0) < 1e-6, (
+            "rejected SELL must not create short PnL or alter cash"
+        )
+        rows = pd.read_csv(Path(d) / "portfolio_trades.csv")
+        assert rows.iloc[0]["portfolio_reject_reason"] == "SPOT_SHORT_NOT_ALLOWED"
+
+    print("PORTFOLIO_LEDGER_SELF_TEST: PASS (shared cash, capital release, fees, drawdown, Spot long-only)")
