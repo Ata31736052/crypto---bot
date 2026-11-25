@@ -1,9 +1,5 @@
 name: Historical Binance Backtest | 180D | Offline Signals
 on:
-  # One-time isolated validation trigger; remove after the requested 180-day run starts.
-  push:
-    branches: [fix/spot-faithful-backtest-20261125]
-    paths: [.github/run-180d-once.txt]
   workflow_dispatch:
     inputs:
       days:
