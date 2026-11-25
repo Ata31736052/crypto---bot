@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """Closed-candle historical replay of the repository signal engine. No orders or Telegram."""
-import json, os, time, cProfile, pstats, io, resource, math
+import json, os, time, cProfile, pstats, io, resource, math, zipfile
 from pathlib import Path
+from io import BytesIO
 import pandas as pd
 import requests
 import main
-from portfolio_ledger import portfolio_ledger, portfolio_ledger_self_test
+from portfolio_ledger import portfolio_ledger_self_test
+from spot_backtest_replay import simulate_spot_buy
+from spot_event_ledger import spot_event_ledger, spot_event_ledger_self_test
+from historical_universe import build_point_in_time_universe
 
 BASE = os.getenv("BINANCE_BASE_URL", "https://data-api.binance.vision")
-SYMBOL_OVERRIDE = [s.strip().upper().replace("/", "").replace("-", "") for s in os.getenv("BACKTEST_SYMBOLS", "").split(",") if s.strip()]
+_SYMBOL_OVERRIDE = os.getenv("BACKTEST_SYMBOLS", "").strip()
+SYMBOLS = [s.strip().upper().replace("/", "").replace("-", "") for s in _SYMBOL_OVERRIDE.split(",") if s.strip()] if _SYMBOL_OVERRIDE else []
 DAYS = max(30, min(365, int((os.getenv("BACKTEST_DAYS") or "180"))))
 FEE_BPS = float((os.getenv("BACKTEST_FEE_BPS") or "10"))
 SLIPPAGE_BPS = float((os.getenv("BACKTEST_SLIPPAGE_BPS") or "5"))
@@ -90,11 +95,81 @@ def replay_signal_indices(frame, start_index, end_time):
     return range(max(0, int(start_index)), boundary_index)
 
 
+def fetch_vision_archive_rows(symbol, tf, start_ms, end_ms):
+    """Load delisted/archived Spot candles from Binance Vision monthly ZIPs."""
+    start = pd.to_datetime(start_ms, unit="ms", utc=True)
+    end = pd.to_datetime(end_ms, unit="ms", utc=True)
+    months = pd.period_range(start=start.tz_localize(None).to_period("M"), end=end.tz_localize(None).to_period("M"), freq="M")
+    rows = []
+    for month in months:
+        key = str(month)
+        url = f"https://data.binance.vision/data/spot/monthly/klines/{symbol}/{tf}/{symbol}-{tf}-{key}.zip"
+        response = SESSION.get(url, timeout=45)
+        if response.status_code == 404:
+            # Only the current incomplete month may lack its monthly bundle.
+            # Older missing monthly bundles are treated as no archived history;
+            # probing every daily URL there would create pointless requests.
+            current_month = pd.Period(pd.Timestamp.now(tz="UTC").strftime("%Y-%m"), freq="M")
+            if month != current_month:
+                continue
+            for day in pd.date_range(start=start.floor("D"), end=end.floor("D"), freq="D", tz="UTC"):
+                if day.to_period("M") != month:
+                    continue
+                day_key = day.strftime("%Y-%m-%d")
+                daily_url = f"https://data.binance.vision/data/spot/daily/klines/{symbol}/{tf}/{symbol}-{tf}-{day_key}.zip"
+                daily_response = SESSION.get(daily_url, timeout=30)
+                if daily_response.status_code == 404:
+                    continue
+                daily_response.raise_for_status()
+                with zipfile.ZipFile(BytesIO(daily_response.content)) as archive:
+                    csv_names = [name for name in archive.namelist() if name.lower().endswith(".csv")]
+                    if len(csv_names) != 1:
+                        raise RuntimeError(f"{symbol} {tf} {day_key}: invalid Binance Vision daily archive")
+                    frame = pd.read_csv(archive.open(csv_names[0]), header=None)
+                rows.extend(frame.values.tolist())
+            continue
+        response.raise_for_status()
+        with zipfile.ZipFile(BytesIO(response.content)) as archive:
+            csv_names = [name for name in archive.namelist() if name.lower().endswith(".csv")]
+            if len(csv_names) != 1:
+                raise RuntimeError(f"{symbol} {tf} {key}: invalid Binance Vision monthly archive")
+            frame = pd.read_csv(archive.open(csv_names[0]), header=None)
+        rows.extend(frame.values.tolist())
+    if not rows:
+        raise RuntimeError(f"No Binance Vision historical archive candles found for {symbol} {tf}")
+    normalized = []
+    for row in rows:
+        if len(row) < 12:
+            raise RuntimeError(f"Malformed Binance Vision kline row for {symbol} {tf}")
+        open_raw, close_raw = int(float(row[0])), int(float(row[6]))
+        # Spot archive timestamps are microseconds from 2025-01-01 onward.
+        if open_raw >= 10**14:
+            open_raw //= 1000
+            close_raw //= 1000
+        if start_ms <= open_raw <= end_ms:
+            item = list(row)
+            item[0], item[6] = open_raw, close_raw
+            normalized.append(item)
+    return normalized
+
+
 def fetch(symbol, tf, start_ms, end_ms, include_boundary_open=False, now=None, signal_boundary_ms=None):
     rows=[]; cursor=start_ms
     while cursor < end_ms:
         r=SESSION.get(f"{BASE}/api/v3/klines",params={"symbol":symbol,"interval":tf,"startTime":cursor,"endTime":end_ms,"limit":1000},timeout=30)
-        r.raise_for_status(); batch=r.json()
+        try:
+            r.raise_for_status()
+        except requests.HTTPError:
+            payload = {}
+            try:
+                payload = r.json()
+            except Exception:
+                pass
+            if r.status_code == 400 and int(payload.get("code", 0) or 0) == -1121:
+                rows = fetch_vision_archive_rows(symbol, tf, start_ms, end_ms)
+                break
+            raise
+        batch=r.json()
         if not isinstance(batch,list): raise RuntimeError(f"Bad Binance response: {symbol} {tf}")
         if not batch: break
         rows.extend(batch); nxt=int(batch[-1][0])+MS[tf]
@@ -355,6 +430,19 @@ def prepare(d):
     return x.sort_values("open_time").reset_index(drop=True) if x is not None and not x.empty else pd.DataFrame()
 
 
+def filter_backtest_symbols(symbols):
+    """Normalize Spot pairs and remove BTC from directional backtest candidates."""
+    btc_base = main.normalize_coin_symbol(getattr(main, "BTC_SYMBOL", "BTCUSDT"))
+    normalized = list(dict.fromkeys(
+        main.to_binance_usdt_symbol(symbol)
+        for symbol in (symbols or [])
+        if symbol
+    ))
+    excluded = [symbol for symbol in normalized if main.normalize_coin_symbol(symbol) == btc_base]
+    eligible = [symbol for symbol in normalized if main.normalize_coin_symbol(symbol) != btc_base]
+    return eligible, excluded
+
+
 def validate_warmup(frames, start_time, symbol="", required_timeframes=None):
     """Fail closed unless each requested timeframe has enough closed pre-test candles."""
     required_timeframes = tuple(required_timeframes or ("1h", "30m", "4h", "1d"))
@@ -369,20 +457,6 @@ def validate_warmup(frames, start_time, symbol="", required_timeframes=None):
             failures.append(f"{tf}: {len(before_start)} closed pre-test bars < {WARMUP_BARS}")
     if failures:
         raise RuntimeError(f"Insufficient indicator warm-up for {symbol or 'market'}: " + "; ".join(failures))
-    return True
-
-
-def is_warmup_exclusion(exc):
-    """Missing pre-test indicator history excludes a symbol; it is not a runtime/data-processing failure."""
-    return str(exc).startswith("Insufficient indicator warm-up for ")
-
-
-def warmup_exclusion_self_test():
-    sample = RuntimeError("Insufficient indicator warm-up for TEST: 1d: 116 closed pre-test bars < 200")
-    assert is_warmup_exclusion(sample) is True
-    assert is_warmup_exclusion(RuntimeError("Binance API timeout")) is False
-    assert is_warmup_exclusion(ValueError("malformed OHLCV")) is False
-    print("WARMUP_EXCLUSION_CLASSIFICATION_SELF_TEST: PASS")
     return True
 
 
@@ -718,6 +792,7 @@ def simulate_self_test():
 
 
 def run():
+    global SYMBOLS
     # Fixed UTC end lets baseline and experiment use identical closed-candle windows.
     end_raw = os.getenv("BACKTEST_END_TIME", "").strip()
     if end_raw:
@@ -729,30 +804,69 @@ def run():
             raise ValueError("BACKTEST_END_TIME cannot be in the future")
     else:
         end = pd.Timestamp.now(tz="UTC").floor("h")
-    # Match the production scanner's current Binance Spot universe unless an explicit
-    # deterministic override is supplied. The selected snapshot is held constant for
-    # the full replay and is recorded in the report (current-universe survivorship caveat).
-    if SYMBOL_OVERRIDE:
-        symbols = list(dict.fromkeys(SYMBOL_OVERRIDE))
-        universe_source = "explicit BACKTEST_SYMBOLS override"
-    else:
-        live_base_symbols = main.get_scan_coins()
-        if not live_base_symbols:
-            raise RuntimeError("Production Binance Spot universe is empty; refusing a partial backtest.")
-        symbols = list(dict.fromkeys(
-            main.to_binance_usdt_symbol(value)
-            for value in live_base_symbols
-            if value and main.to_binance_usdt_symbol(value)
-        ))
-        universe_source = "main.get_scan_coins() current Binance Spot snapshot; fixed for entire 180-day replay"
-    symbols = [value for value in symbols if value != "BTCUSDT"]
-    target_max = int(getattr(main, "TARGET_MAX_COINS", 100))
-    if len(symbols) > target_max:
-        symbols = symbols[:target_max]
-    if not symbols:
-        raise RuntimeError("No eligible non-BTC Binance Spot USDT symbols for historical replay.")
     start=end-pd.Timedelta(days=DAYS); fetch_start=start-pd.Timedelta(days=WARMUP_DAYS)
-    trades=[]; engine_candidate_trades={}; errors=[]; warmup_exclusions=[]; tested_symbols=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
+
+    if SYMBOLS:
+        universe_source = "explicit_BACKTEST_SYMBOLS_override"
+        SYMBOLS, btc_excluded_symbols = filter_backtest_symbols(SYMBOLS)
+        hourly_snapshots = {
+            boundary.strftime("%Y-%m-%dT%H:%M:%SZ"): list(SYMBOLS)
+            for boundary in pd.date_range(start=start.floor("h") + pd.Timedelta(hours=1), end=end.floor("h"), freq="h", tz="UTC")
+        }
+        universe_snapshot = {
+            "resolved_at_utc": pd.Timestamp.now(tz="UTC").isoformat(),
+            "source": universe_source,
+            "symbols": SYMBOLS,
+            "symbol_count": len(SYMBOLS),
+            "max_symbols": "override",
+            "btc_context_only": True,
+            "btc_excluded_symbols": btc_excluded_symbols,
+            "historical_point_in_time": False,
+            "selection_bias": "EXPLICIT_FIXED_SYMBOL_OVERRIDE",
+            "selection_note": "Explicit fixed symbol override; no historical ranking claim is made.",
+        }
+    else:
+        historical = build_point_in_time_universe(
+            start=start,
+            end=end,
+            min_quote_volume_usdt=float(getattr(main, "MIN_24H_USDT_VOLUME", 5_000_000)),
+            max_symbols=100,
+            cache_dir=os.getenv("BINANCE_VISION_CACHE", ".cache/binance-vision"),
+            is_directional_base=main.is_directional_spot_asset,
+            excluded_base_assets=("BTC",),
+        )
+        SYMBOLS = historical["symbols"]
+        btc_excluded_symbols = ["BTCUSDT"]
+        hourly_snapshots = historical["hourly_snapshots"]
+        universe_source = historical["source"]
+        universe_snapshot = {
+            "resolved_at_utc": pd.Timestamp.now(tz="UTC").isoformat(),
+            "source": universe_source,
+            "symbols": SYMBOLS,
+            "symbol_count": len(SYMBOLS),
+            "max_symbols": 100,
+            "btc_context_only": True,
+            "btc_excluded_symbols": ["BTCUSDT"],
+            "minimum_24h_quote_volume_usdt": historical["min_quote_volume_usdt"],
+            "historical_point_in_time": True,
+            "selection_bias": "ARCHIVE_RECONSTRUCTED_POINT_IN_TIME_WITH_COVERAGE_LIMITS",
+            "selection_method": historical["selection_method"],
+            "snapshot_cadence": historical["snapshot_cadence"],
+            "candidate_symbol_count": historical["candidate_symbol_count"],
+            "selected_union_count": historical["selected_union_count"],
+            "known_limitations": historical["known_limitations"],
+        }
+        (OUT/"universe_hourly_snapshots.json").write_text(
+            json.dumps(historical["hourly_counts"], indent=2), encoding="utf-8"
+        )
+    if not SYMBOLS:
+        raise RuntimeError("Directional historical Spot universe is empty after excluding BTC context asset")
+    hourly_snapshot_sets = {key: set(value) for key, value in hourly_snapshots.items()}
+    universe_snapshot["hourly_snapshot_count"] = len(hourly_snapshots)
+    universe_snapshot["start_utc"] = start.isoformat()
+    universe_snapshot["end_utc"] = end.isoformat()
+    (OUT/"universe_snapshot.json").write_text(json.dumps(universe_snapshot,indent=2),encoding="utf-8")
+    trades=[]; engine_candidate_trades={}; errors=[]; excluded_symbols=[]; replayed_symbols=[]; diagnostics={"evaluated":0,"no_signal":0,"signals_before_execution":0,"signals_rejected_anti_chase":0,"first_no_signal_reasons":[]}
     perf={"stage_seconds":{},"counters":{"candle_steps":0,"timeframe_index_lookups":0,"rows_materialized":0,"btc_regime_lookups":0,"engine_calls":0}}
     # ENGINE_INTERNAL_PROFILE: profile exactly one real production-engine invocation.
     # This is offline-only instrumentation; no signal, score, or trade decision is changed.
@@ -762,7 +876,7 @@ def run():
     engine_profile={"enabled":profile_enabled,"sample_every_calls":profile_every,"profiled_calls":0,"profiled_symbol":None,"profiled_time":None,"top_cumulative":[],"top_self_time":[]}
     def stage_done(name, started):
         perf["stage_seconds"][name]=perf["stage_seconds"].get(name,0.0)+(time.perf_counter()-started)
-    print(f"PERIOD {start} -> {end}; symbols={symbols}; universe={universe_source}; fee/side={FEE_BPS}bps; slippage/side={SLIPPAGE_BPS}bps",flush=True)
+    print(f"PERIOD {start} -> {end}; symbols={SYMBOLS}; fee/side={FEE_BPS}bps; slippage/side={SLIPPAGE_BPS}bps",flush=True)
     # Fetch BTC context once and rebuild it at each historical decision instant.
     try:
         btc_raw={tf:fetch("BTCUSDT",tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000),include_boundary_open=(tf=="1h")) for tf in ("1h","1d")}
@@ -776,7 +890,7 @@ def run():
     except Exception as exc:
         errors.append({"symbol":"BTCUSDT","error":f"BTC context: {exc}"})
         btc_frames={"1h":pd.DataFrame(),"1d":pd.DataFrame()}
-    for sym in symbols:
+    for sym in SYMBOLS:
         try:
             print("FETCH",sym,flush=True)
             raw={}
@@ -788,20 +902,20 @@ def run():
                                   include_boundary_open=True,signal_boundary_ms=int(end.timestamp()*1000))
                 else:
                     raw[tf]=fetch(sym,tf,int(fetch_start.timestamp()*1000),int(end.timestamp()*1000))
-            t_prepare=time.perf_counter()
-            frames={tf:prepare(d) for tf,d in raw.items()}
-            stage_done("prepare_symbol_history", t_prepare)
             try:
+                if len(raw["1h"])<250 or len(raw["30m"])<50:
+                    raise RuntimeError("Insufficient historical candles")
+                t_prepare=time.perf_counter()
+                frames={tf:prepare(d) for tf,d in raw.items()}
+                stage_done("prepare_symbol_history", t_prepare)
                 validate_warmup(frames, start, sym)
-            except RuntimeError as exc:
-                if is_warmup_exclusion(exc):
-                    warmup_exclusions.append({"symbol": sym, "reason": str(exc)})
-                    print("EXCLUDED_INSUFFICIENT_WARMUP", sym, str(exc), flush=True)
-                    continue
-                raise
-            tested_symbols.append(sym)
+                validate_boundary_execution_candle(frames["1h"], end)
+            except Exception as warmup_exc:
+                excluded_symbols.append({"symbol":sym,"reason":str(warmup_exc)})
+                print("EXCLUDE",sym,"insufficient historical coverage:",warmup_exc,flush=True)
+                continue
             h1=frames["1h"]
-            validate_boundary_execution_candle(h1, end)
+            replayed_symbols.append(sym)
             idx=max(220,int(h1.open_time.searchsorted(start)))
             baseline_last_exit=idx-1
             engine_last_exit={}
@@ -809,6 +923,12 @@ def run():
                 t_step=time.perf_counter()
                 c=h1.iloc[i]; close_time=c.close_time
                 if close_time<start: continue
+                # Universe membership is evaluated at the next-hour decision boundary,
+                # using only the 24 fully closed hourly candles ending there.
+                snapshot_time = (pd.Timestamp(close_time) + pd.Timedelta(milliseconds=1)).floor("h")
+                snapshot_key = snapshot_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+                if sym not in hourly_snapshot_sets.get(snapshot_key, set()):
+                    continue
                 perf["counters"]["candle_steps"] += 1
                 data={}
                 for tf,df in frames.items():
@@ -891,67 +1011,66 @@ def run():
                         diagnostics["first_no_signal_reasons"].append({"symbol":sym,"time":str(close_time),"first_rejection":trace.get("first_rejection"),"final_rejection":trace.get("final_rejection"),"error":scan.get("error") if isinstance(scan,dict) else "invalid scan result"})
                     continue
 
-                # Build independent candidate streams: choose the strongest candidate
-                # within each engine at this timestamp, not one global winner. This avoids
-                # contaminating TREND-vs-REVERSAL results with cross-engine selection bias.
-                by_engine={}
-                for candidate in candidates:
-                    engine_name=str(candidate.get("engine",candidate.get("signal_mode","UNKNOWN"))).upper()
-                    previous=by_engine.get(engine_name)
-                    rank=(float(candidate.get("professional_quality_score",0) or 0),
-                          float(candidate.get("score",0) or 0),
-                          1 if candidate.get("strength")=="STRONG" else 0)
-                    if previous is None or rank>previous[0]:
-                        by_engine[engine_name]=(rank,candidate)
-                for engine_name,(_,engine_candidate) in by_engine.items():
-                    if i <= engine_last_exit.get(engine_name,idx-1):
-                        continue
-                    engine_side=str(engine_candidate.get("signal","NO_SIGNAL")).upper()
-                    engine_trade,engine_exit_i=simulate(
-                        sym,engine_side,c.open_time,i+1,h1,float(c.get("atr",0) or 0),
-                        engine_candidate.get("score",0),engine_candidate.get("strength",""),engine_candidate
-                    )
-                    if engine_trade:
-                        engine_trade["engine"]=engine_name
-                        engine_trade["signal_mode"]=engine_candidate.get("signal_mode","UNKNOWN")
-                        engine_trade["btc_regime"]=btc_regime.get("combined","UNKNOWN")
-                        engine_trade.update(signal_diagnostics(data["1h"],engine_side))
-                        engine_candidate_trades.setdefault(engine_name,[]).append(engine_trade)
-                        engine_last_exit[engine_name]=engine_exit_i
-
-                # Primary baseline remains the production-style single strongest candidate.
-                if i <= baseline_last_exit:
-                    continue
+                # Long-only Spot replay. BUY opens; SELL closes an existing position only.
                 result=max(candidates,key=lambda x:(float(x.get("professional_quality_score",0) or 0),float(x.get("score",0) or 0),1 if x.get("strength")=="STRONG" else 0))
                 side=str(result.get("signal","NO_SIGNAL")).upper()
                 diagnostics["signals_before_execution"] += 1
-                # Anti-chase remains diagnostic-only and cannot veto the baseline.
                 location_diag=signal_diagnostics(data["1h"],side)
-                trade,exit_i=simulate(sym,side,c.open_time,i+1,h1,float(c.get("atr",0) or 0),result.get("score",0),result.get("strength",""),result)
-                if trade:
-                    trade.update(location_diag)
-                    trade["engine"]=str(result.get("engine",result.get("signal_mode","UNKNOWN"))).upper()
-                    trade["signal_mode"]=result.get("signal_mode","UNKNOWN")
-                    trade["btc_regime"]=btc_regime.get("combined","UNKNOWN")
-                    trades.append(trade); baseline_last_exit=exit_i
-                    print(f"TRADE {sym} {side} {trade['signal_time']} engine={trade['engine']} net={trade['net_pct']}% {trade['exit_reason']}",flush=True)
+                entry_i=i+1
+                if entry_i >= len(h1):
+                    continue
+                entry_bar=h1.iloc[entry_i]
+                engine_name=str(result.get("engine",result.get("signal_mode","UNKNOWN"))).upper()
+                if side == "BUY":
+                    trade,_=simulate_spot_buy(
+                        sym,c.close_time,entry_i,h1,result,
+                        fee_bps=FEE_BPS,slippage_bps=SLIPPAGE_BPS,
+                        evaluation_time=end+pd.Timedelta(hours=73),
+                        trend_invalidated_fn=lambda candle, _idx: (
+                            float(candle.get("close",0) or 0)>0
+                            and float(candle.get("ema21",0) or 0)>0
+                            and float(candle.get("close",0)) < float(candle.get("ema21",0))
+                            and float(candle.get("macd_hist",0) or 0)<0
+                        )
+                    )
+                    if trade:
+                        trade.update(location_diag)
+                        trade["engine"]=engine_name
+                        trade["signal_mode"]=result.get("signal_mode","UNKNOWN")
+                        trade["btc_regime"]=btc_regime.get("combined","UNKNOWN")
+                        trades.append(trade)
+                elif side == "SELL":
+                    raw_fill=float(entry_bar.open)
+                    sell_fill=raw_fill*(1.0-max(0.0,SLIPPAGE_BPS)/10000.0)
+                    trades.append({
+                        "symbol":sym,"side":"SELL","signal_time":str(c.close_time),
+                        "entry_time":str(entry_bar.open_time),"raw_entry":raw_fill,
+                        "entry":sell_fill,"score":result.get("score",0),
+                        "strength":result.get("strength",""),"engine":engine_name,
+                        "signal_mode":result.get("signal_mode","UNKNOWN"),
+                        "btc_regime":btc_regime.get("combined","UNKNOWN"),
+                        "fee_bps_per_side":FEE_BPS,
+                        "portfolio_instruction":"CLOSE_EXISTING_SPOT_POSITION",
+                        **location_diag
+                    })
         except Exception as exc:
             errors.append({"symbol":sym,"error":str(exc)}); print("ERROR",sym,exc,flush=True)
-    columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason"]
+    columns=["symbol","side","signal_time","entry_time","entry","stop_loss","tp1","tp2","exit_time","exit","exit_reason","gross_pct","cost_pct","net_pct","bars_held","score","strength","btc_regime","engine","signal_mode","signal_close","signal_atr","atr_pct","rsi","adx","volume_ratio","ema21_extension_atr","room_to_obstacle_atr","directional_move_6h_pct","directional_move_12h_pct","directional_move_24h_pct","range_position_20","entry_guard_allowed","entry_guard_reason","exit_events","portfolio_instruction","fee_bps_per_side"]
     pd.DataFrame(trades,columns=columns).to_csv(OUT/"trades.csv",index=False)
-    vals=[float(t["net_pct"]) for t in trades]
+    vals=[float(t["net_pct"]) for t in trades if str(t.get("side","BUY")).upper()=="BUY" and t.get("net_pct") is not None]
     portfolio_ledger_self_test(OUT)
+    spot_event_ledger_self_test(OUT)
     initial_capital=float(os.getenv("BACKTEST_INITIAL_CAPITAL_USDT","1000"))
     risk_pct=float(os.getenv("BACKTEST_RISK_PCT","1.0"))
     max_position_pct=float(os.getenv("BACKTEST_MAX_POSITION_PCT","100"))
-    portfolio=portfolio_ledger(trades,OUT,initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
+    portfolio=spot_event_ledger(trades,OUT,initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
     # Offline-only counterfactuals: replay each engine's candidate stream in its own
     # shared-cash account. These are diagnostic comparisons, not live filters.
     engine_portfolios={}
     for engine_name in sorted(engine_candidate_trades):
         engine_trades=engine_candidate_trades[engine_name]
         engine_out=OUT/"engine-comparison"/engine_name.lower()
-        engine_portfolios[engine_name]=portfolio_ledger(
+        engine_portfolios[engine_name]=spot_event_ledger(
             engine_trades,engine_out,initial_cash=initial_capital,
             risk_pct=risk_pct,max_position_pct=max_position_pct
         )
@@ -965,7 +1084,7 @@ def run():
             side_trades=[t for t in engine_trades if str(t.get("side","")).upper()==trend_side]
             key=f"{engine_name}:{trend_side}"
             if side_trades:
-                trend_side_portfolios[key]=portfolio_ledger(
+                trend_side_portfolios[key]=spot_event_ledger(
                     side_trades,OUT/"engine-comparison"/("trend-"+trend_side.lower()),
                     initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct
                 )
@@ -979,16 +1098,65 @@ def run():
     # Run a separate, explicitly experimental comparison. The baseline remains unchanged;
     # this does not activate the obstacle guard in main.py or the live Telegram scanner.
     guarded_trades=[t for t in trades if bool(t.get("entry_guard_allowed",True))]
-    guard_portfolio=portfolio_ledger(guarded_trades,OUT/"entry-location-guard",initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
+    guard_portfolio=spot_event_ledger(guarded_trades,OUT/"entry-location-guard",initial_cash=initial_capital,risk_pct=risk_pct,max_position_pct=max_position_pct)
     guard_comparison={"rule":"nearest obstacle in previous 20 closed 1H candles must be at least 0.80 ATR away","baseline_candidate_trades":len(trades),"guard_candidate_trades":len(guarded_trades),"filtered_candidate_trades":len(trades)-len(guarded_trades),"status":"EXPERIMENTAL_COMPARISON_ONLY; not enabled in live engine"}
     perf["stage_seconds"]={k:round(v,4) for k,v in perf["stage_seconds"].items()}
     (OUT/"engine-profile.json").write_text(json.dumps(engine_profile,indent=2),encoding="utf-8")
     perf["total_instrumented_seconds"]=round(sum(perf["stage_seconds"].values()),4)
     # Linux GitHub-hosted runners report ru_maxrss in KiB; diagnostics only.
     perf["peak_rss_kib"]=int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-    summary={"performance":perf,"status":"COMPLETED_WITH_ERRORS" if errors else ("COMPLETED_WITH_WARNINGS" if warmup_exclusions else "COMPLETED"),"period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":tested_symbols,"requested_symbols":symbols,"tested_symbol_count":len(tested_symbols),"warmup_exclusions":warmup_exclusions,"excluded_symbol_count":len(warmup_exclusions),"universe_source":universe_source,"universe_snapshot_time_utc":str(pd.Timestamp.now(tz="UTC")),"universe_max_symbols":target_max,"candidate_trade_count":len(trades),"candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(t["gross_pct"] for t in trades),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"average_net_candidate_trade_pct":round(sum(vals)/len(vals),4) if vals else None,"candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t["exit_reason"]==k for t in trades) for k in sorted({t["exit_reason"] for t in trades})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"trend_buy_sell_portfolio_comparison":trend_side_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; first touched target exits full position","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"adverse slippage applied to entry and exit fill prices; round-trip fees deducted separately; sizing reserves fees plus estimated round-trip slippage","capital":"single shared cash ledger; no leverage; 1% equity risk per accepted trade; max position capped at 100% of equity and available cash","overlap":"concurrent trades compete for free cash; one position per symbol","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
+    completion_status = ("COMPLETED_WITH_ERRORS_AND_EXCLUSIONS" if errors and excluded_symbols else
+                         "COMPLETED_WITH_ERRORS" if errors else
+                         "COMPLETED_WITH_EXCLUSIONS" if excluded_symbols else "COMPLETED")
+    summary={"performance":perf,"status":completion_status,"period_start":str(start),"period_end":str(end),"days":DAYS,"symbols":SYMBOLS,"requested_symbol_count":len(SYMBOLS)+len(btc_excluded_symbols),"eligible_symbol_count":len(replayed_symbols),"replayed_symbols":replayed_symbols,"excluded_symbols":excluded_symbols,"btc_excluded_symbols":btc_excluded_symbols,"historical_universe_validity":universe_snapshot.get("selection_bias", "UNKNOWN"),"candidate_signal_count":len(trades),"buy_candidate_count":sum(str(t.get("side","")).upper()=="BUY" for t in trades),"sell_close_signal_count":sum(str(t.get("side","")).upper()=="SELL" for t in trades),"standalone_full_path_candidate_win_rate_pct":round(sum(v>0 for v in vals)/len(vals)*100,2) if vals else None,"naive_gross_return_sum_pct_not_portfolio":round(sum(float(t.get("gross_pct",0) or 0) for t in trades if str(t.get("side","")).upper()=="BUY"),4),"naive_net_return_sum_pct_not_portfolio":round(sum(vals),4),"standalone_full_path_avg_net_candidate_pct":round(sum(vals)/len(vals),4) if vals else None,"standalone_full_path_candidate_profit_factor":round(sum(v for v in vals if v>0)/abs(sum(v for v in vals if v<0)),3) if any(v<0 for v in vals) else None,"exit_reasons_candidates":{k:sum(t.get("exit_reason")==k for t in trades if str(t.get("side","")).upper()=="BUY") for k in sorted({t.get("exit_reason") for t in trades if str(t.get("side","")).upper()=="BUY"})},"portfolio":portfolio,"engine_only_portfolio_comparison":engine_portfolios,"trend_buy_sell_portfolio_comparison":trend_side_portfolios,"portfolio_entry_location_guard":guard_portfolio,"entry_location_guard_comparison":guard_comparison,"assumptions":{"entry":"next 1H candle open after signal candle closes","exit_timestamp":"exit candle close timestamp for conservative portfolio event ordering","stop":"engine stop distance re-anchored to next 1H open; fallback 1.5 ATR","targets":"engine TP1_RR/TP2_RR; TP1 sells 50%; remaining 50% stays open until later TP2, protective stop, time exit, or SELL close signal","same_candle_conflict":"SL first; TP1 before TP2 when both targets are touched in one candle","costs":"adverse slippage applied to entry and exit fill prices; round-trip fees deducted separately; sizing reserves fees plus estimated round-trip slippage","capital":"long-only Spot shared-cash ledger; 1% equity risk per BUY; max position capped at 100% of equity and available cash; SELL only closes an existing position","overlap":"concurrent trades compete for free cash; one long Spot position per symbol; SELL signals close existing positions only","drawdown":"portfolio equity marked-to-market at historical hourly closes including open positions","btc_regime":"Historical BTC 1H and Daily regime rebuilt from closed candles at each decision time","indicator_warmup":f"{WARMUP_DAYS} calendar days fetched before test start; >= {WARMUP_BARS} closed pre-test candles required per timeframe; each decision uses the latest configured 250 candles","experimental_filter":"DISABLED in primary baseline; EMA21 extension is diagnostic-only and does not veto production-engine candidates","entry_location_guard":"Separate comparison only; requires at least 0.80 ATR room to the nearest confirmed 2-left/2-right swing obstacle in the previous 20 closed 1H candles; no confirmed directional obstacle means no veto; not active in baseline/live engine","naive_returns_warning":"sum of individual trade percentages is not portfolio return and is shown only for comparison"},"engine_breakdown":{k:{"candidate_trades":len(v),"naive_net_return_sum_pct_not_portfolio":round(sum(float(t["net_pct"]) for t in v),4)} for k,v in sorted(engine_candidate_trades.items())},"diagnostics":diagnostics,"errors":errors}
     (OUT/"summary.json").write_text(json.dumps(summary,indent=2),encoding="utf-8"); print(json.dumps(summary,indent=2),flush=True)
     if not trades: raise SystemExit("No trades produced; do not infer profitability.")
+def is_warmup_exclusion(exc):
+    """Missing pre-test indicator history excludes a symbol; it is not a runtime/data-processing failure."""
+    return str(exc).startswith("Insufficient indicator warm-up for ")
+
+
+def warmup_exclusion_self_test():
+    sample = RuntimeError("Insufficient indicator warm-up for TEST: 1d: 116 closed pre-test bars < 200")
+    assert is_warmup_exclusion(sample) is True
+    assert is_warmup_exclusion(RuntimeError("Binance API timeout")) is False
+    assert is_warmup_exclusion(ValueError("malformed OHLCV")) is False
+    print("WARMUP_EXCLUSION_CLASSIFICATION_SELF_TEST: PASS")
+    return True
+
+
+def fetch_clock_boundary_self_test():
+    """A fixed end boundary retains its execution-open even while that candle is forming."""
+    end = pd.Timestamp("2026-10-13T12:00:00Z")
+    end_ms = int(end.timestamp() * 1000)
+    rows = []
+    for open_time, close_time, price in (
+        (end - pd.Timedelta(hours=1), end - pd.Timedelta(milliseconds=1), 100.0),
+        (end, end + pd.Timedelta(hours=1) - pd.Timedelta(milliseconds=1), 101.0),
+        (end + pd.Timedelta(hours=1), end + pd.Timedelta(hours=2) - pd.Timedelta(milliseconds=1), 102.0),
+    ):
+        rows.append([int(open_time.timestamp()*1000),str(price),str(price+1),str(price-1),str(price),"10",int(close_time.timestamp()*1000),"1000",10,"5","500","0"])
+    class FakeResponse:
+        status_code = 200
+        def raise_for_status(self): return None
+        def json(self): return rows
+    class FakeSession:
+        def get(self,*args,**kwargs): return FakeResponse()
+    original_session = SESSION
+    try:
+        globals()["SESSION"] = FakeSession()
+        now = end + pd.Timedelta(minutes=30)
+        with_execution = fetch("ETHUSDT","1h",end_ms-2*MS["1h"],end_ms,include_boundary_open=True,now=now)
+        assert len(with_execution)==2, "forming boundary execution candle was dropped or a future candle leaked"
+        assert with_execution.iloc[-1]["open_time"] == end
+        assert float(with_execution.iloc[-1]["open"]) == 101.0
+        without_execution = fetch("ETHUSDT","1h",end_ms-2*MS["1h"],end_ms,include_boundary_open=False,now=now)
+        assert len(without_execution)==1 and without_execution.iloc[-1]["open_time"] == end-pd.Timedelta(hours=1)
+    finally:
+        globals()["SESSION"] = original_session
+    print("FETCH_CLOCK_BOUNDARY_SELF_TEST: PASS")
+    return True
+
 if __name__=="__main__": run()
 
 # Validation-only marker: run the 180-day replay against the current main baseline.

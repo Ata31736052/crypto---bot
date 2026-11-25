@@ -48,12 +48,19 @@ jobs:
       BACKTEST_MAX_POSITION_PCT: "100"
       BACKTEST_END_TIME: ${{ github.event.inputs.end_time || '' }}
       PYTHONUNBUFFERED: "1"
+      BINANCE_VISION_CACHE: ".cache/binance-vision"
       TELEGRAM_TOKEN: ""
       TELEGRAM_CHAT_ID: ""
       DRY_RUN: "1"
       RUN_ONCE: "0"
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: .cache/binance-vision
+          key: binance-vision-spot-hourly-${{ runner.os }}-v2-${{ github.run_id }}
+          restore-keys: |
+            binance-vision-spot-hourly-${{ runner.os }}-v2-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -63,19 +70,24 @@ jobs:
           python -m pip install -r requirements.txt
       - name: Compile and verify offline replay
         run: |
-          python -m py_compile main.py historical_backtest.py portfolio_ledger.py
+          python -m py_compile main.py historical_backtest.py historical_universe.py portfolio_ledger.py spot_position_manager.py spot_backtest_replay.py spot_event_ledger.py
           python - <<'PY'
           from pathlib import Path
           s=Path("historical_backtest.py").read_text()
           assert "main.analyze_one_symbol(" in s
           assert "next 1H candle open" in s
+          assert "spot_event_ledger" in s
+          assert "simulate_spot_buy" in s
           assert "portfolio_ledger" in s
           assert "WARMUP_DAYS = 250" in s and "WARMUP_BARS = 200" in s
           assert "validate_warmup" in s
-          assert "main.get_scan_coins()" in s and "universe_source" in s
+          assert "build_point_in_time_universe" in s and "hourly_snapshot_sets" in s
+          assert "historical_point_in_time" in s
           assert "BACKTEST_END_TIME" in s
-          from historical_backtest import validate_warmup_self_test, warmup_exclusion_self_test, simulate_self_test, entry_location_guard_self_test, closed_prefix_self_test, closed_end_cutoff_self_test, boundary_execution_candle_self_test, finite_ohlcv_self_test
+          from historical_backtest import validate_warmup_self_test, warmup_exclusion_self_test, fetch_clock_boundary_self_test, simulate_self_test, entry_location_guard_self_test, closed_prefix_self_test, closed_end_cutoff_self_test, boundary_execution_candle_self_test, finite_ohlcv_self_test
           validate_warmup_self_test()
+          warmup_exclusion_self_test()
+          fetch_clock_boundary_self_test()
           warmup_exclusion_self_test()
           simulate_self_test()
           entry_location_guard_self_test()
