@@ -1,1 +1,0 @@
-One-time trigger for the isolated 180-day Spot-faithful backtest. No production workflow or live scanner is changed.
