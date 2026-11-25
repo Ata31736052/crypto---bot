@@ -26182,7 +26182,7 @@
         "sl_reached": false,
         "window_start": "2026-11-25 19:00:00+00:00",
         "window_end": "2026-11-25 20:00:00+00:00",
-        "observed_at": "2026-11-26T01:00:54.273431+03:30",
+        "observed_at": "2026-11-26T02:00:48.025243+03:30",
         "engine_version": 57
       },
       "2h": {
@@ -26195,7 +26195,7 @@
         "sl_reached": false,
         "window_start": "2026-11-25 19:00:00+00:00",
         "window_end": "2026-11-25 21:00:00+00:00",
-        "observed_at": "2026-11-26T01:00:54.274496+03:30",
+        "observed_at": "2026-11-26T02:00:48.026431+03:30",
         "engine_version": 57
       }
     },
@@ -26270,10 +26270,23 @@
     "candle_time": "2026-11-25 20:00:00+00:00",
     "outcome_status": "OPEN",
     "outcome_created_at": "2026-11-26T01:01:40.321500+03:30",
-    "horizons": {},
+    "horizons": {
+      "1h": {
+        "close": 0.953,
+        "change_percent": 0.2103,
+        "mfe_percent": 0.5258,
+        "mae_percent": 0.5258,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-11-25 21:00:00+00:00",
+        "window_end": "2026-11-25 22:00:00+00:00",
+        "observed_at": "2026-11-26T02:00:48.188596+03:30",
+        "engine_version": 57
+      }
+    },
     "first_event": null,
     "first_event_time": null,
-    "outcome_reason": null,
     "mfe_percent": 0.0,
     "mae_percent": 0.0,
     "reasons": [
@@ -26318,6 +26331,12 @@
         "SHORT_DATA": 0
       },
       "professional_filter": "PASSED"
-    }
+    },
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {},
+    "outcome_engine_version": 57
   }
 ]
