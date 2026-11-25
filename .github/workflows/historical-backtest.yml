@@ -1,5 +1,8 @@
 name: Historical Binance Backtest | 180D | Offline Signals
 on:
+  push:
+    branches:
+      - test/spot-ledger-180d-20261125
   # 180-day replay is manual-only; PR validation is handled by lightweight diagnostics.
   workflow_dispatch:
     inputs:
