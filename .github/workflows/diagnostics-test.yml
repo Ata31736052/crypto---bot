@@ -2,7 +2,7 @@ name: Crypto Bot Diagnostics Tests
 
 on:
   push:
-    branches: [main, backtest/main-engine-baseline-180d, backtest/divergence-reuse-ab-20261013-run]
+    branches: [main, backtest/main-engine-baseline-180d, backtest/divergence-reuse-ab-20261013-run, fix/spot-faithful-backtest-20261125]
   pull_request:
     branches: [main, backtest/main-engine-baseline-180d]
   workflow_dispatch:
@@ -65,13 +65,14 @@ jobs:
           if failed:
               raise SystemExit('Source verification failed: ' + ', '.join(failed))
           PY
-          python -m py_compile main.py historical_backtest.py portfolio_ledger.py spot_position_manager.py
+          python -m py_compile main.py historical_backtest.py historical_universe.py portfolio_ledger.py spot_position_manager.py spot_backtest_replay.py spot_event_ledger.py
           echo "Python compile (main + historical backtest + portfolio ledger): PASS"
       - name: Run Spot position lifecycle tests (offline, no Telegram)
         shell: bash
         run: |
           set -euo pipefail
           python -m unittest discover -s tests -p 'test_spot_*.py' -v
+          python -m unittest discover -s tests -p 'test_historical_universe.py' -v
 
       - name: Run deterministic historical backtest boundary tests (no network, no Telegram)
         shell: bash
@@ -82,6 +83,7 @@ jobs:
           tests = [
               ("closed end cutoff", backtest.closed_end_cutoff_self_test),
               ("fetch clock and boundary execution candle", backtest.fetch_clock_boundary_self_test),
+              ("warm-up exclusion classification", backtest.warmup_exclusion_self_test),
               ("boundary execution candle validation", backtest.boundary_execution_candle_self_test),
               ("finite OHLCV validation", backtest.finite_ohlcv_self_test),
               ("historical exit ambiguity", backtest.simulate_self_test),

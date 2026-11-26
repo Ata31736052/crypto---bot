@@ -1,0 +1,89 @@
+name: Historical Spot Universe Archive Smoke Test
+
+on:
+  push:
+    branches: [fix/spot-faithful-backtest-20261125]
+    paths:
+      - "historical_universe.py"
+      - ".github/workflows/historical-universe-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: historical-universe-smoke
+  cancel-in-progress: false
+
+jobs:
+  archive-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PYTHONUNBUFFERED: "1"
+      BACKTEST_END_TIME: "2026-10-13T13:00:00Z"
+      BACKTEST_DAYS: "30"
+    steps:
+      - name: Checkout experiment branch
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pandas requests
+      - name: Build 30-day hourly historical universe from Binance Vision
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import pandas as pd
+          import main
+          from historical_universe import build_point_in_time_universe
+
+          end = pd.Timestamp(os.environ["BACKTEST_END_TIME"]).tz_convert("UTC")
+          start = end - pd.Timedelta(days=int(os.environ["BACKTEST_DAYS"]))
+          result = build_point_in_time_universe(
+              start=start,
+              end=end,
+              min_quote_volume_usdt=float(main.MIN_24H_USDT_VOLUME),
+              max_symbols=100,
+              cache_dir=".cache/binance-vision-hourly-smoke",
+              is_directional_base=main.is_directional_spot_asset,
+              excluded_base_assets=("BTC",),
+              max_workers=12,
+          )
+          expected_snapshots = int((end.floor("h") - (start.floor("h") + pd.Timedelta(hours=1))) / pd.Timedelta(hours=1)) + 1
+          assert len(result["hourly_snapshots"]) == expected_snapshots, (
+              f"snapshot coverage mismatch: {len(result['hourly_snapshots'])} != {expected_snapshots}"
+          )
+          assert all(len(items) <= 100 for items in result["hourly_snapshots"].values())
+          assert all("BTCUSDT" not in items for items in result["hourly_snapshots"].values())
+          assert result["selected_union_count"] > 0
+          out = Path("universe-smoke-results")
+          out.mkdir(exist_ok=True)
+          (out / "hourly_snapshots.json").write_text(
+              json.dumps(result["hourly_snapshots"], indent=2), encoding="utf-8"
+          )
+          summary = {k: v for k, v in result.items() if k not in ("hourly_snapshots", "hourly_counts")}
+          summary["snapshot_count"] = len(result["hourly_snapshots"])
+          summary["first_snapshot"] = next(iter(result["hourly_snapshots"]))
+          summary["last_snapshot"] = next(reversed(result["hourly_snapshots"]))
+          summary["eligible_counts_min"] = min(x["eligible_above_threshold"] for x in result["hourly_counts"])
+          summary["eligible_counts_max"] = max(x["eligible_above_threshold"] for x in result["hourly_counts"])
+          summary["selected_counts_min"] = min(x["selected_count"] for x in result["hourly_counts"])
+          summary["selected_counts_max"] = max(x["selected_count"] for x in result["hourly_counts"])
+          (out / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+          print(json.dumps(summary, indent=2))
+          PY
+      - name: Upload universe smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: historical-spot-universe-smoke-30d
+          path: universe-smoke-results/
+          if-no-files-found: warn
+          retention-days: 14
