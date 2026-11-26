@@ -26299,7 +26299,7 @@
     "atr_percent": 1.4915500715507095,
     "btc_regime": "NEUTRAL",
     "candle_time": "2026-11-25 20:00:00+00:00",
-    "outcome_status": "OPEN",
+    "outcome_status": "FINAL",
     "outcome_created_at": "2026-11-26T01:01:40.321500+03:30",
     "horizons": {
       "1h": {
@@ -26312,7 +26312,7 @@
         "sl_reached": false,
         "window_start": "2026-11-25 21:00:00+00:00",
         "window_end": "2026-11-25 22:00:00+00:00",
-        "observed_at": "2026-11-26T08:00:50.340494+03:30",
+        "observed_at": "2026-11-26T09:00:45.699586+03:30",
         "engine_version": 57
       },
       "2h": {
@@ -26325,7 +26325,7 @@
         "sl_reached": false,
         "window_start": "2026-11-25 21:00:00+00:00",
         "window_end": "2026-11-25 23:00:00+00:00",
-        "observed_at": "2026-11-26T08:00:50.341727+03:30",
+        "observed_at": "2026-11-26T09:00:45.700437+03:30",
         "engine_version": 57
       },
       "4h": {
@@ -26338,14 +26338,27 @@
         "sl_reached": false,
         "window_start": "2026-11-25 21:00:00+00:00",
         "window_end": "2026-11-26 01:00:00+00:00",
-        "observed_at": "2026-11-26T08:00:50.342966+03:30",
+        "observed_at": "2026-11-26T09:00:45.701294+03:30",
+        "engine_version": 57
+      },
+      "8h": {
+        "close": 0.977,
+        "change_percent": 2.734,
+        "mfe_percent": 3.3649,
+        "mae_percent": 0.5258,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-11-25 21:00:00+00:00",
+        "window_end": "2026-11-26 05:00:00+00:00",
+        "observed_at": "2026-11-26T09:00:45.702176+03:30",
         "engine_version": 57
       }
     },
-    "first_event": null,
+    "first_event": "NO_LEVEL_HIT",
     "first_event_time": null,
-    "mfe_percent": 0.0,
-    "mae_percent": 0.0,
+    "mfe_percent": 3.3649,
+    "mae_percent": 0.5258,
     "reasons": [
       "Close to recent low (5.54% above)",
       "RSI recovering (55.1 -> 59.5)",
@@ -26393,7 +26406,12 @@
     "tp2_reached": false,
     "sl_reached": false,
     "ambiguous_event": false,
-    "performance": {},
-    "outcome_engine_version": 57
+    "performance": {
+      "mfe_percent": 3.3649,
+      "mae_percent": 0.5258
+    },
+    "outcome_engine_version": 57,
+    "finalized_at": "2026-11-26T09:00:45.703005+03:30",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP"
   }
 ]
