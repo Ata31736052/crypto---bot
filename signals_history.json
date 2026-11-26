@@ -26169,7 +26169,7 @@
     "atr_percent": 0.9213651992978482,
     "btc_regime": "NEUTRAL",
     "candle_time": "2026-11-25 18:00:00+00:00",
-    "outcome_status": "OPEN",
+    "outcome_status": "FINAL",
     "outcome_created_at": "2026-11-25T23:01:46.983277+03:30",
     "horizons": {
       "1h": {
@@ -26182,7 +26182,7 @@
         "sl_reached": false,
         "window_start": "2026-11-25 19:00:00+00:00",
         "window_end": "2026-11-25 20:00:00+00:00",
-        "observed_at": "2026-11-26T06:00:48.864066+03:30",
+        "observed_at": "2026-11-26T07:00:48.513028+03:30",
         "engine_version": 57
       },
       "2h": {
@@ -26195,7 +26195,7 @@
         "sl_reached": false,
         "window_start": "2026-11-25 19:00:00+00:00",
         "window_end": "2026-11-25 21:00:00+00:00",
-        "observed_at": "2026-11-26T06:00:48.866014+03:30",
+        "observed_at": "2026-11-26T07:00:48.514549+03:30",
         "engine_version": 57
       },
       "4h": {
@@ -26208,14 +26208,27 @@
         "sl_reached": false,
         "window_start": "2026-11-25 19:00:00+00:00",
         "window_end": "2026-11-25 23:00:00+00:00",
-        "observed_at": "2026-11-26T06:00:48.868062+03:30",
+        "observed_at": "2026-11-26T07:00:48.516234+03:30",
+        "engine_version": 57
+      },
+      "8h": {
+        "close": 638.91,
+        "change_percent": 0.7141,
+        "mfe_percent": 0.9789,
+        "mae_percent": 0.7157,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-11-25 19:00:00+00:00",
+        "window_end": "2026-11-26 03:00:00+00:00",
+        "observed_at": "2026-11-26T07:00:48.517846+03:30",
         "engine_version": 57
       }
     },
-    "first_event": null,
+    "first_event": "NO_LEVEL_HIT",
     "first_event_time": null,
-    "mfe_percent": 0.0,
-    "mae_percent": 0.0,
+    "mfe_percent": 0.9789,
+    "mae_percent": 0.7157,
     "reasons": [
       "Near 72H low (3.71% above)",
       "RSI recovering (46.2 -> 53.8)",
@@ -26261,8 +26274,13 @@
     "tp2_reached": false,
     "sl_reached": false,
     "ambiguous_event": false,
-    "performance": {},
-    "outcome_engine_version": 57
+    "performance": {
+      "mfe_percent": 0.9789,
+      "mae_percent": 0.7157
+    },
+    "outcome_engine_version": 57,
+    "finalized_at": "2026-11-26T07:00:48.519349+03:30",
+    "outcome_reason": "8h_observation_completed_without_SL_or_TP"
   },
   {
     "timestamp": "2026-11-26T01:01:40.321491+03:30",
@@ -26294,7 +26312,7 @@
         "sl_reached": false,
         "window_start": "2026-11-25 21:00:00+00:00",
         "window_end": "2026-11-25 22:00:00+00:00",
-        "observed_at": "2026-11-26T06:00:48.979494+03:30",
+        "observed_at": "2026-11-26T07:00:48.673928+03:30",
         "engine_version": 57
       },
       "2h": {
@@ -26307,7 +26325,7 @@
         "sl_reached": false,
         "window_start": "2026-11-25 21:00:00+00:00",
         "window_end": "2026-11-25 23:00:00+00:00",
-        "observed_at": "2026-11-26T06:00:48.981633+03:30",
+        "observed_at": "2026-11-26T07:00:48.675526+03:30",
         "engine_version": 57
       },
       "4h": {
@@ -26320,7 +26338,7 @@
         "sl_reached": false,
         "window_start": "2026-11-25 21:00:00+00:00",
         "window_end": "2026-11-26 01:00:00+00:00",
-        "observed_at": "2026-11-26T06:00:48.983732+03:30",
+        "observed_at": "2026-11-26T07:00:48.677087+03:30",
         "engine_version": 57
       }
     },
