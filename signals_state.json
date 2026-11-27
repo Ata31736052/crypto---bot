@@ -101,9 +101,9 @@
       "sent_at": "2026-11-27T12:01:17.367043+03:30"
     }
   },
-  "total_scans": 474,
+  "total_scans": 475,
   "total_signals": 482,
-  "last_scan": "2026-11-27T12:01:17.445791+03:30",
+  "last_scan": "2026-11-27T13:01:30.946599+03:30",
   "state_schema_version": 2,
   "spot_positions": {
     "QQQB": {
@@ -120,7 +120,7 @@
       "tp1_done": false,
       "opened_at": "2026-11-25T23:01:46.605430+03:30",
       "entry_candle_time": "2026-11-25 18:00:00+00:00",
-      "last_checked_candle": "2026-11-27T07:00:00+00:00",
+      "last_checked_candle": "2026-11-27T08:00:00+00:00",
       "signal_key": "",
       "entry_score": 91,
       "entry_engine": "REVERSAL",
@@ -140,7 +140,7 @@
       "tp1_done": false,
       "opened_at": "2026-11-27T12:01:16.844853+03:30",
       "entry_candle_time": "2026-11-27 07:00:00+00:00",
-      "last_checked_candle": "2026-11-27 07:00:00+00:00",
+      "last_checked_candle": "2026-11-27T08:00:00+00:00",
       "signal_key": "",
       "entry_score": 90,
       "entry_engine": "REVERSAL",

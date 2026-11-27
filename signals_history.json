@@ -26433,10 +26433,23 @@
     "candle_time": "2026-11-27 07:00:00+00:00",
     "outcome_status": "OPEN",
     "outcome_created_at": "2026-11-27T12:01:17.367073+03:30",
-    "horizons": {},
+    "horizons": {
+      "1h": {
+        "close": 3669.63,
+        "change_percent": 0.066,
+        "mfe_percent": 0.1426,
+        "mae_percent": 0.4213,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-11-27 08:00:00+00:00",
+        "window_end": "2026-11-27 09:00:00+00:00",
+        "observed_at": "2026-11-27T13:01:05.007441+03:30",
+        "engine_version": 57
+      }
+    },
     "first_event": null,
     "first_event_time": null,
-    "outcome_reason": null,
     "mfe_percent": 0.0,
     "mae_percent": 0.0,
     "reasons": [
@@ -26479,6 +26492,12 @@
         "SHORT_DATA": 0
       },
       "professional_filter": "PASSED"
-    }
+    },
+    "tp1_reached": false,
+    "tp2_reached": false,
+    "sl_reached": false,
+    "ambiguous_event": false,
+    "performance": {},
+    "outcome_engine_version": 57
   }
 ]
