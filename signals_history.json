@@ -26444,7 +26444,20 @@
         "sl_reached": false,
         "window_start": "2026-11-27 08:00:00+00:00",
         "window_end": "2026-11-27 09:00:00+00:00",
-        "observed_at": "2026-11-27T13:01:05.007441+03:30",
+        "observed_at": "2026-11-27T14:01:04.271546+03:30",
+        "engine_version": 57
+      },
+      "2h": {
+        "close": 3666.12,
+        "change_percent": -0.0297,
+        "mfe_percent": 0.2517,
+        "mae_percent": 0.4213,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-11-27 08:00:00+00:00",
+        "window_end": "2026-11-27 10:00:00+00:00",
+        "observed_at": "2026-11-27T14:01:04.272646+03:30",
         "engine_version": 57
       }
     },
