@@ -1,0 +1,61 @@
+name: Bottom Hunter Historical Volume Cap Diagnostic
+on:
+  push:
+    branches:
+      - diagnostic/bottom-hunter-cap-mainline-20261127
+  workflow_dispatch:
+    inputs:
+      artifact_id:
+        description: "Run #160 source artifact ID"
+        required: true
+        default: "14102983195"
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: bottom-hunter-volume-cap-diagnostic
+  cancel-in-progress: false
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${D}{{ github.token }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout isolated diagnostic branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${D}{{ github.ref }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install diagnostic dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pandas requests
+      - name: Download immutable Run #160 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${D}{{ inputs.artifact_id || '14102983195' }}" = "14102983195"
+          curl --fail --location --retry 3 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/Ata31736052/crypto---bot/actions/artifacts/14102983195/zip" \
+            --output run160-artifact.zip
+          unzip -t run160-artifact.zip
+      - name: Compile and run offline-only cap diagnostic
+        run: |
+          python -m py_compile scripts/bottom_hunter_cap_diagnostic.py scripts/run160_portfolio_ledger.py
+          python scripts/bottom_hunter_cap_diagnostic.py --artifact run160-artifact.zip --out cap-diagnostic-results
+      - name: Upload comparison and audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bottom-hunter-cap-diagnostic
+          path: cap-diagnostic-results/
+          if-no-files-found: warn
+          retention-days: 30
