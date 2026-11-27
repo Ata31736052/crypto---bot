@@ -64,12 +64,15 @@ def fetch_klines(symbol: str, start_ms: int, end_ms: int) -> pd.DataFrame:
         if len(batch) < 1000:
             break
         time.sleep(0.12)
-    if not all_rows:
-        raise RuntimeError(f"{symbol}: Binance returned no hourly candles in requested window")
-    frame = pd.DataFrame(all_rows, columns=[
+    columns = [
         "open_ms","open","high","low","close","base_volume","close_ms",
         "quote_volume","trades","taker_base","taker_quote","ignore"
-    ])
+    ]
+    if not all_rows:
+        return pd.DataFrame(columns=[
+            "open_ms","open","high","low","close","base_volume","close_ms","quote_volume"
+        ]).astype({"open_ms":"int64","close_ms":"int64"})
+    frame = pd.DataFrame(all_rows, columns=columns)
     for col in ("open","high","low","close","quote_volume"):
         frame[col] = pd.to_numeric(frame[col], errors="raise")
     frame["open_ms"] = pd.to_numeric(frame["open_ms"], errors="raise").astype("int64")
@@ -141,12 +144,31 @@ def main():
         for symbol in symbols:
             bars = market[symbol]
             window = bars[(bars.close_ms < decision_ms) & (bars.close_ms >= window_start)]
-            if len(window) != 24:
-                raise RuntimeError(
-                    f"Incomplete 24h quote-volume window: {symbol} at {signal_time}; "
-                    f"found {len(window)} completed 1h candles"
-                )
-            qv = float(window["quote_volume"].sum())
+            if window.empty:
+                # The fixed Run #160 universe can contain symbols listed after
+                # this historical decision; they correctly had zero quote volume.
+                qv = 0.0
+            else:
+                window = window.sort_values("open_ms")
+                # If fewer than 24 buckets exist, accept only a contiguous
+                # partial history that starts after the 24h boundary (new listing)
+                # and reaches the final completed candle at the decision boundary.
+                expected_last_close = decision_ms - 1
+                if int(window.iloc[-1].close_ms) != expected_last_close:
+                    raise RuntimeError(
+                        f"Historical quote-volume window has no final closed candle: "
+                        f"{symbol} at {signal_time}"
+                    )
+                if len(window) > 24:
+                    raise RuntimeError(f"Unexpected >24 quote-volume buckets for {symbol} at {signal_time}")
+                if len(window) > 1 and not (window.open_ms.diff().dropna() == INTERVAL_MS).all():
+                    raise RuntimeError(f"Gap in historical quote-volume buckets for {symbol} at {signal_time}")
+                if len(window) < 24 and int(window.iloc[0].open_ms) <= window_start:
+                    raise RuntimeError(
+                        f"Incomplete historical quote-volume window: {symbol} at {signal_time}; "
+                        f"found {len(window)} buckets with a gap"
+                    )
+                qv = float(window["quote_volume"].sum())
             volume_by_time_symbol[(signal_time, symbol)] = qv
         candidates = group.to_dict("records")
         for trade in candidates:
