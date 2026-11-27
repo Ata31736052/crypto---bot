@@ -31,34 +31,51 @@ def utc_ms(value) -> int:
     return int(ts.timestamp() * 1000)
 
 def fetch_klines(symbol: str, start_ms: int, end_ms: int) -> pd.DataFrame:
-    params = {"symbol": symbol, "interval": "1h", "startTime": start_ms,
-              "endTime": end_ms, "limit": 1000}
-    last_error = None
-    for attempt in range(6):
-        try:
-            response = SESSION.get(f"{BASE}/api/v3/klines", params=params, timeout=30)
-            if response.status_code in (418, 429):
-                time.sleep(min(30, 2 ** attempt))
-                continue
-            response.raise_for_status()
-            rows = response.json()
-            if not isinstance(rows, list) or not rows:
-                raise RuntimeError(f"{symbol}: Binance returned no hourly candles")
-            frame = pd.DataFrame(rows, columns=[
-                "open_ms","open","high","low","close","base_volume","close_ms",
-                "quote_volume","trades","taker_base","taker_quote","ignore"
-            ])
-            for col in ("open","high","low","close","quote_volume"):
-                frame[col] = pd.to_numeric(frame[col], errors="raise")
-            frame["open_ms"] = pd.to_numeric(frame["open_ms"], errors="raise").astype("int64")
-            frame["close_ms"] = pd.to_numeric(frame["close_ms"], errors="raise").astype("int64")
-            frame = frame[(frame.open_ms >= start_ms) & (frame.open_ms < end_ms)].copy()
-            frame = frame.sort_values("open_ms").drop_duplicates("open_ms")
-            return frame
-        except Exception as exc:
-            last_error = exc
-            time.sleep(0.5 * (attempt + 1))
-    raise RuntimeError(f"Unable to fetch {symbol} after retries: {last_error}")
+    cursor = start_ms
+    all_rows = []
+    while cursor < end_ms:
+        params = {"symbol": symbol, "interval": "1h", "startTime": cursor,
+                  "endTime": end_ms, "limit": 1000}
+        last_error = None
+        batch = None
+        for attempt in range(6):
+            try:
+                response = SESSION.get(f"{BASE}/api/v3/klines", params=params, timeout=30)
+                if response.status_code in (418, 429):
+                    time.sleep(min(30, 2 ** attempt))
+                    continue
+                response.raise_for_status()
+                batch = response.json()
+                if not isinstance(batch, list):
+                    raise RuntimeError(f"{symbol}: invalid Binance hourly-candle response")
+                break
+            except Exception as exc:
+                last_error = exc
+                time.sleep(0.5 * (attempt + 1))
+        if batch is None:
+            raise RuntimeError(f"Unable to fetch {symbol} after retries: {last_error}")
+        if not batch:
+            break
+        all_rows.extend(batch)
+        next_cursor = int(batch[-1][0]) + INTERVAL_MS
+        if next_cursor <= cursor:
+            raise RuntimeError(f"{symbol}: Binance pagination stalled at {cursor}")
+        cursor = next_cursor
+        if len(batch) < 1000:
+            break
+        time.sleep(0.12)
+    if not all_rows:
+        raise RuntimeError(f"{symbol}: Binance returned no hourly candles in requested window")
+    frame = pd.DataFrame(all_rows, columns=[
+        "open_ms","open","high","low","close","base_volume","close_ms",
+        "quote_volume","trades","taker_base","taker_quote","ignore"
+    ])
+    for col in ("open","high","low","close","quote_volume"):
+        frame[col] = pd.to_numeric(frame[col], errors="raise")
+    frame["open_ms"] = pd.to_numeric(frame["open_ms"], errors="raise").astype("int64")
+    frame["close_ms"] = pd.to_numeric(frame["close_ms"], errors="raise").astype("int64")
+    frame = frame[(frame.open_ms >= start_ms) & (frame.open_ms < end_ms)].copy()
+    return frame.sort_values("open_ms").drop_duplicates("open_ms")
 
 def load_inputs(artifact_zip: Path):
     with zipfile.ZipFile(artifact_zip) as zf:
