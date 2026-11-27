@@ -26444,7 +26444,7 @@
         "sl_reached": false,
         "window_start": "2026-11-27 08:00:00+00:00",
         "window_end": "2026-11-27 09:00:00+00:00",
-        "observed_at": "2026-11-27T15:00:49.936034+03:30",
+        "observed_at": "2026-11-27T16:00:51.573997+03:30",
         "engine_version": 57
       },
       "2h": {
@@ -26457,7 +26457,20 @@
         "sl_reached": false,
         "window_start": "2026-11-27 08:00:00+00:00",
         "window_end": "2026-11-27 10:00:00+00:00",
-        "observed_at": "2026-11-27T15:00:49.937245+03:30",
+        "observed_at": "2026-11-27T16:00:51.575951+03:30",
+        "engine_version": 57
+      },
+      "4h": {
+        "close": 3665.38,
+        "change_percent": -0.0499,
+        "mfe_percent": 0.2517,
+        "mae_percent": 0.4213,
+        "tp1_reached": false,
+        "tp2_reached": false,
+        "sl_reached": false,
+        "window_start": "2026-11-27 08:00:00+00:00",
+        "window_end": "2026-11-27 12:00:00+00:00",
+        "observed_at": "2026-11-27T16:00:51.577892+03:30",
         "engine_version": 57
       }
     },
