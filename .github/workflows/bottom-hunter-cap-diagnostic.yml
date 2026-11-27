@@ -1,5 +1,8 @@
 name: Bottom Hunter Historical Volume Cap Diagnostic
 on:
+  push:
+    branches:
+      - diagnostic/bottom-hunter-historical-volume-cap-20261127
   workflow_dispatch:
     inputs:
       artifact_id:
@@ -37,11 +40,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "${D}{{ inputs.artifact_id }}" = "14102983195"
+          test "${D}{{ inputs.artifact_id || '14102983195' }}" = "14102983195"
           curl --fail --location --retry 3 \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/Ata31736052/crypto---bot/actions/artifacts/${D}{{ inputs.artifact_id }}/zip" \
+            "https://api.github.com/repos/Ata31736052/crypto---bot/actions/artifacts/14102983195/zip" \
             --output run160-artifact.zip
           unzip -t run160-artifact.zip
       - name: Compile and run offline-only cap diagnostic
