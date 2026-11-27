@@ -21,13 +21,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      GH_TOKEN: ${D}{{ github.token }}
+      GH_TOKEN: ${{ github.token }}
       PYTHONUNBUFFERED: "1"
     steps:
       - name: Checkout isolated diagnostic branch
         uses: actions/checkout@v4
         with:
-          ref: ${D}{{ github.ref }}
+          ref: ${{ github.ref }}
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -40,7 +40,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "${D}{{ inputs.artifact_id || '14102983195' }}" = "14102983195"
+          test "${{ inputs.artifact_id || '14102983195' }}" = "14102983195"
           curl --fail --location --retry 3 \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
