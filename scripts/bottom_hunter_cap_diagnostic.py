@@ -17,7 +17,7 @@ from run160_portfolio_ledger import portfolio_ledger
 REPO = "Ata31736052/crypto---bot"
 RUN_ID = 43565343756
 ARTIFACT_ID = 14102983195
-BASE = "https://api.binance.com"
+BASE = "https://data-api.binance.vision"
 INTERVAL_MS = 3_600_000
 SESSION = requests.Session()
 SESSION.headers.update({"User-Agent": "ApexSignal-offline-cap-diagnostic/1.0"})
