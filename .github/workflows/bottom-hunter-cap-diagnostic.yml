@@ -18,13 +18,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      GH_TOKEN: \${{ github.token }}
+      GH_TOKEN: ${D}{{ github.token }}
       PYTHONUNBUFFERED: "1"
     steps:
       - name: Checkout isolated diagnostic branch
         uses: actions/checkout@v4
         with:
-          ref: \${{ github.ref }}
+          ref: ${D}{{ github.ref }}
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -37,11 +37,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "\${{ inputs.artifact_id }}" = "14102983195"
+          test "${D}{{ inputs.artifact_id }}" = "14102983195"
           curl --fail --location --retry 3 \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/Ata31736052/crypto---bot/actions/artifacts/\${{ inputs.artifact_id }}/zip" \
+            "https://api.github.com/repos/Ata31736052/crypto---bot/actions/artifacts/${D}{{ inputs.artifact_id }}/zip" \
             --output run160-artifact.zip
           unzip -t run160-artifact.zip
       - name: Compile and run offline-only cap diagnostic
