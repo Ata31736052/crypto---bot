@@ -31,9 +31,6 @@ jobs:
       - name: Capture current Spot universe
         run: python scripts/capture_binance_universe.py
 
-      - name: Approximate Run #160 candidate history boundary
-        run: python scripts/reconstruct_run160_first_klines.py
-
       - name: Upload immutable snapshot
         uses: actions/upload-artifact@v4
         with:
