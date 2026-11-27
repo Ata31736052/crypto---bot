@@ -1,0 +1,40 @@
+name: Daily Binance Spot Universe Snapshot
+
+on:
+  schedule:
+    - cron: "15 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-binance-universe-snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependency
+        run: python -m pip install --disable-pip-version-check requests
+
+      - name: Capture current Spot universe
+        run: python scripts/capture_binance_universe.py
+
+      - name: Upload immutable snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: binance-spot-universe-${{ github.run_id }}
+          path: universe-snapshots/
+          if-no-files-found: error
+          retention-days: 90
