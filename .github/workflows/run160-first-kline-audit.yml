@@ -1,0 +1,30 @@
+name: Run #160 First-Kline Survivorship Audit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependency
+        run: python -m pip install --disable-pip-version-check requests
+      - name: Query earliest available 1h candles
+        run: python scripts/reconstruct_run160_first_klines.py
+      - name: Upload audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: run160-first-kline-audit-${{ github.run_id }}
+          path: universe-snapshots/
+          if-no-files-found: error
+          retention-days: 90
