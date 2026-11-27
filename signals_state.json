@@ -91,9 +91,9 @@
       "sent_at": "2026-11-26T01:01:40.321459+03:30"
     }
   },
-  "total_scans": 468,
+  "total_scans": 469,
   "total_signals": 481,
-  "last_scan": "2026-11-27T06:44:18.188563+03:30",
+  "last_scan": "2026-11-27T07:01:29.121364+03:30",
   "state_schema_version": 2,
   "spot_positions": {
     "QQQB": {
