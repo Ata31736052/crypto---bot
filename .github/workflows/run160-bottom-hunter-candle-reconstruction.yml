@@ -1,0 +1,42 @@
+name: Run160 Bottom Hunter Candle Reconstruction
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: run160-bottom-hunter-candle-reconstruction
+  cancel-in-progress: false
+
+jobs:
+  reconstruct:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout diagnostic branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependency
+        run: python -m pip install --disable-pip-version-check requests
+
+      - name: Reconstruct 72h low and confirmed swing resistance
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python diagnostics/run160_bottom_hunter_candle_reconstruction.py
+
+      - name: Upload diagnostic outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: run160-bottom-hunter-candle-reconstruction
+          path: diagnostic-output/
+          if-no-files-found: warn
+          retention-days: 90
