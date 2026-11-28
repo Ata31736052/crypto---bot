@@ -2,12 +2,6 @@ name: Run160 Bottom Hunter Candle Reconstruction
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - .github/workflows/run160-bottom-hunter-candle-reconstruction.yml
-      - diagnostics/run160_bottom_hunter_candle_reconstruction.py
 
 permissions:
   actions: read
