@@ -29,7 +29,7 @@ jobs:
 
       - name: Reconstruct 72h low and confirmed swing resistance
         env:
-          GITHUB_TOKEN: \${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: python diagnostics/run160_bottom_hunter_candle_reconstruction.py
 
       - name: Upload diagnostic outputs
