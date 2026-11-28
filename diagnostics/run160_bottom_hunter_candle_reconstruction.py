@@ -28,9 +28,12 @@ def download_original_trades():
     response.raise_for_status()
     with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
         candidates = [n for n in archive.namelist() if n.endswith("trades.csv")]
-        if len(candidates) != 1:
-            raise RuntimeError(f"Expected one trades.csv in artifact; found {candidates}")
-        return list(csv.DictReader(io.TextIOWrapper(archive.open(candidates[0]), encoding="utf-8-sig")))
+        # Run #160 stores several comparison exports; use the canonical root-level
+        # trades.csv, not nested engine/guard portfolio_trades.csv files.
+        root_candidates = [n for n in candidates if n == "trades.csv"]
+        if len(root_candidates) != 1:
+            raise RuntimeError(f"Expected exactly one root trades.csv in artifact; found {root_candidates}; all candidates={candidates}")
+        return list(csv.DictReader(io.TextIOWrapper(archive.open(root_candidates[0]), encoding="utf-8-sig")))
 
 def get_klines(symbol, end_time_ms):
     params = {"symbol": symbol, "interval": "1h", "endTime": end_time_ms, "limit": 72}
